@@ -11,14 +11,14 @@ LEAD's own sales platform, replacing SalesProcess. Version 1 covers:
 
 Contacts, deals, classes and enrolments stay in [`lead_crm`](https://github.com/theleadio/lead_crm). Both apps share one Supabase database and one sign-in.
 
-**Specs:** in `lead_crm`, `docs/superpowers/specs/2026-11-04-*.md` (PR #39). Start with `2026-11-04-lead-sales-build-plan.md`.
+**Specs:** `docs/specs/` (PR #2). Start with `2026-11-04-lead-sales-build-plan.md`.
 
 ## Ground rules (build plan §2)
 
 1. **Same stack as `lead_crm`:** Next.js 16, Supabase auth, raw SQL with `postgres`, Tailwind, Netlify. This Next.js has breaking changes, so read `node_modules/next/dist/docs/` before writing code (`AGENTS.md`).
 2. **One login.** Staff sign in with their CRM account; `app_user` and its role come from the shared database.
 3. **Own tables in the `sales` schema only.** Migrations are in `db/migrations/NNN_name.sql`. `npm run db:migrate` refuses a file that creates or alters anything outside `sales`. The CRM's tables change only through `lead_crm` migrations, with Shawn's review.
-4. **Never write CRM tables directly.** People, deals, enrolments and payments are written through CRM code (internal CRM endpoints). Reading them is fine.
+4. **Writing CRM data (decided 4 Nov, evening).** All new sales work lives in this repo, never in `lead_crm`. Where it must change CRM data (people, deals, enrolments, payments, audit_log), `lead_sales` writes the shared database **directly**, following the CRM's own rules, which are copied here and kept in step (e.g. `lib/auth/sign-in.ts`, `lib/audit.ts`). It never changes the CRM's **schema**.
 5. **Brand:** white, bright, Apple-like.
    - Logo blue `#A1BACE` and yellow `#FBE33B` are fills with **dark** text, and accents. White text on them fails WCAG AA; `tests/brand.test.ts` checks this.
    - Primary buttons are charcoal `#3D3D3D` until marketing picks a darker blue.
@@ -63,5 +63,4 @@ CI (`.github/workflows/ci.yml`) runs the same three on every PR.
 
 ## Not done in phase 0
 
-- **Sign-in audit and lockout.** `lead_crm` logs every sign-in and locks an account after 5 failures, using its `audit_log` table. `lead_sales` can't write that table (rule 4), so this needs a decision before go-live: a `sales.audit_log`, or an internal CRM endpoint.
 - **Netlify site.** Someone with Netlify access has to create one for this repo (`netlify.toml` is ready), with the three env vars from `.env.example`.

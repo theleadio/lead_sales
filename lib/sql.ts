@@ -1,9 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import postgres from "postgres";
 
-// Plain parameterised SQL, the same helper as lead_crm. lead_sales writes
-// only its own `sales` schema; CRM tables are read here and written through
-// CRM code (README ground rules). Tagged templates are parameterised,
+// Plain parameterised SQL, the same helper as lead_crm. lead_sales' own tables
+// are in the `sales` schema; CRM tables are written directly where needed,
+// following the CRM's copied rules (README ground rule 4). Tagged templates are parameterised,
 // so no string-built SQL (spec §14).
 
 type Sql = postgres.Sql;
