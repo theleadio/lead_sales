@@ -17,26 +17,27 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <span className="font-semibold tracking-wide">LEAD Sales</span>
         </div>
         <nav aria-label="Main" className="flex flex-col gap-1 text-sm">
-          {NAV.map((item) =>
-            item.ready ? (
-              <a
-                key={item.href}
-                href={item.href}
-                className="hover:bg-lead-blue/40 rounded-lg px-3 py-2 font-medium"
-              >
-                {item.label}
-              </a>
-            ) : (
-              <span
-                key={item.href}
-                className="text-ink-muted flex justify-between rounded-lg px-3 py-2"
-              >
-                {item.label}
-                <span className="bg-lead-yellow text-ink rounded-full px-2 text-[11px]">
-                  Phase {item.phase}
+          {NAV.filter((i) => !i.roles || i.roles.includes(user.role)).map(
+            (item) =>
+              item.ready ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="hover:bg-lead-blue/40 rounded-lg px-3 py-2 font-medium"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <span
+                  key={item.href}
+                  className="text-ink-muted flex justify-between rounded-lg px-3 py-2"
+                >
+                  {item.label}
+                  <span className="bg-lead-yellow text-ink rounded-full px-2 text-[11px]">
+                    Phase {item.phase}
+                  </span>
                 </span>
-              </span>
-            ),
+              ),
           )}
         </nav>
         <form action={signOutAction} className="mt-auto">
