@@ -19,7 +19,7 @@ async function clean() {
   const sql = db();
   await sql`DELETE FROM event_outbox`;
   await sql`DELETE FROM sales.lms_notice`;
-  await sql`DELETE FROM integration_event WHERE source IN ('stripe','lms')`;
+  await sql`DELETE FROM integration_event WHERE source IN ('stripe','lms','meta_leadgen')`;
   await sql`DELETE FROM meta_ad_insight`;
   await sql`DELETE FROM salesprocess_payment`;
 }
@@ -65,6 +65,7 @@ it("an empty system: queues ok, daily syncs down (never synced)", async () => {
       ["lms_notices", "ok"],
       ["lms_inbound", "ok"],
       ["stripe_webhook", "ok"],
+      ["meta_leads", "ok"],
       ["meta_ads_sync", "down"],
       ["salesprocess_sync", "down"],
     ],

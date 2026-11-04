@@ -1,4 +1,5 @@
 import type { Role } from "../auth/roles.ts";
+import { MAX_ATTEMPTS as META_MAX_ATTEMPTS } from "../meta/webhook.ts";
 import { db } from "../sql.ts";
 
 // Integration health (CRM spec §11.4, decided 4 Nov for every connection).
@@ -10,6 +11,7 @@ import { db } from "../sql.ts";
 //   lms_notices       sales.lms_notice (CRM → LMS, lib/lms)
 //   lms_inbound       integration_event, source 'lms' (LMS → CRM)
 //   stripe_webhook    integration_event, source 'stripe'
+//   meta_leads        integration_event, source 'meta_leadgen'
 //   meta_ads_sync     meta_ad_insight.synced_at (lead_crm daily-sync.yml)
 //   salesprocess_sync salesprocess_payment.synced_at (lead_crm daily-sync.yml)
 // Not covered: the LMS → CRM read sync and the GHL contact import write no
@@ -119,10 +121,12 @@ async function lmsNoticeHealth(): Promise<IntegrationHealth> {
   };
 }
 
-// Inbound webhooks: the sender (Stripe, the LMS) redelivers on its own, so
-// there is nothing to revive here, only to report.
+// Inbound webhooks: Stripe and the LMS redeliver on their own, so there is
+// nothing to revive, only to report. Meta leads are retried by meta:run;
+// the ones that ran out of tries can be revived (after fixing the cause,
+// e.g. a new Page token).
 async function inboundHealth(
-  source: "stripe" | "lms",
+  source: "stripe" | "lms" | "meta_leadgen",
   name: string,
 ): Promise<IntegrationHealth> {
   const sql = db();
@@ -141,14 +145,32 @@ async function inboundHealth(
     WHERE source = ${source} AND status = 'failed'
     ORDER BY processed_at DESC NULLS LAST LIMIT 1`;
   return {
-    key: source === "stripe" ? "stripe_webhook" : "lms_inbound",
+    key:
+      source === "stripe"
+        ? "stripe_webhook"
+        : source === "meta_leadgen"
+          ? "meta_leads"
+          : "lms_inbound",
     name,
     lastSuccessAt: iso(s.last_success),
     lastErrorAt: iso(s.last_error_at),
     lastErrorMessage: (last?.error as string | undefined) ?? null,
     queueDepth: s.queue,
     status: s.old_failed > 0 ? "down" : s.failed > 0 ? "degraded" : "ok",
-    retryable: [],
+    retryable:
+      source === "meta_leadgen"
+        ? (
+            await sql`
+              SELECT id, error FROM integration_event
+              WHERE source = 'meta_leadgen' AND status = 'failed'
+                AND attempts >= ${META_MAX_ATTEMPTS}
+              ORDER BY received_at DESC LIMIT 50`
+          ).map((d) => ({
+            id: d.id as string,
+            type: "meta lead",
+            lastError: (d.error as string | null) ?? null,
+          }))
+        : [],
   };
 }
 
@@ -193,6 +215,7 @@ export async function integrationHealth(): Promise<IntegrationHealth[]> {
     await lmsNoticeHealth(),
     await inboundHealth("lms", "LMS attendance and completion (LMS → CRM)"),
     await inboundHealth("stripe", "Stripe payments (webhook)"),
+    await inboundHealth("meta_leadgen", "Meta lead forms (webhook)"),
     await dailySyncHealth("meta_ads_sync", "Meta ads sync", "meta_ad_insight"),
     await dailySyncHealth(
       "salesprocess_sync",
@@ -206,11 +229,21 @@ export async function integrationHealth(): Promise<IntegrationHealth[]> {
 // given, so the next run tries them again. For the CRM outbox this writes the
 // CRM's event_outbox the way lead_crm's retryDeadEvents() does.
 export async function retryIntegration(input: {
-  integration: "crm_outbox" | "lms_notices";
+  integration: "crm_outbox" | "lms_notices" | "meta_leads";
   ids?: string[];
 }): Promise<number> {
   const sql = db();
   const ids = input.ids ?? null;
+  if (input.integration === "meta_leads")
+    return (
+      await sql`
+        UPDATE integration_event
+        SET attempts = 0, next_attempt_at = now(), updated_at = now()
+        WHERE source = 'meta_leadgen' AND status = 'failed'
+          AND attempts >= ${META_MAX_ATTEMPTS}
+          AND (${ids}::uuid[] IS NULL OR id = ANY(${ids}::uuid[]))
+        RETURNING id`
+    ).length;
   const rows =
     input.integration === "crm_outbox"
       ? await sql`
