@@ -1,0 +1,88 @@
+# The background jobs lead_sales needs (decided 4 Nov: GitHub Actions).
+#
+#   lms   CRM → LMS: read CRM changes into sales.lms_notice and send them
+#         (scripts/lms-run.ts)
+#   meta  retry Meta leads the webhook couldn't save yet (scripts/meta-run.ts)
+#
+# Every 5 minutes, GitHub's shortest schedule. GitHub runs scheduled
+# workflows from the default branch only, and may start them late or skip
+# a run when it is busy, so a notice can take longer than 5 minutes; nothing
+# is lost, because each run picks up everything still due. Started by hand:
+# Actions > schedule > Run workflow.
+#
+# Secrets (Settings > Secrets and variables > Actions): DATABASE_URL, and for
+# each job its own: LMS_HANDOFF_ENABLED, LMS_WEBHOOK_URL, LMS_WEBHOOK_SECRET;
+# META_PAGE_ACCESS_TOKEN (META_GRAPH_VERSION optional). A job whose secrets
+# aren't set yet is skipped, not failed.
+#
+# Logs may be public: the scripts print counts and error messages only, and
+# scripts/ci-errors.mjs keeps an uncaught error to its message.
+name: schedule
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time: a slow run is never overlapped by the next.
+concurrency:
+  group: schedule
+  cancel-in-progress: false
+
+jobs:
+  lms:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      LMS_HANDOFF_ENABLED: ${{ secrets.LMS_HANDOFF_ENABLED }}
+      LMS_WEBHOOK_URL: ${{ secrets.LMS_WEBHOOK_URL }}
+      LMS_WEBHOOK_SECRET: ${{ secrets.LMS_WEBHOOK_SECRET }}
+    steps:
+      - name: Skip until configured
+        id: ready
+        run: |
+          if [ -n "$DATABASE_URL" ] && [ "$LMS_HANDOFF_ENABLED" = "true" ] \
+             && [ -n "$LMS_WEBHOOK_URL" ] && [ -n "$LMS_WEBHOOK_SECRET" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "LMS hand-off secrets not set (or LMS_HANDOFF_ENABLED isn't true): skipped."
+          fi
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - if: steps.ready.outputs.go == 'true'
+        run: npm ci --omit=dev
+      - if: steps.ready.outputs.go == 'true'
+        run: node --import=./scripts/ci-errors.mjs scripts/lms-run.ts
+
+  meta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      META_PAGE_ACCESS_TOKEN: ${{ secrets.META_PAGE_ACCESS_TOKEN }}
+      META_GRAPH_VERSION: ${{ secrets.META_GRAPH_VERSION }}
+    steps:
+      - name: Skip until configured
+        id: ready
+        run: |
+          if [ -n "$DATABASE_URL" ] && [ -n "$META_PAGE_ACCESS_TOKEN" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Meta secrets not set: skipped."
+          fi
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - if: steps.ready.outputs.go == 'true'
+        run: npm ci --omit=dev
+      - if: steps.ready.outputs.go == 'true'
+        run: node --import=./scripts/ci-errors.mjs scripts/meta-run.ts
