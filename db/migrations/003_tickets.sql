@@ -166,7 +166,9 @@ CREATE INDEX IF NOT EXISTS ticket_by_assignee
 -- Append-only history: creation, status, reassignment, category, notes.
 CREATE TABLE IF NOT EXISTS sales.ticket_event (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at  timestamptz NOT NULL DEFAULT now(),
+  -- clock_timestamp(), not now(): events written in one transaction (a
+  -- follow-up closes the old ticket and creates the new one) keep their order.
+  created_at  timestamptz NOT NULL DEFAULT clock_timestamp(),
   ticket_id   uuid NOT NULL REFERENCES sales.ticket(id),
   user_id     uuid REFERENCES app_user(id),
   kind        text NOT NULL CHECK (kind IN ('created','status','assigned','category','note','first_response')),
