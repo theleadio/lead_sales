@@ -1,6 +1,6 @@
 // One CRM → LMS cycle: read CRM changes into sales.lms_notice, then send
-// everything due. Run it on a schedule (every minute or few). Where it runs
-// (a Netlify scheduled function, a worker host) is not decided yet.
+// everything due. Runs every 5 minutes from .github/workflows/schedule.yml
+// (decided 4 Nov: GitHub Actions).
 //
 //   npm run lms:run
 //
@@ -23,7 +23,14 @@ try {
   console.log(
     `lms: queued ${JSON.stringify(watched)} sent ${JSON.stringify(total)}`,
   );
-  if (total.failed > 0) process.exitCode = 1;
+  // Red only for a notice that ran out of tries: a retry waiting out its
+  // backoff is normal, and a red run every 5 minutes would bury the real one.
+  if (total.dead > 0) process.exitCode = 1;
+} catch (e) {
+  // The message only: a database error's detail can hold an email or phone,
+  // and Actions logs may be public.
+  console.error(`lms: ${e instanceof Error ? e.message : String(e)}`);
+  process.exitCode = 1;
 } finally {
   await closeDb();
 }

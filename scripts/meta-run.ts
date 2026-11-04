@@ -1,5 +1,6 @@
 // Tries again every Meta lead the webhook couldn't save yet (Graph API
-// down, token expired, …), after its wait. Run it on a schedule.
+// down, token expired, …), after its wait. Runs every 5 minutes from
+// .github/workflows/schedule.yml.
 //
 //   npm run meta:run
 //
@@ -16,8 +17,14 @@ try {
   } else {
     const r = await runMetaQueue(deps);
     console.log(`meta: ${JSON.stringify(r)}`);
-    if (r.failed + r.lost > 0) process.exitCode = 1;
+    // Red only for a lead that ran out of tries (marketing have a task).
+    if (r.lost > 0) process.exitCode = 1;
   }
+} catch (e) {
+  // The message only: a database error's detail can hold an email or phone,
+  // and Actions logs may be public.
+  console.error(`meta: ${e instanceof Error ? e.message : String(e)}`);
+  process.exitCode = 1;
 } finally {
   await closeDb();
 }
