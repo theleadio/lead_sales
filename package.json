@@ -10,7 +10,9 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --env-file-if-exists=.env.local --test-concurrency=1 --test \"tests/**/*.test.ts\"",
-    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.ts"
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.ts",
+    "lms:run": "node --env-file-if-exists=.env.local scripts/lms-run.ts",
+    "lms:backfill": "node --env-file-if-exists=.env.local scripts/lms-backfill.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
