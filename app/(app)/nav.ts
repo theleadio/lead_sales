@@ -2,7 +2,7 @@
 // into a link once its phase ships; until then it shows its phase.
 export const NAV = [
   { href: "/inbox", label: "Inbox", phase: 1, ready: true },
-  { href: "/tickets", label: "Tickets", phase: 1, ready: false },
+  { href: "/tickets", label: "Tickets", phase: 1, ready: true },
   { href: "/automations", label: "Automations", phase: 2, ready: false },
   { href: "/email", label: "Email marketing", phase: 3, ready: false },
   { href: "/social", label: "Social planner", phase: 3, ready: false },
