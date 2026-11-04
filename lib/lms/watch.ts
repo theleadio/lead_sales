@@ -56,14 +56,18 @@ export async function watchEnrolments(): Promise<number> {
     // with clock_timestamp(), which inside one transaction is later than
     // now() (the transaction's start). Rows not yet committed at this moment
     // are picked up by the next run's overlap.
-    const [{ now }] = await sql`SELECT clock_timestamp() AS now`;
+    // Kept as text all the way: a JS Date drops microseconds, which would
+    // move the bound a fraction of a millisecond before a row it must
+    // include. `::text::timestamptz` below makes the driver send the
+    // parameter as text; a bare `::timestamptz` parameter is sent as a Date.
+    const [{ now }] = await sql`SELECT clock_timestamp()::text AS now`;
     const [c] = await sql`
       SELECT read_until FROM sales.lms_cursor WHERE name = 'enrolment_status'
       FOR UPDATE`;
     if (!c) {
       await sql`
         INSERT INTO sales.lms_cursor (name, read_until)
-        VALUES ('enrolment_status', ${now})`;
+        VALUES ('enrolment_status', ${now}::text::timestamptz)`;
       return 0;
     }
     const rows = await sql`
@@ -71,7 +75,7 @@ export async function watchEnrolments(): Promise<number> {
       FROM enrolment_status_history h JOIN enrolment e ON e.id = h.enrolment_id
       WHERE h.changed_at > ${c.read_until}::timestamptz
                            - make_interval(mins => ${OVERLAP_MINUTES})
-        AND h.changed_at <= ${now}
+        AND h.changed_at <= ${now}::text::timestamptz
       ORDER BY h.changed_at, h.id`;
     let queued = 0;
     for (const r of rows) {
@@ -92,7 +96,7 @@ export async function watchEnrolments(): Promise<number> {
         );
     }
     await sql`
-      UPDATE sales.lms_cursor SET read_until = ${now}
+      UPDATE sales.lms_cursor SET read_until = ${now}::text::timestamptz
       WHERE name = 'enrolment_status'`;
     return queued;
   });

@@ -232,3 +232,14 @@ it("a transfer is sent with the new enrolment and class", async () => {
   assert.equal(m.data.newEnrolmentId, newId);
   assert.equal((m.data.class as { id: string }).id, toClass);
 });
+
+it("a change in the same millisecond as the watcher's read is not lost (microsecond bound)", async () => {
+  await fresh();
+  // Many students right before the read: some history rows land in the same
+  // millisecond as the watcher's clock. Every one must be queued in this run.
+  const ids: string[] = [];
+  for (let i = 0; i < 20; i++) ids.push((await student()).enrolmentId);
+  assert.equal(await watchEnrolments(), 20);
+  const queued = await db()`SELECT ref_id FROM sales.lms_notice`;
+  assert.deepEqual(queued.map((r) => r.ref_id).sort(), [...ids].sort());
+});
