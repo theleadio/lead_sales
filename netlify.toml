@@ -1,0 +1,12 @@
+# Same Netlify setup as lead_crm: build the Next.js app (Netlify installs and
+# updates @netlify/plugin-nextjs itself, so it isn't pinned here).
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# NEXT_PUBLIC_* values are inlined into the browser bundle by design, so the
+# secrets scan must not fail the build on them. Every other key is scanned.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**"

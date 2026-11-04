@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* LEAD brand, decided 4 Nov: white, bright, Apple-like.
+   Logo colours (read from the logo file, confirmed final 4 Nov):
+     blue #A1BACE, yellow #FBE33B, circle grey #3D3D3D, wordmark #0A0A0A.
+   Contrast (tests/brand.test.ts): white text on the logo blue or yellow
+   fails WCAG AA, so they are fills with DARK text and accents only. Primary
+   buttons are charcoal with white text until marketing picks a darker blue. */
+:root {
+  --surface: #ffffff;
+  --surface-muted: #f5f5f7;
+  --line: #e5e5ea;
+  --ink: #0a0a0a;
+  --ink-muted: #3d3d3d;
+  --lead-blue: #a1bace;
+  --lead-yellow: #fbe33b;
+  --charcoal: #3d3d3d;
+  --action: #3d3d3d;
+  --action-ink: #ffffff;
+  --focus-ring: #0a0a0a;
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-lead-blue: var(--lead-blue);
+  --color-lead-yellow: var(--lead-yellow);
+  --color-charcoal: var(--charcoal);
+  --color-action: var(--action);
+  --color-action-ink: var(--action-ink);
+  --color-focus-ring: var(--focus-ring);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--surface);
+  color: var(--ink);
+}
