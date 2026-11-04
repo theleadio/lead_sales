@@ -50,3 +50,11 @@ test("primary buttons and body text pass AA", async () => {
   assert.ok(contrast(t.ink, t.surface) >= 4.5);
   assert.ok(contrast(t["ink-muted"], t["surface-muted"]) >= 4.5);
 });
+
+test("danger red text on white passes WCAG AA", async () => {
+  const t = await tokens();
+  assert.ok(
+    contrast(t.danger, t.surface) >= 4.5,
+    `${contrast(t.danger, t.surface)}`,
+  );
+});
