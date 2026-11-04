@@ -12,7 +12,7 @@ import {
 // integration, or only `ids`. Stripe and the LMS redeliver on their own and
 // the daily syncs re-run from GitHub Actions, so only the two queues retry.
 const body = z.object({
-  integration: z.enum(["crm_outbox", "lms_notices"]),
+  integration: z.enum(["crm_outbox", "lms_notices", "meta_leads"]),
   ids: z.array(z.uuid()).min(1).max(500).optional(),
 });
 

@@ -8,9 +8,8 @@ import { leadSchema } from "../crm/lead-schema.ts";
 // lib/crm/: the same dedupe, consent and deal as a website lead. No lead_crm
 // endpoint (that was lead_crm PR #46, closed).
 //
-// Not here yet: Meta's leadgen webhook and the Graph API fetch of the lead's
-// answers, which then call captureMetaLead(). Their exact permissions and
-// fields must be checked against Meta's current docs first (draft §5).
+// The leadgen webhook and the Graph API fetch of the lead's answers, which
+// call captureMetaLead(), are in lib/meta/webhook.ts.
 
 export const metaLeadSchema = leadSchema.safeExtend({
   // `meta-leadgen:<lead id>`: Meta can deliver one lead more than once, and a
