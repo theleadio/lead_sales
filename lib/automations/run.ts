@@ -1,8 +1,9 @@
 import { writeAudit } from "../audit.ts";
-import { dutySuperAdmin } from "../crm/people.ts";
+import { dutySuperAdmin, isUuid } from "../crm/people.ts";
 import { db, withTransaction } from "../sql.ts";
 import { replyDueAt } from "../tickets/deadline.ts";
-import { loadHolidays } from "../tickets/service.ts";
+import { loadHolidays, TicketError, type Actor } from "../tickets/service.ts";
+import { canEditAutomations } from "./admin.ts";
 import {
   BACKOFF_SECONDS,
   MAX_ATTEMPTS,
@@ -343,10 +344,23 @@ export async function runDue(
 }
 
 // For the editor's "run again" on a failed run: from the step that failed.
-export async function retryRun(
-  actor: { id: string },
-  runId: string,
-): Promise<boolean> {
+// Same editors as the editor itself (management, super_admin, sales).
+export async function retryRun(actor: Actor, runId: string): Promise<boolean> {
+  if (!canEditAutomations(actor.role)) {
+    await writeAudit({
+      userId: actor.id,
+      action: "permission_denied",
+      entity: "automation_run",
+      entityId: isUuid(runId) ? runId : null,
+      before: null,
+      after: null,
+    });
+    throw new TicketError(
+      "forbidden",
+      "Only management, super_admin and sales can change automations.",
+    );
+  }
+  if (!isUuid(runId)) return false;
   const rows = await db()`
     UPDATE sales.automation_run
     SET status = 'running', attempts = 0, last_error = NULL, finished_at = NULL,

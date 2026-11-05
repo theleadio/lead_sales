@@ -12,7 +12,13 @@ export const NAV: readonly {
 }[] = [
   { href: "/inbox", label: "Inbox", phase: 1, ready: true },
   { href: "/tickets", label: "Tickets", phase: 1, ready: true },
-  { href: "/automations", label: "Automations", phase: 2, ready: false },
+  {
+    href: "/automations",
+    label: "Automations",
+    phase: 2,
+    ready: true,
+    roles: ["super_admin", "management", "sales"],
+  },
   { href: "/email", label: "Email marketing", phase: 3, ready: false },
   { href: "/social", label: "Social planner", phase: 3, ready: false },
   { href: "/sites", label: "Sites & forms", phase: 4, ready: false },

@@ -379,3 +379,42 @@ it("only management, super_admin and sales may edit; marketing is refused and au
     SELECT 1 FROM audit_log WHERE action = 'permission_denied' AND entity = 'automation' AND user_id = ${m.id}`;
   assert.ok(a);
 });
+
+it("'Run again' is for editors only; a refusal is audited, and a bad id changes nothing", async () => {
+  await fresh();
+  const b = await boss();
+  const id = await saveAutomation(b, {
+    name: "Retry guard",
+    trigger: "LeadCaptured",
+    conditions: [],
+    steps: [
+      { kind: "send_email", settings: { template: "x", purpose: "service" } },
+    ],
+  });
+  await setAutomationActive(b, id, true);
+  const p = await newPerson("Guarded");
+  await db()`UPDATE person SET email = ${`g-${crypto.randomUUID().slice(0, 8)}@example.test`} WHERE id = ${p}`;
+  await leadEvent(p);
+  await watchTriggers();
+  await runDue({});
+  const r = await runOf(p);
+  assert.equal(r.status, "failed");
+
+  const m = await newUser("marketing");
+  await assert.rejects(
+    retryRun(m, r.id),
+    /Only management, super_admin and sales/,
+  );
+  assert.equal((await runOf(p)).status, "failed", "still failed");
+  const [denied] = await db()`
+    SELECT 1 FROM audit_log
+    WHERE action = 'permission_denied' AND entity = 'automation_run' AND user_id = ${m.id}`;
+  assert.ok(denied);
+  assert.equal(await retryRun(b, "not-a-uuid"), false);
+  assert.equal(await retryRun(b, r.id), true);
+  assert.equal(
+    await retryRun(b, r.id),
+    false,
+    "only a failed run can be retried",
+  );
+});
