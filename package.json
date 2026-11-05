@@ -13,7 +13,8 @@
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.ts",
     "lms:run": "node --env-file-if-exists=.env.local scripts/lms-run.ts",
     "lms:backfill": "node --env-file-if-exists=.env.local scripts/lms-backfill.ts",
-    "meta:run": "node --env-file-if-exists=.env.local scripts/meta-run.ts"
+    "meta:run": "node --env-file-if-exists=.env.local scripts/meta-run.ts",
+    "automations:run": "node --env-file-if-exists=.env.local scripts/automations-run.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

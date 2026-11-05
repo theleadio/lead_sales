@@ -3,6 +3,7 @@
 #   lms   CRM → LMS: read CRM changes into sales.lms_notice and send them
 #         (scripts/lms-run.ts)
 #   meta  retry Meta leads the webhook couldn't save yet (scripts/meta-run.ts)
+#   automations  start and advance automation runs (scripts/automations-run.ts)
 #
 # Every 5 minutes, GitHub's shortest schedule. GitHub runs scheduled
 # workflows from the default branch only, and may start them late or skip
@@ -86,3 +87,27 @@ jobs:
         run: npm ci --omit=dev
       - if: steps.ready.outputs.go == 'true'
         run: node --import=./scripts/ci-errors.mjs scripts/meta-run.ts
+
+  automations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Skip until configured
+        id: ready
+        run: |
+          if [ -n "$DATABASE_URL" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "DATABASE_URL not set: skipped."
+          fi
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - if: steps.ready.outputs.go == 'true'
+        run: npm ci --omit=dev
+      - if: steps.ready.outputs.go == 'true'
+        run: node --import=./scripts/ci-errors.mjs scripts/automations-run.ts
