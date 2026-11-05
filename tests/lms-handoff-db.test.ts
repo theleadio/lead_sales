@@ -11,7 +11,8 @@ import {
   watchPeople,
 } from "../lib/lms/watch.ts";
 import { closeDb, db } from "../lib/sql.ts";
-import { enrol, it, newClass, newCourse, newUser } from "./seed.ts";
+import { enrolmentIdFor } from "../lib/crm/salesprocess-ids.ts";
+import { enrol, it, newClass, newCourse, newPerson, newUser } from "./seed.ts";
 
 after(closeDb);
 
@@ -137,6 +138,41 @@ it("a cancel is sent only for a student who was ever confirmed", async () => {
   assert.equal(cancels.length, 1);
   assert.equal(cancels[0].ref_id, was.enrolmentId);
   assert.equal(cancels[0].extra.reason, "student_withdrew");
+});
+
+it("a seat the SalesProcess import made is not sent as confirmed, but its cancel is", async () => {
+  await fresh();
+  const orderId = `order-${crypto.randomUUID()}`;
+  const id = enrolmentIdFor(orderId);
+  const classId = await newClass({ courseId: await newCourse() });
+  const personId = await newPerson("Imported Student");
+  await db()`UPDATE person SET email = ${`i-${id.slice(0, 8)}@lead.test`} WHERE id = ${personId}`;
+  await db()`
+    INSERT INTO salesprocess_payment (id, order_id, ghl_contact_id, status, amount_myr, currency, live_mode, paid_at)
+    VALUES (${`txn-${orderId}`}, ${orderId}, 'ghl-contact', 'succeeded', 3200, 'MYR', false, now())`;
+  await db()`
+    INSERT INTO enrolment (id, person_id, class_id, status, payer_type, price_paid_myr)
+    VALUES (${id}, ${personId}, ${classId}, 'confirmed', 'self', 3200)`;
+  const normal = await student();
+
+  await watchEnrolments();
+  const confirmed = await db()`
+    SELECT ref_id FROM sales.lms_notice WHERE kind = 'enrolment.confirmed'`;
+  assert.deepEqual(
+    confirmed.map((r) => r.ref_id),
+    [normal.enrolmentId],
+    "GHL already onboarded the imported student",
+  );
+
+  // Adopted by the LMS sync, the student is in the LMS: a cancel still goes out.
+  await db()`UPDATE enrolment SET status = 'cancelled', cancelled_reason = 'Not in the LMS at class start' WHERE id = ${id}`;
+  await watchEnrolments();
+  const cancels = await db()`
+    SELECT ref_id FROM sales.lms_notice WHERE kind = 'enrolment.cancelled'`;
+  assert.deepEqual(
+    cancels.map((r) => r.ref_id),
+    [id],
+  );
 });
 
 it("no email: skipped with an Ops task; adding the email sends the student", async () => {

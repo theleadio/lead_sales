@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { enrolmentIdFor } from "../crm/salesprocess-ids.ts";
 import { db, withTransaction } from "../sql.ts";
 import { lmsHandoffEnabled, type LmsNoticeKind } from "./send.ts";
 
@@ -77,13 +78,25 @@ export async function watchEnrolments(): Promise<number> {
                            - make_interval(mins => ${OVERLAP_MINUTES})
         AND h.changed_at <= ${now}::text::timestamptz
       ORDER BY h.changed_at, h.id`;
+    // Seats the SalesProcess import made (lead_crm #44): GHL onboarded those
+    // students already, so their confirm is not sent (decided 5 Nov). Their
+    // cancel and transfer still are: once adopted, they are in the LMS.
+    const imported = rows.some((r) => r.to_status === "confirmed")
+      ? new Set(
+          (
+            await sql`SELECT DISTINCT order_id FROM salesprocess_payment
+                      WHERE order_id IS NOT NULL`
+          ).map((p) => enrolmentIdFor(p.order_id as string)),
+        )
+      : new Set<string>();
     let queued = 0;
     for (const r of rows) {
       const key = `history:${r.id}`;
       const id = r.enrolment_id as string;
-      if (r.to_status === "confirmed")
-        queued += Number(await queue("enrolment.confirmed", id, key));
-      else if (r.to_status === "transferred")
+      if (r.to_status === "confirmed") {
+        if (!imported.has(id))
+          queued += Number(await queue("enrolment.confirmed", id, key));
+      } else if (r.to_status === "transferred")
         queued += Number(await queue("enrolment.transferred", id, key));
       else if (
         (r.to_status === "cancelled" || r.to_status === "refunded") &&
