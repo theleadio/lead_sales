@@ -16,7 +16,7 @@ import {
 import { retryRun, runDue, type Sender } from "../lib/automations/run.ts";
 import { watchTriggers } from "../lib/automations/watch.ts";
 import { closeDb, db } from "../lib/sql.ts";
-import { it, newPerson, newUser } from "./seed.ts";
+import { it, newClass, newPerson, newUser } from "./seed.ts";
 
 after(closeDb);
 
@@ -360,6 +360,37 @@ it("a ticket trigger starts a run when its condition holds", async () => {
     VALUES (${p}, 'manual', 'receipt', ${cat.team_id}, 'Receipt', now() + interval '1 day', clock_timestamp())`;
   assert.equal(await watchTriggers(), 1);
   assert.equal((await runDue()).done, 1);
+});
+
+it("LMS account ready starts onboarding, except for a go-live backfill notice", async () => {
+  await fresh();
+  const b = await boss();
+  const a = await saveAutomation(b, {
+    name: "Onboarding",
+    trigger: "LmsAccountReady",
+    conditions: [],
+    steps: [{ kind: "add_tag", settings: { tag: "Onboarded" } }],
+  });
+  await setAutomationActive(b, a, true);
+  const notice = async (prefix: "history" | "backfill") => {
+    const [e] = await db()`
+      INSERT INTO enrolment (person_id, class_id, status, payer_type, price_paid_myr)
+      VALUES (${await newPerson(`${prefix} student`)}, ${await newClass()}, 'confirmed', 'self', 1500)
+      RETURNING id, person_id`;
+    await db()`
+      INSERT INTO sales.lms_notice (kind, ref_id, source_key, sent_at)
+      VALUES ('enrolment.confirmed', ${e.id}, ${`${prefix}:${e.id}`}, clock_timestamp())`;
+    return e.person_id as string;
+  };
+  const fresher = await notice("history");
+  const backfilled = await notice("backfill");
+  assert.equal(await watchTriggers(), 1);
+  assert.ok(await runOf(fresher));
+  assert.equal(
+    await runOf(backfilled),
+    undefined,
+    "a student already in a class at go-live was onboarded before",
+  );
 });
 
 it("only management, super_admin and sales may edit; marketing is refused and audited", async () => {
