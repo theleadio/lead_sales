@@ -1,0 +1,330 @@
+import { createHash, timingSafeEqual } from "node:crypto";
+import { writeAudit } from "../audit.ts";
+import { findDuplicate } from "../crm/dedupe.ts";
+import { normalizePhoneE164 } from "../crm/phone.ts";
+import { dedupeCandidates, raiseDuplicateTask } from "../crm/people.ts";
+import { db, withTransaction } from "../sql.ts";
+
+// WATI webhook, inbound side (cutover plan WP1, first PR). Event and field
+// names follow WATI's webhook reference (docs.wati.io, read 6 Nov); verify
+// them against a real delivery before relying on one. What it does:
+//   message                     customer message → person, thread, message
+//   sessionMessageSent(_v2),
+//   templateMessageSent(_v2)    a message sent from the WATI app → ours (out)
+//   sentMessageDELIVERED(_v2),
+//   sentMessageREAD(_v2),
+//   sessionMessageFailed,
+//   templateMessageFailed       moves our message's status on, never back
+// Everything else is recorded and ignored. Sending from this app is the
+// next PR.
+//
+// WATI documents no signature, so the URL carries a long random secret
+// (WATI_WEBHOOK_SECRET, ?token=…). The webhook records each event in
+// integration_event first (source 'wati'), then processes it; one that
+// fails is tried again by `npm run wati:run`, like Meta leads. Once an event
+// is done its stored payload shrinks to ids: the customer's text lives in
+// sales.message only (PDPA).
+
+export const SOURCE = "wati";
+export const MAX_ATTEMPTS = 5;
+export const BACKOFF_SECONDS = [60, 300, 1800, 7200];
+const LEASE_SECONDS = 300;
+
+export type WatiEvent = Record<string, unknown>;
+
+const str = (v: unknown): string | null =>
+  typeof v === "string" && v.trim()
+    ? v.trim()
+    : typeof v === "number"
+      ? String(v)
+      : null;
+
+// ---- The secret ------------------------------------------------------------------
+
+export function verifyWatiToken(given: string | null, secret: string): boolean {
+  if (!secret || !given) return false;
+  // Hashed first: timingSafeEqual needs equal lengths, and the length of the
+  // secret shouldn't leak.
+  const h = (s: string) => createHash("sha256").update(s).digest();
+  return timingSafeEqual(h(given), h(secret));
+}
+
+// ---- Events ----------------------------------------------------------------------
+
+const INBOUND = new Set(["message"]);
+const ECHO = new Set([
+  "sessionMessageSent",
+  "sessionMessageSent_v2",
+  "templateMessageSent",
+  "templateMessageSent_v2",
+]);
+const STATUS: Record<string, "delivered" | "read" | "failed"> = {
+  sentMessageDELIVERED: "delivered",
+  sentMessageDELIVERED_v2: "delivered",
+  sentMessageREAD: "read",
+  sentMessageREAD_v2: "read",
+  sessionMessageFailed: "failed",
+  templateMessageFailed: "failed",
+};
+// A status only moves forward: queued < sent < failed < delivered < read.
+const RANK = { queued: 0, sent: 1, failed: 1.5, delivered: 2, read: 3 };
+
+// One key per event type and message: WATI sends several events for one
+// message (sent, delivered, read), and a redelivery has the same key.
+export function eventKey(e: WatiEvent): string | null {
+  const type = str(e.eventType);
+  const id = str(e.whatsappMessageId) ?? str(e.id);
+  return type && id ? `${type}:${id}` : null;
+}
+
+// What stays in integration_event once an event is done.
+function kept(e: WatiEvent): Record<string, unknown> {
+  return {
+    eventType: str(e.eventType),
+    id: str(e.id),
+    whatsappMessageId: str(e.whatsappMessageId),
+    failedCode: str(e.failedCode),
+    failedDetail: str(e.failedDetail),
+  };
+}
+
+export async function recordWatiEvent(
+  key: string,
+  e: WatiEvent,
+): Promise<boolean> {
+  const sql = db();
+  const [row] = await sql`
+    INSERT INTO integration_event (source, external_event_id, payload)
+    VALUES (${SOURCE}, ${key}, ${sql.json(e as never)})
+    ON CONFLICT (source, external_event_id) DO NOTHING
+    RETURNING id`;
+  return Boolean(row);
+}
+
+// ---- Saving ----------------------------------------------------------------------
+
+// A payload retrying can't fix (no usable phone number).
+class NotUsable extends Error {}
+
+function whenOf(e: WatiEvent): Date {
+  const t = str(e.timestamp);
+  if (t && /^\d+$/.test(t))
+    return new Date(Number(t) * (t.length > 10 ? 1 : 1000));
+  const c = str(e.created);
+  const d = c ? new Date(c) : null;
+  return d && !Number.isNaN(d.getTime()) ? d : new Date();
+}
+
+// The CRM's §12.2 rules, as the help form does: a hard match on the phone is
+// the person (never renamed); a soft match still creates, flagged, with a
+// review task.
+async function findOrCreatePerson(
+  e164: string,
+  name: string | null,
+): Promise<string> {
+  const candidate = {
+    fullName: name ?? `WhatsApp ${e164}`,
+    emailNorm: null,
+    phoneE164: e164,
+    companyNorm: null,
+  };
+  const dup = findDuplicate(candidate, await dedupeCandidates(candidate, null));
+  if (dup.kind === "hard") return dup.match.id;
+  const [p] = await db()`
+    INSERT INTO person (full_name, phone, phone_e164, whatsapp_e164,
+                        needs_review, needs_review_reason)
+    VALUES (${candidate.fullName}, ${e164}, ${e164}, ${e164},
+            ${dup.kind === "soft"},
+            ${dup.kind === "soft" ? `possible_duplicate_${dup.on}` : null})
+    RETURNING id`;
+  if (dup.kind === "soft")
+    await raiseDuplicateTask(
+      p.id,
+      { id: dup.match.id, fullName: dup.match.fullName },
+      null,
+    );
+  await writeAudit({
+    userId: null,
+    action: "create",
+    entity: "person",
+    entityId: p.id,
+    before: null,
+    after: { source: "wati" },
+  });
+  return p.id as string;
+}
+
+function e164Of(e: WatiEvent): string {
+  const wa = (str(e.waId) ?? "").replace(/\D/g, "");
+  const e164 = wa ? normalizePhoneE164(`+${wa}`) : null;
+  if (!e164) throw new NotUsable("The event has no usable phone number");
+  return e164;
+}
+
+function bodyOf(e: WatiEvent): string {
+  const text = str(e.text);
+  if (text) return text;
+  const template = str(e.templateName) ?? str(e.elementName);
+  if (template) return `[template ${template}]`;
+  return `[${str(e.type) ?? "message"}]`;
+}
+
+// One WhatsApp thread per customer: their WhatsApp number is the thread id.
+async function saveMessage(
+  e: WatiEvent,
+  direction: "in" | "out",
+): Promise<void> {
+  const sql = db();
+  const e164 = e164Of(e);
+  const personId = await findOrCreatePerson(e164, str(e.senderName));
+  const at = whenOf(e);
+  const inboundAt = direction === "in" ? at : null;
+  const [conv] = await sql`
+    INSERT INTO sales.conversation (person_id, channel, external_thread_id,
+                                    last_message_at, last_inbound_at)
+    VALUES (${personId}, 'whatsapp', ${e164.slice(1)}, ${at}, ${inboundAt})
+    ON CONFLICT (channel, external_thread_id) DO UPDATE
+      SET last_message_at = greatest(sales.conversation.last_message_at, ${at}),
+          last_inbound_at = greatest(sales.conversation.last_inbound_at, ${inboundAt})
+    RETURNING id`;
+  await sql`
+    INSERT INTO sales.message (conversation_id, person_id, channel, direction,
+                               external_message_id, body, sent_at, status)
+    VALUES (${conv.id}, ${personId}, 'whatsapp', ${direction},
+            ${str(e.whatsappMessageId) ?? str(e.id)}, ${bodyOf(e)}, ${at},
+            ${direction === "in" ? "received" : "sent"})
+    ON CONFLICT (channel, external_message_id) DO NOTHING`;
+}
+
+// Our message, by any id WATI might use for it.
+const idsOf = (e: WatiEvent) =>
+  [str(e.whatsappMessageId), str(e.localMessageId), str(e.id)].filter(
+    (x): x is string => x !== null,
+  );
+
+async function moveStatus(
+  ids: string[],
+  to: keyof typeof RANK,
+): Promise<boolean> {
+  const sql = db();
+  const found = await sql`
+    SELECT id FROM sales.message
+    WHERE channel = 'whatsapp' AND direction = 'out'
+      AND external_message_id = ANY(${ids})`;
+  if (found.length === 0) return false;
+  await sql`
+    UPDATE sales.message SET status = ${to}
+    WHERE channel = 'whatsapp' AND direction = 'out'
+      AND external_message_id = ANY(${ids})
+      AND (CASE status WHEN 'queued' THEN 0 WHEN 'sent' THEN 1
+                       WHEN 'failed' THEN 1.5 WHEN 'delivered' THEN 2
+                       WHEN 'read' THEN 3 ELSE 0 END) < ${RANK[to]}`;
+  return true;
+}
+
+type Done = { kind: "saved" } | { kind: "ignored"; reason: string };
+
+async function dispatch(e: WatiEvent): Promise<Done> {
+  const type = str(e.eventType) ?? "";
+  if (INBOUND.has(type)) {
+    await saveMessage(e, "in");
+    return { kind: "saved" };
+  }
+  if (ECHO.has(type)) {
+    if (!(await moveStatus(idsOf(e), "sent"))) await saveMessage(e, "out");
+    return { kind: "saved" };
+  }
+  const to = STATUS[type];
+  if (to) {
+    return (await moveStatus(idsOf(e), to))
+      ? { kind: "saved" }
+      : { kind: "ignored", reason: "not a message this app knows" };
+  }
+  return { kind: "ignored", reason: `event ${type || "(none)"} is not used` };
+}
+
+// ---- Queue -----------------------------------------------------------------------
+
+export type ProcessResult =
+  | Done
+  | { kind: "duplicate" }
+  | { kind: "busy" }
+  | { kind: "failed"; final: boolean; error: string };
+
+// Takes the row for a few minutes, so the webhook and wati:run never work
+// the same event at once.
+async function lease(key: string) {
+  const [row] = await db()`
+    UPDATE integration_event
+    SET next_attempt_at = now() + make_interval(secs => ${LEASE_SECONDS}),
+        updated_at = now()
+    WHERE source = ${SOURCE} AND external_event_id = ${key}
+      AND status IN ('received','failed') AND attempts < ${MAX_ATTEMPTS}
+      AND next_attempt_at <= now()
+    RETURNING id, attempts, payload`;
+  return row as
+    { id: string; attempts: number; payload: WatiEvent } | undefined;
+}
+
+export async function processWatiEvent(key: string): Promise<ProcessResult> {
+  const row = await lease(key);
+  if (!row) {
+    const [e] = await db()`
+      SELECT status FROM integration_event
+      WHERE source = ${SOURCE} AND external_event_id = ${key}`;
+    return e?.status === "processed" || e?.status === "ignored"
+      ? { kind: "duplicate" }
+      : { kind: "busy" };
+  }
+  const sql = db();
+  try {
+    const done = await withTransaction(() => dispatch(row.payload));
+    await sql`
+      UPDATE integration_event
+      SET status = ${done.kind === "saved" ? "processed" : "ignored"},
+          processed_at = now(), error = ${done.kind === "ignored" ? done.reason : null},
+          attempts = attempts + 1, payload = ${sql.json(kept(row.payload) as never)},
+          updated_at = now()
+      WHERE id = ${row.id}`;
+    return done;
+  } catch (err) {
+    // The message only: a database error's detail can hold a phone number.
+    const error = (err instanceof Error ? err.message : String(err)).slice(
+      0,
+      500,
+    );
+    const attempts = row.attempts + 1;
+    const final = err instanceof NotUsable || attempts >= MAX_ATTEMPTS;
+    await sql`
+      UPDATE integration_event
+      SET status = 'failed', processed_at = now(), error = ${error},
+          attempts = ${final ? MAX_ATTEMPTS : attempts},
+          next_attempt_at = now() + make_interval(secs => ${
+            final ? 0 : BACKOFF_SECONDS[attempts - 1]
+          }),
+          updated_at = now()
+      WHERE id = ${row.id}`;
+    return { kind: "failed", final, error };
+  }
+}
+
+// Every event due a try: new ones the webhook couldn't finish, and failures
+// whose wait is over. One that ran out of tries stays `failed` for people
+// to look at on the integration-health page.
+export async function runWatiQueue(
+  batch = 50,
+): Promise<{ saved: number; failed: number; lost: number }> {
+  const due = await db()`
+    SELECT external_event_id FROM integration_event
+    WHERE source = ${SOURCE} AND status IN ('received','failed')
+      AND attempts < ${MAX_ATTEMPTS} AND next_attempt_at <= now()
+    ORDER BY next_attempt_at
+    LIMIT ${batch}`;
+  const out = { saved: 0, failed: 0, lost: 0 };
+  for (const d of due) {
+    const r = await processWatiEvent(d.external_event_id as string);
+    if (r.kind === "saved") out.saved++;
+    else if (r.kind === "failed") out[r.final ? "lost" : "failed"]++;
+  }
+  return out;
+}

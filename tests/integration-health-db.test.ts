@@ -66,6 +66,7 @@ it("an empty system: queues ok, daily syncs down (never synced)", async () => {
       ["lms_inbound", "ok"],
       ["stripe_webhook", "ok"],
       ["meta_leads", "ok"],
+      ["wati_inbound", "ok"],
       ["meta_ads_sync", "down"],
       ["salesprocess_sync", "down"],
     ],
