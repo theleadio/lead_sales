@@ -3,6 +3,7 @@
 #   lms   CRM → LMS: read CRM changes into sales.lms_notice and send them
 #         (scripts/lms-run.ts)
 #   meta  retry Meta leads the webhook couldn't save yet (scripts/meta-run.ts)
+#   wati         retry WATI webhook events that failed (scripts/wati-run.ts)
 #   automations  start and advance automation runs (scripts/automations-run.ts)
 #
 # Every 5 minutes, GitHub's shortest schedule. GitHub runs scheduled
@@ -87,6 +88,31 @@ jobs:
         run: npm ci --omit=dev
       - if: steps.ready.outputs.go == 'true'
         run: node --import=./scripts/ci-errors.mjs scripts/meta-run.ts
+
+  wati:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      WATI_WEBHOOK_SECRET: ${{ secrets.WATI_WEBHOOK_SECRET }}
+    steps:
+      - name: Skip until configured
+        id: ready
+        run: |
+          if [ -n "$DATABASE_URL" ] && [ -n "$WATI_WEBHOOK_SECRET" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "WATI secrets not set: skipped."
+          fi
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - if: steps.ready.outputs.go == 'true'
+        run: npm ci --omit=dev
+      - if: steps.ready.outputs.go == 'true'
+        run: node --import=./scripts/ci-errors.mjs scripts/wati-run.ts
 
   automations:
     runs-on: ubuntu-latest
