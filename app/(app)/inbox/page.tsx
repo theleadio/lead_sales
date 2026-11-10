@@ -12,12 +12,14 @@ import {
   type InboxFilter,
   type InboxItem,
 } from "@/lib/inbox/service";
+import { watiFromEnv } from "@/lib/wati/send";
 import { activeCategories } from "@/lib/tickets/read";
 import { button, ErrorNote, field, myt, StatusPill } from "../tickets/ui";
 import {
   assignConversationAction,
   conversationStatusAction,
   makeTicketAction,
+  sendReplyAction,
 } from "./actions";
 
 // The inbox (inbox spec §5): conversations on the left, the open one on the
@@ -369,12 +371,33 @@ async function Thread({ c }: { c: ConversationDetail }) {
           </button>
         </form>
 
+        {c.channel === "whatsapp" &&
+          c.replyWindow === "open" &&
+          watiFromEnv() && (
+            <form action={sendReplyAction} className="mt-4 grid gap-2">
+              <input type="hidden" name="conversationId" value={c.id} />
+              <textarea
+                name="text"
+                required
+                maxLength={4000}
+                rows={3}
+                placeholder="Reply on WhatsApp"
+                className={field}
+              />
+              <button type="submit" className={button}>
+                Send
+              </button>
+            </form>
+          )}
+
         <p className="text-ink-muted mt-3 text-xs">
           {c.channel === "web_form"
             ? "Help-form messages can't be answered here yet: reply by email or phone until email replies are connected."
             : c.replyWindow === "closed"
               ? "The free-reply window has closed: WhatsApp needs an approved template to reply."
-              : "Replies are sent from here once this channel is connected."}
+              : c.channel === "whatsapp" && watiFromEnv()
+                ? "Replies go out on WhatsApp from here."
+                : "Replies are sent from here once this channel is connected."}
         </p>
       </div>
     </div>

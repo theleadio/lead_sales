@@ -10,10 +10,12 @@
 import { runDue } from "../lib/automations/run.ts";
 import { watchTriggers } from "../lib/automations/watch.ts";
 import { closeDb } from "../lib/sql.ts";
+import { watiFromEnv, watiSender } from "../lib/wati/send.ts";
 
 try {
   const started = await watchTriggers();
-  const r = await runDue({});
+  const wati = watiFromEnv();
+  const r = await runDue({ whatsapp: wati ? watiSender(wati) : undefined });
   console.log(`automations: started ${started} ${JSON.stringify(r)}`);
 } catch (e) {
   // The message only: a database error's detail can hold an email or phone,

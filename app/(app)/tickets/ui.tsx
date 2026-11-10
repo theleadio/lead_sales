@@ -4,6 +4,7 @@ export const ERRORS: Record<string, string> = {
   invalid: "That change isn't allowed. Check the fields and try again.",
   not_found: "That ticket doesn't exist, or you don't have access to it.",
   forbidden: "You don't have permission to do that.",
+  send_failed: "WhatsApp did not accept the message. Try again, or check the WATI connection.",
   no_person:
     "No one in the CRM has that email or phone. Add them in the CRM first.",
   many_people:

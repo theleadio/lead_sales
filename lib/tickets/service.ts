@@ -42,7 +42,7 @@ export type TicketPriority = (typeof PRIORITIES)[number];
 export type Actor = { id: string; role: Role };
 
 export class TicketError extends Error {
-  readonly code: "not_found" | "forbidden" | "invalid";
+  readonly code: "not_found" | "forbidden" | "invalid" | "send_failed";
   constructor(code: TicketError["code"], message: string) {
     super(message);
     this.code = code;

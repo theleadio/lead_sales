@@ -9,6 +9,7 @@ import {
   setConversationStatus,
   ticketFromConversation,
 } from "@/lib/inbox/service";
+import { sendInboxReply, watiFromEnv } from "@/lib/wati/send";
 import { TicketError, type Actor } from "@/lib/tickets/service";
 
 // Server Actions are public POST endpoints: the user comes from the session
@@ -82,5 +83,18 @@ export async function makeTicketAction(form: FormData) {
   }
   redirect(
     ticketId ? `/tickets/${ticketId}` : back(p.data.conversationId, code),
+  );
+}
+
+export async function sendReplyAction(form: FormData) {
+  const a = await actor();
+  const p = z
+    .object({ conversationId: id, text: z.string().trim().min(1).max(4000) })
+    .safeParse(Object.fromEntries(form));
+  if (!p.success) redirect("/inbox?error=invalid");
+  const wati = watiFromEnv();
+  if (!wati) redirect(back(p.data.conversationId, "send_failed"));
+  await run(p.data.conversationId, () =>
+    sendInboxReply(wati, a, p.data.conversationId, p.data.text),
   );
 }
