@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { signOutAction } from "@/lib/auth/actions";
-import { LeadMark } from "../logo";
+import { LeadLogo } from "../logo";
 import { NAV } from "./nav";
 
 // The signed-in shell. A signed-in Supabase user with no active app_user
@@ -13,8 +13,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-screen">
       <aside className="border-line bg-surface-muted flex w-56 flex-col border-r p-4">
         <div className="mb-6 flex items-center gap-2">
-          <LeadMark size={26} />
-          <span className="font-semibold tracking-wide">LEAD Sales</span>
+          <LeadLogo height={34} />
+          <span className="font-semibold tracking-wide">Sales</span>
         </div>
         <nav aria-label="Main" className="flex flex-col gap-1 text-sm">
           {NAV.filter((i) => !i.roles || i.roles.includes(user.role)).map(
