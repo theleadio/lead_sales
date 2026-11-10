@@ -166,6 +166,62 @@ it("media without text gets a placeholder; a number that is not a phone fails fo
     true,
     "retrying cannot fix a bad number",
   );
+  const [ev] = await db()`
+    SELECT payload FROM integration_event
+    WHERE source = 'wati' AND external_event_id = ${eventKey(bad)}`;
+  assert.equal(ev.payload.eventType, "message");
+  assert.equal(ev.payload.waId, undefined, "given up: no phone number kept");
+  assert.equal(ev.payload.text, undefined, "given up: no message text kept");
+});
+
+it("a status that arrives before its message waits, then moves the message on; one never matched is ignored", async () => {
+  const wa = phone();
+  await handle(inbound(wa));
+  const wamid = `wamid.${rnd()}`;
+  const read: WatiEvent = {
+    eventType: "sentMessageREAD_v2",
+    id: "early",
+    whatsappMessageId: wamid,
+    waId: wa,
+  };
+  const due = (key: string, attempts: number) => db()`
+    UPDATE integration_event
+    SET next_attempt_at = now() - interval '1 minute', attempts = ${attempts}
+    WHERE source = 'wati' AND external_event_id = ${key}`;
+  const row = async (key: string) =>
+    (
+      await db()`SELECT status, payload FROM integration_event
+                 WHERE source = 'wati' AND external_event_id = ${key}`
+    )[0];
+
+  assert.equal((await handle(read)).kind, "waiting");
+  assert.equal((await row(eventKey(read)!)).status, "received");
+  assert.deepEqual(
+    await runWatiQueue(),
+    { saved: 0, failed: 0, lost: 0 },
+    "not due yet",
+  );
+  await handle({
+    eventType: "sessionMessageSent_v2",
+    id: `rec-${rnd()}`,
+    whatsappMessageId: wamid,
+    waId: wa,
+    text: "Yes, still open.",
+  });
+  await due(eventKey(read)!, 1);
+  assert.equal((await runWatiQueue()).saved, 1);
+  const [m] = await db()`
+    SELECT status FROM sales.message WHERE external_message_id = ${wamid}`;
+  assert.equal(m.status, "read");
+
+  // No message ever turns up: ignored on the last try, never a failure.
+  const lost: WatiEvent = { ...read, id: "lost", whatsappMessageId: "wamid.x" };
+  await handle(lost);
+  await due(eventKey(lost)!, MAX_ATTEMPTS - 1);
+  assert.deepEqual(await runWatiQueue(), { saved: 0, failed: 0, lost: 0 });
+  const end = await row(eventKey(lost)!);
+  assert.equal(end.status, "ignored");
+  assert.equal(end.payload.waId, undefined);
 });
 
 it("a message typed in the WATI app is saved as ours; delivery and read events move it on, never back", async () => {
@@ -253,15 +309,8 @@ it("a failed template send marks our message failed and keeps the reason", async
   assert.equal(ev.payload.failedDetail, "Message undeliverable");
 });
 
-it("a status for a message we never saw, and events we don't use, are ignored, not errors", async () => {
+it("events we don't use are ignored, not errors, and make no person", async () => {
   const wa = phone();
-  const r1 = await handle({
-    eventType: "sentMessageDELIVERED_v2",
-    id: "x1",
-    whatsappMessageId: `wamid.${rnd()}`,
-    waId: wa,
-  });
-  assert.equal(r1.kind, "ignored");
   const r2 = await handle({
     eventType: "newContactMessageReceived",
     id: `n-${rnd()}`,

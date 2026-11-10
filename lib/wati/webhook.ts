@@ -106,6 +106,13 @@ export async function recordWatiEvent(
 // A payload retrying can't fix (no usable phone number).
 class NotUsable extends Error {}
 
+// A status for a message this app has not saved (yet). Tried again on the
+// usual schedule, in case the message's own event is still on its way; after
+// the last try it is ignored, not failed: most are messages sent before this
+// app was connected.
+class NotYet extends Error {}
+const NOT_KNOWN = "not a message this app knows";
+
 function whenOf(e: WatiEvent): Date {
   const t = str(e.timestamp);
   if (t && /^\d+$/.test(t))
@@ -176,6 +183,10 @@ async function saveMessage(
 ): Promise<void> {
   const sql = db();
   const e164 = e164Of(e);
+  // Messages a second apart from a new number run in two transactions: the
+  // second waits here, then finds the person the first one made, and does
+  // not fail on the unique phone number.
+  await sql`SELECT pg_advisory_xact_lock(hashtext(${`wati:${e164}`}))`;
   const personId = await findOrCreatePerson(e164, str(e.senderName));
   const at = whenOf(e);
   const inboundAt = direction === "in" ? at : null;
@@ -236,9 +247,9 @@ async function dispatch(e: WatiEvent): Promise<Done> {
   }
   const to = STATUS[type];
   if (to) {
-    return (await moveStatus(idsOf(e), to))
-      ? { kind: "saved" }
-      : { kind: "ignored", reason: "not a message this app knows" };
+    // WATI does not promise order: "delivered" can arrive before "sent".
+    if (!(await moveStatus(idsOf(e), to))) throw new NotYet();
+    return { kind: "saved" };
   }
   return { kind: "ignored", reason: `event ${type || "(none)"} is not used` };
 }
@@ -249,6 +260,7 @@ export type ProcessResult =
   | Done
   | { kind: "duplicate" }
   | { kind: "busy" }
+  | { kind: "waiting" }
   | { kind: "failed"; final: boolean; error: string };
 
 // Takes the row for a few minutes, so the webhook and wati:run never work
@@ -288,21 +300,38 @@ export async function processWatiEvent(key: string): Promise<ProcessResult> {
       WHERE id = ${row.id}`;
     return done;
   } catch (err) {
+    const attempts = row.attempts + 1;
+    const final = err instanceof NotUsable || attempts >= MAX_ATTEMPTS;
+    // After the last try nothing reads the payload again, so it shrinks to
+    // ids like a finished one: erase_person() does not reach this table.
+    const payload = sql.json(
+      (final ? kept(row.payload) : row.payload) as never,
+    );
+    const wait = final ? 0 : BACKOFF_SECONDS[attempts - 1];
+    if (err instanceof NotYet) {
+      // Stays `received` while waiting, so the health page shows no failure.
+      await sql`
+        UPDATE integration_event
+        SET status = ${final ? "ignored" : "received"}, error = ${NOT_KNOWN},
+            processed_at = ${final ? sql`now()` : null}, attempts = ${attempts},
+            next_attempt_at = now() + make_interval(secs => ${wait}),
+            payload = ${payload}, updated_at = now()
+        WHERE id = ${row.id}`;
+      return final
+        ? { kind: "ignored", reason: NOT_KNOWN }
+        : { kind: "waiting" };
+    }
     // The message only: a database error's detail can hold a phone number.
     const error = (err instanceof Error ? err.message : String(err)).slice(
       0,
       500,
     );
-    const attempts = row.attempts + 1;
-    const final = err instanceof NotUsable || attempts >= MAX_ATTEMPTS;
     await sql`
       UPDATE integration_event
       SET status = 'failed', processed_at = now(), error = ${error},
           attempts = ${final ? MAX_ATTEMPTS : attempts},
-          next_attempt_at = now() + make_interval(secs => ${
-            final ? 0 : BACKOFF_SECONDS[attempts - 1]
-          }),
-          updated_at = now()
+          next_attempt_at = now() + make_interval(secs => ${wait}),
+          payload = ${payload}, updated_at = now()
       WHERE id = ${row.id}`;
     return { kind: "failed", final, error };
   }
