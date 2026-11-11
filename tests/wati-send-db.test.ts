@@ -9,7 +9,12 @@ import { it, newPerson, newUser } from "./seed.ts";
 after(closeDb);
 
 type Call = { url: string; body: Record<string, unknown>; auth: string };
-function fake(status = 200, json: unknown = { result: true }) {
+function fake(
+  status = 200,
+  json: unknown = { result: true },
+  // Runs while WATI is "answering": what else can happen meanwhile.
+  meanwhile?: () => Promise<unknown>,
+) {
   const calls: Call[] = [];
   const fetchImpl = (async (url: string, init: RequestInit) => {
     calls.push({
@@ -17,6 +22,7 @@ function fake(status = 200, json: unknown = { result: true }) {
       body: JSON.parse(String(init.body)),
       auth: (init.headers as Record<string, string>).Authorization,
     });
+    await meanwhile?.();
     return new Response(JSON.stringify(json), { status });
   }) as unknown as typeof fetch;
   return {
@@ -136,5 +142,27 @@ it("a failed template send saves nothing, so the engine retries it", async () =>
       await db()`SELECT count(*)::int AS n FROM sales.message WHERE person_id = ${p}`
     )[0].n,
     0,
+  );
+});
+
+it("a reply the webhook matched to WATI's echo before the send returned keeps WATI's id and a later status", async () => {
+  const u = await newUser("management");
+  const { conv } = await chat("1 hour");
+  // What lib/wati/webhook.ts does with WATI's echo and a quick "delivered".
+  const { o } = fake(
+    200,
+    { result: true },
+    () =>
+      db()`
+      UPDATE sales.message SET external_message_id = 'wamid.echo', status = 'delivered'
+      WHERE conversation_id = ${conv} AND external_message_id LIKE 'app:%'`,
+  );
+  await sendInboxReply(o, u, conv, "Yes, seats left.");
+  const rows = await db()`
+    SELECT external_message_id, status FROM sales.message
+    WHERE conversation_id = ${conv}`;
+  assert.deepEqual(
+    rows.map((r) => [r.external_message_id, r.status]),
+    [["wamid.echo", "delivered"]],
   );
 });
