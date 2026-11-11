@@ -451,3 +451,42 @@ it("an imported customer message starts no automation; a live one still does", a
             'live', 'received', clock_timestamp())`;
   assert.equal(await watchTriggers(), 1, "a live message still triggers");
 });
+
+it("a WhatsApp step sends its Chinese template to a Chinese-speaking person, and the main one otherwise", async () => {
+  await fresh();
+  const b = await boss();
+  const id = await saveAutomation(b, {
+    name: "Welcome WA",
+    trigger: "LeadCaptured",
+    conditions: [],
+    steps: [
+      {
+        kind: "send_whatsapp",
+        settings: {
+          template: "welcome_en",
+          templateZh: "welcome_zh",
+          purpose: "service",
+        },
+      },
+    ],
+  });
+  await setAutomationActive(b, id, true);
+  const sent: Record<string, string> = {};
+  const whatsapp: Sender = async (req) => {
+    sent[req.personId] = req.template;
+  };
+  const zh = await newPerson("Chinese speaker");
+  const en = await newPerson("English speaker");
+  for (const [p, lang] of [
+    [zh, "zh"],
+    [en, "en"],
+  ] as const) {
+    const n = `6012${Math.floor(1000000 + Math.random() * 8999999)}`;
+    await db()`UPDATE person SET preferred_language = ${lang}, whatsapp_e164 = ${`+${n}`} WHERE id = ${p}`;
+    await leadEvent(p);
+  }
+  assert.equal(await watchTriggers(), 2);
+  await runDue({ whatsapp });
+  assert.equal(sent[zh], "welcome_zh");
+  assert.equal(sent[en], "welcome_en");
+});
