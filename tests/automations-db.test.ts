@@ -83,7 +83,7 @@ async function fresh() {
   await sql`
     INSERT INTO sales.automation_cursor (name, read_until)
     SELECT n, now() - interval '1 hour'
-    FROM unnest(ARRAY['outbox','ticket','message','lms_account']) AS n`;
+    FROM unnest(ARRAY['outbox','enquiry','message','lms_account']) AS n`;
 }
 
 async function leadEvent(personId: string) {
@@ -240,11 +240,12 @@ it("stop if replied: a customer message after the start stops the run", async ()
   await leadEvent(p);
   await watchTriggers();
   await runDue();
+  // The CRM's inbox (lead_crm migration 019).
   const [c] = await db()`
-    INSERT INTO sales.conversation (person_id, channel, external_thread_id)
+    INSERT INTO conversation (person_id, channel, external_thread_id)
     VALUES (${p}, 'web_form', ${crypto.randomUUID()}) RETURNING id`;
   await db()`
-    INSERT INTO sales.message (conversation_id, person_id, channel, direction, body, sent_at)
+    INSERT INTO conversation_message (conversation_id, person_id, channel, direction, body, sent_at)
     VALUES (${c.id}, ${p}, 'web_form', 'in', 'Thanks!', clock_timestamp())`;
   await db()`UPDATE sales.automation_run SET next_run_at = now() WHERE person_id = ${p}`;
   assert.equal((await runDue()).stopped, 1);
@@ -342,22 +343,22 @@ it("a step that throws retries with backoff, then fails after 5 tries", async ()
   assert.match(r.last_error, /WATI 503/);
 });
 
-it("a ticket trigger starts a run when its condition holds", async () => {
+it("an enquiry trigger starts a run when its condition holds", async () => {
   await fresh();
   const b = await boss();
   const t = await saveAutomation(b, {
-    name: "On ticket",
-    trigger: "TicketCreated",
+    name: "On enquiry",
+    trigger: "EnquiryCreated",
     conditions: [{ field: "event.category", op: "eq", value: "receipt" }],
     steps: [{ kind: "add_tag", settings: { tag: "Asked for receipt" } }],
   });
   await setAutomationActive(b, t, true);
-  const p = await newPerson("Ticket Person");
-  const [cat] =
-    await db()`SELECT team_id FROM sales.ticket_category WHERE code = 'receipt'`;
+  const p = await newPerson("Enquiry Person");
+  // A CRM enquiry (lead_crm migration 019): its team is filled from the
+  // category by the CRM's trigger.
   await db()`
-    INSERT INTO sales.ticket (person_id, source_channel, category, team_id, subject, sla_due_at, created_at)
-    VALUES (${p}, 'manual', 'receipt', ${cat.team_id}, 'Receipt', now() + interval '1 day', clock_timestamp())`;
+    INSERT INTO enquiry (person_id, channel, category, subject, created_at)
+    VALUES (${p}, 'phone', 'receipt', 'Receipt', clock_timestamp())`;
   assert.equal(await watchTriggers(), 1);
   assert.equal((await runDue()).done, 1);
 });

@@ -2,16 +2,18 @@
 
 **Date:** 4 Nov 2026 · **Status:** draft. It will be revised once the SalesProcess feature map comes in · **Parent:** `2026-11-04-lead-sales-platform-design.md` §4
 
+> **Moved to `lead_crm` (11 Nov).** Tickets and enquiries live in the CRM only: this design is built there as part of the Enquiries queue (its migration 019), and lead_sales no longer has an inbox, tickets or the help form. A ticket is an enquiry; the decisions below still apply, with the CRM's names (`team`, `enquiry_category`, `enquiry_rule`, `holiday`, `conversation`, `conversation_message`, `enquiry_event`).
+
 ## 1. Goal
 
 Put all customer messages in one inbox: WhatsApp (via WATI), Facebook Messenger, email, and the website help form. Any message can become a **ticket**. A ticket is routed to the team that can answer it:
 
-| Team | Topics (from the team's notes) |
-|---|---|
-| **Finance** | e-invoice, receipt |
-| **Tech** | voucher, API key |
-| **Operations** | Qi En (decided 4 Nov) |
-| **Support** (default) | everything else |
+| Team                  | Topics (from the team's notes) |
+| --------------------- | ------------------------------ |
+| **Finance**           | e-invoice, receipt             |
+| **Tech**              | voucher, API key               |
+| **Operations**        | Qi En (decided 4 Nov)          |
+| **Support** (default) | everything else                |
 
 Members, decided 4 Nov: Finance is Mischa, Tech is JM, Operations is Qi En. "Everything else" goes to a **separate Support team** (decided 4 Nov). Its members aren't named yet.
 
@@ -30,13 +32,16 @@ Facebook Messenger is assumed until the feature map confirms it. The email provi
 ## 3. Data model (proposed; every change goes through Shawn)
 
 **`sales.message`** (decided 4 Nov: `lead_sales` keeps its own table and doesn't write the CRM's `message_log`):
+
 - Columns: `conversation_id`, `person_id`, `channel` (`whatsapp | email | messenger | web_form`), `direction`, `external_message_id` (unique per channel), `body`, `attachment_paths text[]` (files go to storage, not the database), `sent_at`, `status`.
 - The CRM person timeline reads it as well, through a read-only view, so each person still has one history.
 
 **`conversation`.** One thread with a person on one channel.
+
 - Columns: `person_id`, `channel`, `external_thread_id` (unique per channel), `status` (`open | snoozed | closed`), `assigned_user_id`, `last_message_at`, `last_inbound_at`.
 
 **`ticket`.**
+
 - `number`: human-readable, e.g. `T-000123`, from a sequence.
 - `person_id`, `conversation_id` (nullable, since web-form tickets may have none), `source_channel`.
 - `category` (from `ticket_category`), `team_id`, `assigned_user_id`.
@@ -45,6 +50,7 @@ Facebook Messenger is assumed until the feature map confirms it. The email provi
 - `subject`, `first_response_at`, `resolved_at`, `sla_due_at`.
 
 **`ticket_category`.**
+
 - Columns: `code`, `label_en`, `label_zh`, `team_id`, `active`.
 - Seed rows:
   - `einvoice` → Finance
@@ -54,10 +60,12 @@ Facebook Messenger is assumed until the feature map confirms it. The email provi
   - `general` → Support
 
 **`team` and `team_member`.**
+
 - Teams: Finance (Mischa), Tech (JM), Operations (Qi En), and Support, the default team (members to name).
 - Members: `app_user` rows. One person can be in several teams.
 
 **`ticket_rule`.** An ordered list. The first rule that matches wins.
+
 - Columns: `position`, `match_channel` (nullable), `match_keywords text[]` (nullable), `match_form_category` (nullable), `set_category`, `set_team_id`, `assign_mode` (`round_robin | fixed | none`), `assign_user_id`.
 
 **`ticket_event`.** History: status changes, reassignments, and internal notes. It is append-only, like `consent`.
@@ -70,7 +78,7 @@ Facebook Messenger is assumed until the feature map confirms it. The email provi
 4. **Route it.**
    - **Help form:** the customer picks a category on the form, so the ticket is created straight away with that category, team and assignee. This is deterministic, so no guessing.
    - **Chat or email:** the message waits in the inbox. An agent clicks **Make ticket** and picks a category, and the team and assignee follow from `ticket_category` and `ticket_rule`.
-   - **Optional keyword rules:** for example, "invoice", "e-invoice" or "receipt" → Finance; "voucher" or "API key" → Tech. They only *suggest* a category in v1, so a wrong keyword can't misroute anything.
+   - **Optional keyword rules:** for example, "invoice", "e-invoice" or "receipt" → Finance; "voucher" or "API key" → Tech. They only _suggest_ a category in v1, so a wrong keyword can't misroute anything.
    - **Phase 4, AI:** AI suggests the category and drafts an answer. A person still confirms.
 5. **Assign.** `round_robin` picks the team member who was given a ticket longest ago, skipping inactive users.
 6. **Reply.** It is sent through the same channel and logged as `sales.message` with `direction = out`. Note:

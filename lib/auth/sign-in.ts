@@ -30,9 +30,7 @@ async function serverClient(): Promise<AuthClient> {
 
 // A same-site path only: blocks https://evil.com, //evil.com and /\evil.com.
 export function safeNext(next: unknown): string {
-  return typeof next === "string" && /^\/(?![/\\])/.test(next)
-    ? next
-    : "/inbox";
+  return typeof next === "string" && /^\/(?![/\\])/.test(next) ? next : "/home";
 }
 
 // Minutes until the lock lifts, or 0 when the account isn't locked.

@@ -6,7 +6,8 @@ Design specs for `lead_sales`, written on 4 Nov 2026 and moved here from `lead_c
 2. `2026-11-04-lead-sales-build-plan.md`: ground rules and phases
 
 The module drafts:
-- `2026-11-04-inbox-tickets-design.md`
+
+- `2026-11-04-inbox-tickets-design.md` (moved to `lead_crm`, 11 Nov)
 - `2026-11-04-automations-design.md`
 - `2026-11-04-meta-lead-ads-intake.md`
 - `2026-11-04-stripe-payments-design.md`

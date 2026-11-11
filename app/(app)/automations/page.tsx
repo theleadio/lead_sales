@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { canEditAutomations, listAutomations } from "@/lib/automations/admin";
 import { TRIGGER_LABEL } from "@/lib/automations/model";
-import { button } from "../tickets/ui";
+import { button } from "../ui";
 import { toggleAutomationAction } from "./actions";
 import { ResultNote } from "./shared";
 
@@ -15,7 +15,7 @@ export default async function AutomationsPage({
 }: PageProps<"/automations">) {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
-  if (!canEditAutomations(user.role)) redirect("/inbox");
+  if (!canEditAutomations(user.role)) redirect("/home");
   const q = await searchParams;
   const result = Array.isArray(q.result) ? q.result[0] : q.result;
   const automations = await listAutomations();

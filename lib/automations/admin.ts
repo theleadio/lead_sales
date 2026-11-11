@@ -2,7 +2,7 @@ import { writeAudit } from "../audit.ts";
 import type { Role } from "../auth/roles.ts";
 import { isUuid } from "../crm/people.ts";
 import { db, withTransaction } from "../sql.ts";
-import { TicketError, type Actor } from "../tickets/service.ts";
+import { AutomationError, type Actor } from "./errors.ts";
 import {
   conditionsSchema,
   stepsSchema,
@@ -28,7 +28,7 @@ async function guard(actor: Actor, what: string) {
     before: null,
     after: { what },
   });
-  throw new TicketError(
+  throw new AutomationError(
     "forbidden",
     "Only management, super_admin and sales can change automations.",
   );
@@ -52,16 +52,17 @@ export async function saveAutomation(
   await guard(actor, "save automation");
   const name = input.name.trim();
   if (!name || name.length > 120)
-    throw new TicketError("invalid", "A name of up to 120 characters.");
+    throw new AutomationError("invalid", "A name of up to 120 characters.");
   if (!TRIGGERS.includes(input.trigger))
-    throw new TicketError("invalid", "Unknown trigger.");
+    throw new AutomationError("invalid", "Unknown trigger.");
   const conds = conditionsSchema.safeParse(input.conditions);
   const steps = stepsSchema.safeParse(input.steps);
   if (!conds.success)
-    throw new TicketError("invalid", "A condition is not valid.");
-  if (!steps.success) throw new TicketError("invalid", "A step is not valid.");
+    throw new AutomationError("invalid", "A condition is not valid.");
+  if (!steps.success)
+    throw new AutomationError("invalid", "A step is not valid.");
   if (input.id && !isUuid(input.id))
-    throw new TicketError("not_found", "No such automation.");
+    throw new AutomationError("not_found", "No such automation.");
 
   return withTransaction(async () => {
     const sql = db();
@@ -70,7 +71,7 @@ export async function saveAutomation(
     if (id) {
       const [a] =
         await sql`SELECT * FROM sales.automation WHERE id = ${id} FOR UPDATE`;
-      if (!a) throw new TicketError("not_found", "No such automation.");
+      if (!a) throw new AutomationError("not_found", "No such automation.");
       before = a;
       await sql`
         UPDATE sales.automation
@@ -114,7 +115,8 @@ export async function setAutomationActive(
   active: boolean,
 ) {
   await guard(actor, active ? "switch on" : "switch off");
-  if (!isUuid(id)) throw new TicketError("not_found", "No such automation.");
+  if (!isUuid(id))
+    throw new AutomationError("not_found", "No such automation.");
   const rows = await db()`
     UPDATE sales.automation
     SET active = ${active}, updated_at = now(),

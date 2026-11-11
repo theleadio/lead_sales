@@ -17,7 +17,7 @@
   --action: #3d3d3d;
   --action-ink: #ffffff;
   --focus-ring: #0a0a0a;
-  /* Overdue tickets and errors: red text on white must pass AA too. */
+  /* Errors: red text on white must pass AA too. */
   --danger: #b42318;
 }
 
