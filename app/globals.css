@@ -14,11 +14,10 @@
   --ink-muted: #3d3d3d;
   --lead-blue: #a1bace;
   --lead-yellow: #fbe33b;
-  --charcoal: #3d3d3d;
   --action: #3d3d3d;
   --action-ink: #ffffff;
   --focus-ring: #0a0a0a;
-  /* Overdue tickets and errors: red text on white must pass AA too. */
+  /* Errors: red text on white must pass AA too. */
   --danger: #b42318;
 }
 
@@ -30,7 +29,6 @@
   --color-ink-muted: var(--ink-muted);
   --color-lead-blue: var(--lead-blue);
   --color-lead-yellow: var(--lead-yellow);
-  --color-charcoal: var(--charcoal);
   --color-action: var(--action);
   --color-action-ink: var(--action-ink);
   --color-focus-ring: var(--focus-ring);

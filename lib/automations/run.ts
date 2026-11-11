@@ -1,8 +1,8 @@
 import { writeAudit } from "../audit.ts";
 import { dutySuperAdmin, isUuid } from "../crm/people.ts";
 import { db, withTransaction } from "../sql.ts";
-import { replyDueAt } from "../tickets/deadline.ts";
-import { loadHolidays, TicketError, type Actor } from "../tickets/service.ts";
+import { loadHolidays, replyDueAt } from "../crm/deadline.ts";
+import { AutomationError, type Actor } from "./errors.ts";
 import { canEditAutomations } from "./admin.ts";
 import {
   BACKOFF_SECONDS,
@@ -139,8 +139,9 @@ async function runStep(
           `Waiting ${step.settings.days ? `${step.settings.days} day(s) ` : ""}${step.settings.hours ? `${step.settings.hours} hour(s)` : ""}`.trim(),
       };
     case "stop_if_replied": {
+      // The CRM's inbox (lead_crm migration 019), read only.
       const [m] = await sql`
-        SELECT 1 FROM sales.message
+        SELECT 1 FROM conversation_message
         WHERE person_id = ${run.person_id} AND direction = 'in'
           AND sent_at > ${run.created_at} LIMIT 1`;
       return m
@@ -152,7 +153,7 @@ async function runStep(
       const channel = step.kind === "send_email" ? "email" : "whatsapp";
       const key = `auto:${run.id}:${position}`;
       const [already] = await sql`
-        SELECT 1 FROM sales.message WHERE channel = ${channel} AND external_message_id = ${key}`;
+        SELECT 1 FROM conversation_message WHERE channel = ${channel} AND external_message_id = ${key}`;
       if (already)
         return { kind: "next", log: "skipped", detail: "Already sent" };
       const [p] = await sql`
@@ -355,7 +356,7 @@ export async function retryRun(actor: Actor, runId: string): Promise<boolean> {
       before: null,
       after: null,
     });
-    throw new TicketError(
+    throw new AutomationError(
       "forbidden",
       "Only management, super_admin and sales can change automations.",
     );

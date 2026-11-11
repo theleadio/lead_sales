@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { saveAutomationAction, type EditorState } from "./actions";
-import { button, field } from "../tickets/ui";
+import { button, field } from "../ui";
 
 // The automation editor (automations spec §1: "a list of rules edited in a
 // form, not a drag-and-drop canvas"). It keeps the conditions and steps in

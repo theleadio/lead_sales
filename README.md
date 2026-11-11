@@ -2,14 +2,13 @@
 
 LEAD's own sales platform, replacing SalesProcess. Version 1 covers:
 
-- inbox and tickets
 - automations
 - websites and forms
 - email marketing
 - the social planner
 - payments
 
-Contacts, deals, classes and enrolments stay in [`lead_crm`](https://github.com/theleadio/lead_crm). Both apps share one Supabase database and one sign-in.
+Contacts, deals, classes and enrolments stay in [`lead_crm`](https://github.com/theleadio/lead_crm). So do the inbox, tickets and the help form (moved 11 Nov): tickets are part of the CRM's Enquiries queue, so there is one support queue. Both apps share one Supabase database and one sign-in.
 
 **Specs:** `docs/specs/` (PR #2). Start with `2026-11-04-lead-sales-build-plan.md`.
 
@@ -49,15 +48,15 @@ CI (`.github/workflows/ci.yml`) runs the same three on every PR.
 
 ## Phases (build plan §3)
 
-| Phase | What                                                | Status        |
-| ----- | --------------------------------------------------- | ------------- |
-| 0     | Setup: shell, sign-in, brand, `sales` schema, CI    | this scaffold |
-| 1     | Inbox + tickets; Meta Lead Ads intake               | —             |
-| 2     | Automations; Stripe webhook (in `lead_crm`, PR #41) | —             |
-| 3     | Email marketing + social planner                    | —             |
-| 4     | Sites, landing pages, forms                         | —             |
-| 5     | AI support                                          | —             |
-| 6     | Switch off SalesProcess                             | —             |
+| Phase | What                                                               | Status        |
+| ----- | ------------------------------------------------------------------ | ------------- |
+| 0     | Setup: shell, sign-in, brand, `sales` schema, CI                   | this scaffold |
+| 1     | Meta Lead Ads intake (inbox + tickets moved to `lead_crm`, 11 Nov) | —             |
+| 2     | Automations; Stripe webhook (in `lead_crm`, PR #41)                | —             |
+| 3     | Email marketing + social planner                                   | —             |
+| 4     | Sites, landing pages, forms                                        | —             |
+| 5     | AI support                                                         | —             |
+| 6     | Switch off SalesProcess                                            | —             |
 
 **Builders:** Zhixuan and Shawn.
 

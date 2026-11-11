@@ -21,14 +21,16 @@ export const CRM_TRIGGERS = {
   ClassCancelled: "enrolments_in_payload",
 } as const;
 
-// lead_sales' own: read from its tables.
-//   TicketCreated     a new sales.ticket
-//   MessageReceived   a customer message (sales.message, direction in)
+// Read from tables (not the outbox):
+//   EnquiryCreated    a new CRM enquiry (lead_crm `enquiry`, which holds the
+//                     former tickets since its migration 019)
+//   MessageReceived   a customer message (lead_crm `conversation_message`,
+//                     direction in)
 //   LmsAccountReady   the LMS accepted enrolment.confirmed (lms_notice
 //                     sent_at): the account and temp-password email exist,
 //                     so onboarding can start (spec §5.1)
 export const SALES_TRIGGERS = [
-  "TicketCreated",
+  "EnquiryCreated",
   "MessageReceived",
   "LmsAccountReady",
 ] as const;
@@ -51,7 +53,7 @@ export const TRIGGER_LABEL: Record<TriggerName, string> = {
   ConsentChanged: "Consent changed",
   EnquiryConverted: "Enquiry became a deal",
   ClassCancelled: "Class cancelled (each student)",
-  TicketCreated: "Ticket created",
+  EnquiryCreated: "Enquiry created",
   MessageReceived: "Customer message received",
   LmsAccountReady: "LMS account ready (onboarding)",
 };
@@ -74,7 +76,7 @@ export const conditionSchema = z.union([
     op: z.enum(["present", "missing"]),
   }),
   // A top-level field of the trigger's payload, e.g. DealStageChanged's
-  // toStage, TicketCreated's category, MessageReceived's channel.
+  // toStage, EnquiryCreated's category, MessageReceived's channel.
   z.object({
     field: z.string().regex(/^event\.[A-Za-z][A-Za-z0-9_]{0,40}$/),
     op: z.enum(["eq", "neq"]),

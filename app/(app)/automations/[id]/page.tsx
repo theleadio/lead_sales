@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { automationDetail, canEditAutomations } from "@/lib/automations/admin";
-import { button, myt } from "../../tickets/ui";
+import { button, myt } from "../../ui";
 import { retryRunAction, toggleAutomationAction } from "../actions";
 import {
   AutomationEditor,
@@ -18,7 +18,7 @@ export default async function AutomationPage({
 }: PageProps<"/automations/[id]">) {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
-  if (!canEditAutomations(user.role)) redirect("/inbox");
+  if (!canEditAutomations(user.role)) redirect("/home");
   const { id } = await params;
   const a = await automationDetail(id);
   if (!a) notFound();

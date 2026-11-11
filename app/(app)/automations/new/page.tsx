@@ -8,7 +8,7 @@ import { triggerOptions } from "../shared";
 export default async function NewAutomationPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
-  if (!canEditAutomations(user.role)) redirect("/inbox");
+  if (!canEditAutomations(user.role)) redirect("/home");
   return (
     <section className="max-w-3xl">
       <Link href="/automations" className="text-ink-muted text-sm underline">
