@@ -361,3 +361,73 @@ it("a stored event that failed is tried again by the queue, then given up after 
     "out of tries: left for people",
   );
 });
+
+it("WATI's echo of a reply typed in the inbox takes WATI's id instead of saving the reply twice", async () => {
+  const wa = phone();
+  await handle(inbound(wa));
+  const [c] = await db()`
+    SELECT id, person_id FROM sales.conversation WHERE external_thread_id = ${wa}`;
+  // What lib/wati/send.ts leaves once WATI has accepted an inbox reply.
+  await db()`
+    INSERT INTO sales.message (conversation_id, person_id, channel, direction,
+                               external_message_id, body, status)
+    VALUES (${c.id}, ${c.person_id}, 'whatsapp', 'out', ${`app:${rnd()}`},
+            'Yes, 9-10 Dec still has seats.', 'sent')`;
+  const now = String(Math.floor(Date.now() / 1000));
+  const echo: WatiEvent = {
+    eventType: "sessionMessageSent_v2",
+    id: `rec-${rnd()}`,
+    whatsappMessageId: `wamid.${rnd()}`,
+    waId: wa,
+    text: "Yes, 9-10 Dec still has seats.",
+    type: "text",
+    timestamp: now,
+  };
+  assert.equal((await handle(echo)).kind, "saved");
+  const out = async () =>
+    db()`SELECT external_message_id, status FROM sales.message
+         WHERE conversation_id = ${c.id} AND direction = 'out'`;
+  assert.deepEqual(
+    (await out()).map((m) => [m.external_message_id, m.status]),
+    [[echo.whatsappMessageId, "sent"]],
+    "one row, now under WATI's id",
+  );
+  await handle({
+    eventType: "sentMessageDELIVERED_v2",
+    id: echo.id,
+    whatsappMessageId: echo.whatsappMessageId,
+    waId: wa,
+    timestamp: now,
+  });
+  assert.deepEqual(
+    (await out()).map((m) => m.status),
+    ["delivered"],
+  );
+});
+
+it("a file with a caption is saved as [type] caption, the shape the history import uses", async () => {
+  const wa = phone();
+  await handle(inbound(wa, { type: "image", text: "my receipt" }));
+  const [p] = await db()`SELECT id FROM person WHERE phone_e164 = ${`+${wa}`}`;
+  assert.deepEqual(
+    (await messagesOf(p.id)).map((m) => m.body),
+    ["[image] my receipt"],
+  );
+});
+
+it("a number with no WhatsApp profile name: the name is the number as sent, flagged no_name", async () => {
+  const wa = phone();
+  await handle(inbound(wa, { senderName: null }));
+  const [p] = await db()`
+    SELECT full_name, needs_review, needs_review_reason FROM person
+    WHERE phone_e164 = ${`+${wa}`}`;
+  assert.deepEqual(
+    [p.full_name, p.needs_review, p.needs_review_reason],
+    [wa, true, "no_name"],
+  );
+  const named = phone();
+  await handle(inbound(named));
+  const [q] = await db()`
+    SELECT needs_review FROM person WHERE phone_e164 = ${`+${named}`}`;
+  assert.equal(q.needs_review, false);
+});

@@ -125,24 +125,35 @@ function whenOf(e: WatiEvent): Date {
 // The CRM's §12.2 rules, as the help form does: a hard match on the phone is
 // the person (never renamed); a soft match still creates, flagged, with a
 // review task.
+//
+// No WhatsApp profile name: the CRM's §11.2 rule (O24). The name is the
+// number as WATI sent it, flagged `no_name` so staff add a real one; a real
+// name typed in the CRM clears the flag. The CHECK allows one reason, so a
+// soft match keeps its own: it also raises a review task.
 async function findOrCreatePerson(
   e164: string,
   name: string | null,
+  numberAsSent: string,
 ): Promise<string> {
   const candidate = {
-    fullName: name ?? `WhatsApp ${e164}`,
+    fullName: name ?? numberAsSent,
     emailNorm: null,
     phoneE164: e164,
     companyNorm: null,
   };
   const dup = findDuplicate(candidate, await dedupeCandidates(candidate, null));
   if (dup.kind === "hard") return dup.match.id;
+  const reason =
+    dup.kind === "soft"
+      ? `possible_duplicate_${dup.on}`
+      : name === null
+        ? "no_name"
+        : null;
   const [p] = await db()`
     INSERT INTO person (full_name, phone, phone_e164, whatsapp_e164,
                         needs_review, needs_review_reason)
     VALUES (${candidate.fullName}, ${e164}, ${e164}, ${e164},
-            ${dup.kind === "soft"},
-            ${dup.kind === "soft" ? `possible_duplicate_${dup.on}` : null})
+            ${reason !== null}, ${reason})
     RETURNING id`;
   if (dup.kind === "soft")
     await raiseDuplicateTask(
@@ -168,12 +179,19 @@ function e164Of(e: WatiEvent): string {
   return e164;
 }
 
+// The same shape the WhatsApp history import gives a message
+// (lib/wati/history.ts): text as it is; a file as `[type]`, then its caption.
+// A message both of them bring in is then the same text, and the import
+// recognises it instead of saving it twice.
 function bodyOf(e: WatiEvent): string {
   const text = str(e.text);
-  if (text) return text;
+  const type = str(e.type);
   const template = str(e.templateName) ?? str(e.elementName);
+  if (type && type !== "text" && !template)
+    return text ? `[${type}] ${text}` : `[${type}]`;
+  if (text) return text;
   if (template) return `[template ${template}]`;
-  return `[${str(e.type) ?? "message"}]`;
+  return `[${type ?? "message"}]`;
 }
 
 // One WhatsApp thread per customer: their WhatsApp number is the thread id.
@@ -187,7 +205,11 @@ async function saveMessage(
   // second waits here, then finds the person the first one made, and does
   // not fail on the unique phone number.
   await sql`SELECT pg_advisory_xact_lock(hashtext(${`wati:${e164}`}))`;
-  const personId = await findOrCreatePerson(e164, str(e.senderName));
+  const personId = await findOrCreatePerson(
+    e164,
+    str(e.senderName),
+    str(e.waId) ?? e164,
+  );
   const at = whenOf(e);
   const inboundAt = direction === "in" ? at : null;
   const [conv] = await sql`
@@ -233,6 +255,41 @@ async function moveStatus(
   return true;
 }
 
+// A reply typed in this app's inbox (lib/wati/send.ts) is saved before WATI
+// has an id for it, under one of ours: "app:<uuid>". WATI's echo of it
+// carries WATI's ids only, so it is matched by thread, text and time, and the
+// row takes WATI's id. Delivery and read events then find it, and the echo
+// does not save the reply a second time. Oldest first, so two identical
+// replies are matched one each. An echo sent means WATI sent it, so a row
+// marked queued or failed (WATI's answer was lost) becomes sent.
+const OUR_ID_PREFIX = "app:";
+const ADOPT_WINDOW = "10 minutes";
+
+async function adoptOurReply(e: WatiEvent): Promise<boolean> {
+  const ext = str(e.whatsappMessageId) ?? str(e.id);
+  if (!ext) return false;
+  const thread = e164Of(e).slice(1);
+  const at = whenOf(e);
+  const [row] = await db()`
+    UPDATE sales.message
+    SET external_message_id = ${ext},
+        status = CASE WHEN status IN ('queued','failed') THEN 'sent' ELSE status END
+    WHERE id = (
+      SELECT m.id FROM sales.message m
+      JOIN sales.conversation c ON c.id = m.conversation_id
+      WHERE c.channel = 'whatsapp' AND c.external_thread_id = ${thread}
+        AND m.channel = 'whatsapp' AND m.direction = 'out'
+        AND m.external_message_id LIKE ${`${OUR_ID_PREFIX}%`}
+        AND m.body = ${bodyOf(e)}
+        AND m.created_at BETWEEN ${at}::timestamptz - ${ADOPT_WINDOW}::interval
+                             AND ${at}::timestamptz + ${ADOPT_WINDOW}::interval
+      ORDER BY m.created_at, m.id
+      LIMIT 1
+      FOR UPDATE OF m)
+    RETURNING id`;
+  return Boolean(row);
+}
+
 type Done = { kind: "saved" } | { kind: "ignored"; reason: string };
 
 async function dispatch(e: WatiEvent): Promise<Done> {
@@ -242,7 +299,8 @@ async function dispatch(e: WatiEvent): Promise<Done> {
     return { kind: "saved" };
   }
   if (ECHO.has(type)) {
-    if (!(await moveStatus(idsOf(e), "sent"))) await saveMessage(e, "out");
+    if (!(await moveStatus(idsOf(e), "sent")) && !(await adoptOurReply(e)))
+      await saveMessage(e, "out");
     return { kind: "saved" };
   }
   const to = STATUS[type];
