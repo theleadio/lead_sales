@@ -12,6 +12,7 @@ import { db } from "../sql.ts";
 //   lms_inbound       integration_event, source 'lms' (LMS → CRM)
 //   stripe_webhook    integration_event, source 'stripe'
 //   meta_leads        integration_event, source 'meta_leadgen'
+//   wati_inbound      integration_event, source 'wati' (WhatsApp, lead_crm lib/wati)
 //   meta_ads_sync     meta_ad_insight.synced_at (lead_crm daily-sync.yml)
 //   salesprocess_sync salesprocess_payment.synced_at (lead_crm daily-sync.yml)
 // Not covered: the LMS → CRM read sync and the GHL contact import write no
@@ -126,7 +127,7 @@ async function lmsNoticeHealth(): Promise<IntegrationHealth> {
 // the ones that ran out of tries can be revived (after fixing the cause,
 // e.g. a new Page token).
 async function inboundHealth(
-  source: "stripe" | "lms" | "meta_leadgen",
+  source: "stripe" | "lms" | "meta_leadgen" | "wati",
   name: string,
 ): Promise<IntegrationHealth> {
   const sql = db();
@@ -150,7 +151,9 @@ async function inboundHealth(
         ? "stripe_webhook"
         : source === "meta_leadgen"
           ? "meta_leads"
-          : "lms_inbound",
+          : source === "wati"
+            ? "wati_inbound"
+            : "lms_inbound",
     name,
     lastSuccessAt: iso(s.last_success),
     lastErrorAt: iso(s.last_error_at),
@@ -216,6 +219,7 @@ export async function integrationHealth(): Promise<IntegrationHealth[]> {
     await inboundHealth("lms", "LMS attendance and completion (LMS → CRM)"),
     await inboundHealth("stripe", "Stripe payments (webhook)"),
     await inboundHealth("meta_leadgen", "Meta lead forms (webhook)"),
+    await inboundHealth("wati", "WhatsApp (WATI webhook)"),
     await dailySyncHealth("meta_ads_sync", "Meta ads sync", "meta_ad_insight"),
     await dailySyncHealth(
       "salesprocess_sync",

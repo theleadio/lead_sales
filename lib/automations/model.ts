@@ -124,6 +124,10 @@ const tag = z.string().trim().min(1).max(60);
 
 const sendSettings = z.object({
   template: z.string().trim().min(1).max(100),
+  // The approved template for Chinese, when it has its own. The run's
+  // language is the class's, else the person's (decided 4 Nov); without a
+  // Chinese name, everyone gets `template`.
+  templateZh: z.string().trim().max(100).optional(),
   // service: course messages to students (onboarding, reminders), sent
   // without marketing consent (decided 4 Nov). marketing: needs it.
   purpose: z.enum(["service", "marketing"]),

@@ -52,6 +52,15 @@ export function db(): Sql {
 // the caught refusal would surface as a different error further on. Rolling
 // back to the savepoint keeps the outer work alive, which is what lets a
 // service answer "already recorded" and carry on.
+// Runs fn on the pool, outside any open transaction, so what it writes
+// commits on its own (with its own withTransaction). For a record that must
+// survive whatever the caller's transaction does next, such as a WhatsApp
+// send saved before WATI is called (lib/wati/sender.ts). Needs a second
+// connection: not for a one-connection (Lambda) pool.
+export function outsideTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  return txStore.exit(fn);
+}
+
 export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
   const open = txStore.getStore();
   if (open) return (await open.savepoint((sp) => txStore.run(sp, fn))) as T;

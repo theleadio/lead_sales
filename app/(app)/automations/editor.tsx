@@ -38,6 +38,7 @@ type StepRow = {
   waitDays: string;
   waitHours: string;
   template: string;
+  templateZh: string;
   purpose: string;
 };
 
@@ -75,6 +76,7 @@ const blankStep = (kind: StepKind): StepRow => ({
   waitDays: "1",
   waitHours: "0",
   template: "",
+  templateZh: "",
   purpose: "service",
 });
 
@@ -96,6 +98,7 @@ function stepFromInitial(s: InitialStep): StepRow {
   row.waitDays = num(x.days, "0");
   row.waitHours = num(x.hours, "0");
   row.template = str(x.template);
+  row.templateZh = str(x.templateZh);
   row.purpose = str(x.purpose, "service");
   return row;
 }
@@ -164,7 +167,11 @@ function stepToJson(s: StepRow): Record<string, unknown> {
     case "send_whatsapp":
       return {
         kind: s.kind,
-        settings: { template: s.template, purpose: s.purpose },
+        settings: {
+          template: s.template,
+          ...(s.templateZh.trim() ? { templateZh: s.templateZh } : {}),
+          purpose: s.purpose,
+        },
       };
   }
 }
@@ -624,6 +631,16 @@ function StepFields({
             />
           </label>
           <label className={label}>
+            Chinese template name (optional)
+            <input
+              value={s.templateZh}
+              onChange={(e) => patch({ templateZh: e.target.value })}
+              maxLength={100}
+              placeholder="Used for Chinese classes and people"
+              className={ctl}
+            />
+          </label>
+          <label className={label}>
             Kind of message
             <select
               value={s.purpose}
@@ -639,8 +656,9 @@ function StepFields({
             </select>
           </label>
           <p className="text-ink-muted text-xs sm:col-span-2">
-            Sending isn&apos;t connected yet: until it is, this step stops the
-            run with a clear message in its log.
+            WhatsApp goes out through WATI once WATI_API_HOST and WATI_API_TOKEN
+            are set; email isn&apos;t connected yet. Until a channel is, this
+            step stops the run with a clear message in its log.
           </p>
         </div>
       );
