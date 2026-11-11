@@ -13,7 +13,8 @@
 #
 # Secrets (Settings > Secrets and variables > Actions): DATABASE_URL, and for
 # each job its own: LMS_HANDOFF_ENABLED, LMS_WEBHOOK_URL, LMS_WEBHOOK_SECRET;
-# META_PAGE_ACCESS_TOKEN (META_GRAPH_VERSION optional). A job whose secrets
+# META_PAGE_ACCESS_TOKEN (META_GRAPH_VERSION optional); for automations'
+# WhatsApp steps, WATI_API_HOST and WATI_API_TOKEN. A job whose secrets
 # aren't set yet is skipped, not failed.
 #
 # Logs may be public: the scripts print counts and error messages only, and
@@ -93,6 +94,9 @@ jobs:
     timeout-minutes: 10
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Optional: without them a WhatsApp step fails "not connected".
+      WATI_API_HOST: ${{ secrets.WATI_API_HOST }}
+      WATI_API_TOKEN: ${{ secrets.WATI_API_TOKEN }}
     steps:
       - name: Skip until configured
         id: ready

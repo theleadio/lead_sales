@@ -172,6 +172,8 @@ async function messageCauses(): Promise<Cause[]> {
     (from, to) => sql`
     SELECT id, person_id, channel, conversation_id, created_at FROM conversation_message
     WHERE direction = 'in'
+      -- Copied-in history (lead_crm lib/wati/history.ts) never starts a flow.
+      AND NOT imported
       AND created_at > ${from}::text::timestamptz - make_interval(mins => ${OVERLAP_MINUTES})
       AND created_at <= ${to}::text::timestamptz`,
   );

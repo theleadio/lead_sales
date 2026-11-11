@@ -419,3 +419,35 @@ it("'Run again' is for editors only; a refusal is audited, and a bad id changes 
     "only a failed run can be retried",
   );
 });
+
+it("an imported customer message starts no automation; a live one still does", async () => {
+  await fresh();
+  const b = await boss();
+  const id = await saveAutomation(b, {
+    name: "Reply tag",
+    trigger: "MessageReceived",
+    conditions: [],
+    steps: [{ kind: "add_tag", settings: { tag: "Replied" } }],
+  });
+  await setAutomationActive(b, id, true);
+  // Switched on a day ago, so a message from minutes ago is not excused by
+  // coming before switch-on.
+  await db()`UPDATE sales.automation SET active_since = now() - interval '1 day' WHERE id = ${id}`;
+  const p = await newPerson("Imported chat");
+  const [c] = await db()`
+    INSERT INTO conversation (person_id, channel, external_thread_id)
+    VALUES (${p}, 'whatsapp', ${crypto.randomUUID()}) RETURNING id`;
+  // What lead_crm's history import writes: imported, timed as the message.
+  await db()`
+    INSERT INTO conversation_message (conversation_id, person_id, channel, direction,
+      external_message_id, body, status, created_at, imported)
+    VALUES (${c.id}, ${p}, 'whatsapp', 'in', ${`hist-${crypto.randomUUID()}`},
+            'just now', 'received', clock_timestamp() - interval '5 minutes', true)`;
+  assert.equal(await watchTriggers(), 0, "imported: nothing starts");
+  await db()`
+    INSERT INTO conversation_message (conversation_id, person_id, channel, direction,
+      external_message_id, body, status, created_at)
+    VALUES (${c.id}, ${p}, 'whatsapp', 'in', ${`live-${crypto.randomUUID()}`},
+            'live', 'received', clock_timestamp())`;
+  assert.equal(await watchTriggers(), 1, "a live message still triggers");
+});
