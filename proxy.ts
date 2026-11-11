@@ -33,10 +33,8 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Public pages: the help form is for customers, who have no account.
+  // No public pages: the help form moved to lead_crm with its migration 019.
   const path = request.nextUrl.pathname;
-  if (path === "/help" || path.startsWith("/help/")) return response;
-
   const { data } = await supabase.auth.getUser();
   if (!data.user && path !== "/sign-in") {
     const signIn = new URL("/sign-in", request.url);

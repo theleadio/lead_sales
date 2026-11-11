@@ -1,10 +1,18 @@
-// The first-reply deadline (inbox spec §7, decided 4 Nov): the same time on
+import { db } from "../sql.ts";
+
+// Copied from lead_crm lib/enquiries/deadline.ts (ground rule 4: the CRM's
+// rules are copied here and kept in step). The automations' create_task step
+// uses it for a "next working day" due date. loadHolidays() at the bottom
+// reads the CRM's `holiday` table (lead_crm migration 019), read-only.
+//
+// The first-reply deadline of an enquiry (decided 4 Nov for tickets; one rule
+// for the whole queue since migration 019): the same time on
 // the next working day, counted in office hours.
 //
 //   Office hours: Monday–Friday, 08:30 to 16:30, Malaysia time.
-//   Working day:  Monday–Friday and not in sales.holiday (national plus
+//   Working day:  Monday–Friday and not in `holiday` (national plus
 //                 KL/Selangor public holidays).
-//   A ticket that arrives outside office hours counts from the next opening
+//   An enquiry that arrives outside office hours counts from the next opening
 //   (08:30 on the next working day).
 //
 //   Tue 10:00 → Wed 10:00
@@ -40,7 +48,7 @@ function nextWorkingDay(day: number, holidays: Holidays): number {
   // endless loop on bad data.
   for (let d = day + 1; d < day + 366; d++)
     if (isWorkingDay(d, holidays)) return d;
-  throw new Error("no working day within a year: check sales.holiday");
+  throw new Error("no working day within a year: check the holiday table");
 }
 
 // The moment counting starts: `at` itself during office hours, otherwise
@@ -66,4 +74,11 @@ export function replyDueAt(at: Date, holidays: Holidays): Date {
 
 export function isOfficeHours(at: Date, holidays: Holidays): boolean {
   return countFrom(at, holidays).getTime() === at.getTime();
+}
+
+export async function loadHolidays(): Promise<Holidays> {
+  const rows = await db()`
+    SELECT day::text AS day FROM holiday
+    WHERE day BETWEEN current_date - 7 AND current_date + 400`;
+  return new Set(rows.map((r) => r.day as string));
 }

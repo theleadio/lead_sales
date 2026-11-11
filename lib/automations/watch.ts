@@ -137,27 +137,30 @@ async function outboxCauses(triggers: Set<string>): Promise<Cause[]> {
   return out;
 }
 
-async function ticketCauses(): Promise<Cause[]> {
+// New CRM enquiries (lead_crm `enquiry`, which holds the former tickets since
+// its migration 019), read only. The cursor is `enquiry`: a fresh cursor
+// starts at now, so switching to it never fires for old enquiries.
+async function enquiryCauses(): Promise<Cause[]> {
   const sql = db();
   const rows = await readWindow(
-    "ticket",
+    "enquiry",
     (from, to) => sql`
-    SELECT t.id, t.person_id, t.category, t.source_channel, t.number, t.created_at, tm.code AS team
-    FROM sales.ticket t JOIN sales.team tm ON tm.id = t.team_id
-    WHERE t.created_at > ${from}::text::timestamptz - make_interval(mins => ${OVERLAP_MINUTES})
-      AND t.created_at <= ${to}::text::timestamptz`,
+    SELECT e.id, e.person_id, e.category, e.channel, e.number, e.created_at, t.code AS team
+    FROM enquiry e JOIN team t ON t.id = e.team_id
+    WHERE e.created_at > ${from}::text::timestamptz - make_interval(mins => ${OVERLAP_MINUTES})
+      AND e.created_at <= ${to}::text::timestamptz`,
   );
-  return rows.map((t) => ({
-    trigger: "TicketCreated",
-    at: t.created_at,
-    sourceKey: `ticket:${t.id}`,
-    personId: t.person_id,
-    context: { ticketId: t.id },
+  return rows.map((e) => ({
+    trigger: "EnquiryCreated",
+    at: e.created_at,
+    sourceKey: `enquiry:${e.id}`,
+    personId: e.person_id,
+    context: { enquiryId: e.id },
     event: {
-      category: t.category,
-      channel: t.source_channel,
-      team: t.team,
-      number: t.number,
+      category: e.category,
+      channel: e.channel,
+      team: e.team,
+      number: e.number,
     },
   }));
 }
@@ -167,7 +170,7 @@ async function messageCauses(): Promise<Cause[]> {
   const rows = await readWindow(
     "message",
     (from, to) => sql`
-    SELECT id, person_id, channel, conversation_id, created_at FROM sales.message
+    SELECT id, person_id, channel, conversation_id, created_at FROM conversation_message
     WHERE direction = 'in'
       AND created_at > ${from}::text::timestamptz - make_interval(mins => ${OVERLAP_MINUTES})
       AND created_at <= ${to}::text::timestamptz`,
@@ -238,7 +241,7 @@ export async function watchTriggers(): Promise<number> {
     // moves on: switching an automation on never fires it for old events.
     const causes = [
       ...(await outboxCauses(triggers)),
-      ...(await ticketCauses()),
+      ...(await enquiryCauses()),
       ...(await messageCauses()),
       ...(await lmsCauses()),
     ];

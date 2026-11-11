@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { saveAutomation, setAutomationActive } from "@/lib/automations/admin";
 import { parseEditorForm } from "@/lib/automations/form";
 import { retryRun } from "@/lib/automations/run";
-import { TicketError, type Actor } from "@/lib/tickets/service";
+import { AutomationError, type Actor } from "@/lib/automations/errors";
 
 // Server Actions are public POST endpoints: the user comes from the session,
 // every field is validated here, and the library checks the role again.
@@ -30,7 +30,7 @@ export async function saveAutomationAction(
   try {
     id = await saveAutomation(a, parsed.input);
   } catch (e) {
-    if (!(e instanceof TicketError)) throw e;
+    if (!(e instanceof AutomationError)) throw e;
     return {
       errors: [
         e.code === "forbidden"
@@ -60,7 +60,7 @@ export async function toggleAutomationAction(form: FormData) {
   try {
     await setAutomationActive(a, p.data.id, p.data.active === "on");
   } catch (e) {
-    if (!(e instanceof TicketError)) throw e;
+    if (!(e instanceof AutomationError)) throw e;
     result = e.code === "forbidden" ? "forbidden" : "invalid";
   }
   redirect(
@@ -80,7 +80,7 @@ export async function retryRunAction(form: FormData) {
   try {
     if (!(await retryRun(a, p.data.runId))) result = "invalid";
   } catch (e) {
-    if (!(e instanceof TicketError)) throw e;
+    if (!(e instanceof AutomationError)) throw e;
     result = e.code === "forbidden" ? "forbidden" : "invalid";
   }
   redirect(`/automations/${p.data.automationId}?result=${result}`);

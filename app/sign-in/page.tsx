@@ -5,7 +5,7 @@ import { LeadProductLogo } from "../logo";
 import { SignInForm } from "./sign-in-form";
 
 export default async function SignInPage() {
-  if (await getSession()) redirect("/inbox");
+  if (await getSession()) redirect("/home");
   return (
     <main className="bg-surface-muted flex min-h-screen items-center justify-center">
       <div className="bg-surface border-line w-full max-w-sm rounded-2xl border p-8 shadow-sm">
