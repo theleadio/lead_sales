@@ -100,7 +100,7 @@ it("a confirmed enrolment is watched, queued once and sent with person, class an
   );
 });
 
-it("fundingType is the seat's own value, else the deal's where the two lists agree, else null", async () => {
+it("fundingType is the seat's own value; a seat with none is null, whatever its deal says", async () => {
   await fresh();
   const seat = await student();
   await db()`UPDATE enrolment SET funding_type = 'leaders_club' WHERE id = ${seat.enrolmentId}`;
@@ -121,7 +121,7 @@ it("fundingType is the seat's own value, else the deal's where the two lists agr
   );
   assert.deepEqual(funding, {
     [seat.enrolmentId]: "leaders_club",
-    [viaDeal.enrolmentId]: "hrdc",
+    [viaDeal.enrolmentId]: null,
     [none.enrolmentId]: null,
   });
 });

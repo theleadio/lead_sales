@@ -54,21 +54,6 @@ export type BuiltMessage =
   // Nothing to send, with the reason (recorded on the outbox row's handler).
   | { kind: "skip"; reason: string; personId?: string; enrolmentId?: string };
 
-// The seat's funding in the LMS's own values (decided 12 Nov; lead_crm
-// migration 023, enrolment.funding_type): self_funded, hrdc, internal,
-// leaders_club, refresher. A seat with none yet falls back to its deal's,
-// where the two lists mean the same thing: self → self_funded, hrdc → hrdc.
-// A company or other deal has no LMS value, so it goes as null.
-export function fundingTypeOf(
-  seat: string | null,
-  deal: string | null,
-): string | null {
-  if (seat) return seat;
-  if (deal === "self") return "self_funded";
-  if (deal === "hrdc") return "hrdc";
-  return null;
-}
-
 export async function buildLmsMessage(
   kind: LmsNoticeKind,
   refId: string,
@@ -80,11 +65,14 @@ export async function buildLmsMessage(
       const [e] = await sql`
         SELECT e.id, e.status, e.payer_type, e.price_paid_myr::text AS price,
                e.person_id, e.class_id,
-               e.funding_type AS seat_funding, d.funding_type AS deal_funding,
+               -- The seat's funding, in the LMS's own values (decided 12 Nov;
+               -- lead_crm migration 023): self_funded, hrdc, internal,
+               -- leaders_club, refresher. Never the deal's: none yet = null.
+               e.funding_type,
                (SELECT max(h.changed_at) FROM enrolment_status_history h
                  WHERE h.enrolment_id = e.id AND h.to_status = 'confirmed')
                  AS confirmed_at
-        FROM enrolment e LEFT JOIN deal d ON d.id = e.deal_id
+        FROM enrolment e
         WHERE e.id = ${refId}`;
       if (!e) throw new Error(`enrolment ${refId} not found`);
       const person = await personBlock(e.person_id as string);
@@ -106,10 +94,7 @@ export async function buildLmsMessage(
             status: e.status,
             payerType: e.payer_type,
             pricePaidMyr: e.price ?? null,
-            fundingType: fundingTypeOf(
-              e.seat_funding as string | null,
-              e.deal_funding as string | null,
-            ),
+            fundingType: e.funding_type ?? null,
             confirmedAt: e.confirmed_at
               ? new Date(e.confirmed_at as string).toISOString()
               : null,

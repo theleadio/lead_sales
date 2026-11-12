@@ -109,7 +109,7 @@ Envelope shared by all messages:
 
 The CRM data is incomplete for this message:
 - **Email may be missing.** The CRM allows a person with no email. The LMS can't create a login without one, so the CRM must not send then. Instead it creates an Ops task saying "Add an email so the LMS account can be made".
-- **Funding uses the LMS's values (changed 12 Nov).** `fundingType` is the seat's `enrolment.funding_type` (lead_crm migration 023), in the LMS's own values: `self_funded`, `hrdc`, `internal`, `leaders_club`, `refresher`. A seat with none yet falls back to its deal's `funding_type` where the meaning is the same (`self` → `self_funded`, `hrdc` → `hrdc`); otherwise it is `null`. A value the LMS adds later needs a CRM migration that widens the CHECK.
+- **Funding uses the LMS's values (changed 12 Nov).** `fundingType` is the seat's `enrolment.funding_type` (lead_crm migration 023), in the LMS's own values: `self_funded`, `hrdc`, `internal`, `leaders_club`, `refresher`. It is never taken from the deal: a seat with none set yet is sent as `null`. A value the LMS adds later needs a CRM migration that widens the CHECK.
 
 ### 4.2 `enrolment.cancelled`
 
