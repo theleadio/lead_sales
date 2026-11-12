@@ -64,11 +64,15 @@ export async function buildLmsMessage(
     case "enrolment.confirmed": {
       const [e] = await sql`
         SELECT e.id, e.status, e.payer_type, e.price_paid_myr::text AS price,
-               e.person_id, e.class_id, d.funding_type,
+               e.person_id, e.class_id,
+               -- The seat's funding, in the LMS's own values (decided 12 Nov;
+               -- lead_crm migration 023): self_funded, hrdc, internal,
+               -- leaders_club, refresher. Never the deal's: none yet = null.
+               e.funding_type,
                (SELECT max(h.changed_at) FROM enrolment_status_history h
                  WHERE h.enrolment_id = e.id AND h.to_status = 'confirmed')
                  AS confirmed_at
-        FROM enrolment e LEFT JOIN deal d ON d.id = e.deal_id
+        FROM enrolment e
         WHERE e.id = ${refId}`;
       if (!e) throw new Error(`enrolment ${refId} not found`);
       const person = await personBlock(e.person_id as string);
