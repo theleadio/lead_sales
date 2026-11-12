@@ -40,7 +40,10 @@ export type SendRequest = {
 export type Sender = (req: SendRequest) => Promise<void>;
 export type Senders = Partial<Record<"email" | "whatsapp", Sender>>;
 
-class Final extends Error {}
+// A failure no retry can fix: the run stops at once with this message in its
+// log. Senders throw it too (a refused template, a bad number, a send whose
+// outcome is unknown and must not be repeated).
+export class Final extends Error {}
 
 type Run = {
   id: string;
@@ -153,7 +156,10 @@ async function runStep(
       const channel = step.kind === "send_email" ? "email" : "whatsapp";
       const key = `auto:${run.id}:${position}`;
       const [already] = await sql`
-        SELECT 1 FROM conversation_message WHERE channel = ${channel} AND external_message_id = ${key}`;
+        SELECT 1 FROM conversation_message
+        WHERE channel = ${channel} AND external_message_id = ${key}
+          -- A failed one may be sent again ("run again" after a fix).
+          AND status <> 'failed'`;
       if (already)
         return { kind: "next", log: "skipped", detail: "Already sent" };
       const [p] = await sql`
@@ -198,7 +204,10 @@ async function runStep(
       }
       await sender({
         channel,
-        template: step.settings.template,
+        template:
+          language === "zh" && step.settings.templateZh
+            ? step.settings.templateZh
+            : step.settings.template,
         personId: run.person_id,
         to,
         language,
