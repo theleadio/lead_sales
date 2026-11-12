@@ -156,6 +156,28 @@ test(
     }),
 );
 
+test(
+  "WATI busy (429, 408) is retried, not refused: the row is freed and the next try sends it",
+  { skip },
+  () =>
+    withPerson(async (p) => {
+      const k = key();
+      for (const status of [429, 408]) {
+        await assert.rejects(watiSender(fake(status).o)(req(p, k)), (e) => {
+          assert.ok(!(e instanceof Final), "the engine retries it");
+          assert.match((e as Error).message, /busy.*tried again/);
+          assert.doesNotMatch((e as Error).message, /template name/);
+          return true;
+        });
+        assert.equal((await rowOf(k)).status, "failed");
+      }
+      const next = fake();
+      await watiSender(next.o)(req(p, k));
+      assert.equal(next.calls.length, 1);
+      assert.equal((await rowOf(k)).status, "sent");
+    }),
+);
+
 test("a bad WATI_API_HOST fails at once, without a call", { skip }, () =>
   withPerson(async (p) => {
     const k = key();
