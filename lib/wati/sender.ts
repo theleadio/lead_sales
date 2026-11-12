@@ -15,6 +15,8 @@ import { db, outsideTransaction, withTransaction } from "../sql.ts";
 //  - the CRM's webhook can see the row while the run is still going
 //  - WATI refusing it (4xx, result:false, a bad host) marks it `failed` and
 //    stops the run at once with the reason; "run again" may then resend
+//  - WATI busy (429, 408) marks it `failed` and lets the engine retry it
+//    with its usual backoff: it was not sent, so sending again is safe
 //  - no clear answer (timeout, 5xx, network) leaves it `queued` and stops the
 //    run: WATI may have sent it, so it is not sent again automatically
 //
@@ -34,6 +36,10 @@ export type WatiOpts = {
 
 // WATI said no: retrying cannot help.
 class Refused extends Error {}
+
+// WATI is busy (429 rate limit, 408 timeout reading the request): not sent,
+// and the same message can go again shortly. Not the template's fault.
+class Busy extends Error {}
 
 async function sendTemplate(
   o: WatiOpts,
@@ -66,6 +72,8 @@ async function sendTemplate(
       signal: AbortSignal.timeout(15_000),
     },
   );
+  if (res.status === 408 || res.status === 429)
+    throw new Busy(`WATI is busy (${res.status})`);
   if (res.status >= 400 && res.status < 500)
     throw new Refused(
       `WATI refused it (${res.status}): check the template name and that it is approved`,
@@ -154,6 +162,14 @@ export function watiSender(o: WatiOpts): Sender {
         { name: "name", value: await greetingName(req.personId) },
       ]);
     } catch (e) {
+      if (e instanceof Busy) {
+        // Not sent: freed for the engine's retry (claim() takes a failed
+        // row back), which waits 1 min, 5 min, … before trying again.
+        await setStatus(req.idempotencyKey, "failed");
+        throw new Error(
+          `${e.message}: not sent; it is tried again automatically`,
+        );
+      }
       if (e instanceof Refused) {
         await setStatus(req.idempotencyKey, "failed");
         throw new Final(e.message);
