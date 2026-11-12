@@ -79,7 +79,7 @@ Envelope shared by all messages:
     "status": "confirmed",
     "payerType": "self | company",
     "pricePaidMyr": "1500.00",
-    "fundingType": "self | company | hrdc | other",
+    "fundingType": "self_funded | hrdc | internal | leaders_club | refresher, or null",
     "confirmedAt": "ISO 8601"
   },
   "person": {
@@ -109,7 +109,7 @@ Envelope shared by all messages:
 
 The CRM data is incomplete for this message:
 - **Email may be missing.** The CRM allows a person with no email. The LMS can't create a login without one, so the CRM must not send then. Instead it creates an Ops task saying "Add an email so the LMS account can be made".
-- **Funding types don't line up.** The LMS has `leaders_club`, and the CRM `funding_type` doesn't. Leaders Club is a membership, not a funding type (decided 4 Nov). The LMS's full list is still needed (§7).
+- **Funding uses the LMS's values (changed 12 Nov).** `fundingType` is the seat's `enrolment.funding_type` (lead_crm migration 023), in the LMS's own values: `self_funded`, `hrdc`, `internal`, `leaders_club`, `refresher`. A seat with none yet falls back to its deal's `funding_type` where the meaning is the same (`self` → `self_funded`, `hrdc` → `hrdc`); otherwise it is `null`. A value the LMS adds later needs a CRM migration that widens the CHECK.
 
 ### 4.2 `enrolment.cancelled`
 
@@ -187,7 +187,7 @@ This is the opposite direction to the notices above. The LMS posts to `lead_sale
 - ~~Completion~~: the LMS marks it (decided 4 Nov).
 - ~~Login details~~: the CRM's onboarding message carries the login link (decided 4 Nov).
 - ~~Login link~~: the onboarding message links to `https://class.thelead.io/` (decided 4 Nov). It is the same link for everyone, so the LMS does not need to return a personal link. First sign-in uses a temporary password the LMS emails to the student's registered email (decided 4 Nov).
-- ~~Leaders Club~~: it's a membership, not a funding type (decided 4 Nov). It does not become a CRM `funding_type`. Record it as a tag or price type and pay it as `self` or `company`. The LMS's full `funding_type` list is still needed to finish the mapping.
+- ~~Leaders Club~~: membership is a "LEADER Club" tag on the person; how a seat was paid is `enrolment.funding_type`, which can be `leaders_club` (decided 12 Nov, replacing the 4 Nov answer that it was not a funding type). The LMS's full `funding_type` list is still owed by its owner.
 - ~~LMS endpoint~~: `https://class.thelead.io/api/crm/events` (decided 4 Nov).
 - ~~Old enrolments~~: a one-off backfill at go-live sends `enrolment.confirmed` for every confirmed enrolment in upcoming classes (decided 4 Nov). It's safe to re-run, because the LMS upserts by enrolment id.
 - **Certificate:** which template, what does the certificate number look like, and is there a PDF link? The LMS owns this now.

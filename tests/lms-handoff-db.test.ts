@@ -100,6 +100,32 @@ it("a confirmed enrolment is watched, queued once and sent with person, class an
   );
 });
 
+it("fundingType is the seat's own value, else the deal's where the two lists agree, else null", async () => {
+  await fresh();
+  const seat = await student();
+  await db()`UPDATE enrolment SET funding_type = 'leaders_club' WHERE id = ${seat.enrolmentId}`;
+  const viaDeal = await student();
+  const [deal] = await db()`
+    INSERT INTO deal (pipeline, stage, person_id, funding_type)
+    VALUES ('individual', 'new', ${viaDeal.personId}, 'hrdc') RETURNING id`;
+  await db()`UPDATE enrolment SET deal_id = ${deal.id} WHERE id = ${viaDeal.enrolmentId}`;
+  const none = await student();
+  assert.equal(await watchEnrolments(), 3);
+  const lms = fakeLms();
+  await drainLms(lms.send);
+  const funding = Object.fromEntries(
+    lms.sent.map((m) => {
+      const d = m.data as Record<string, Record<string, unknown>>;
+      return [d.enrolment.id as string, d.enrolment.fundingType];
+    }),
+  );
+  assert.deepEqual(funding, {
+    [seat.enrolmentId]: "leaders_club",
+    [viaDeal.enrolmentId]: "hrdc",
+    [none.enrolmentId]: null,
+  });
+});
+
 it("the first run starts from now: older changes go through the backfill", async () => {
   await fresh();
   await db()`DELETE FROM sales.lms_cursor`;
