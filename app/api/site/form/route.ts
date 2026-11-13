@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
-import { readCapped, submitForm } from "@/lib/sites/forms";
+import { submitForm } from "@/lib/sites/forms";
+import { readCapped } from "@/lib/sites/public-request";
 import { isPublicHost } from "@/lib/sites/host";
 import { clientIp, fromPublicOrigin } from "@/lib/sites/stats";
 

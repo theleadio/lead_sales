@@ -125,3 +125,34 @@ export async function crmRegister(input: CrmRegisterInput, ctx: Ctx): Promise<Cr
   }
   return failure(path, r);
 }
+
+export type CrmScheduleClass = {
+  code: string;
+  courseName: string;
+  startDate: string;
+  endDate: string;
+  priceMyr: string | null;
+  seatsLabel: "available" | "few_seats" | "full";
+};
+
+// GET /api/public/schedule: the public classes (open, few seats, full; limit max 100).
+export async function crmSchedule(): Promise<{ kind: "ok"; classes: CrmScheduleClass[] } | { kind: "error" }> {
+  const base = process.env.CRM_BASE_URL;
+  const key = process.env.PUBLIC_API_KEY;
+  if (!base || !key) {
+    console.error("crm api not configured");
+    return { kind: "error" };
+  }
+  try {
+    const r = await crmFetch(`${base.replace(/\/+$/, "")}/api/public/schedule?limit=100`, {
+      headers: { "X-Api-Key": key },
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = await r.json().catch(() => null);
+    if (r.status === 200 && Array.isArray(body?.classes)) return { kind: "ok", classes: body.classes };
+    console.error(`crm api /api/public/schedule failed: HTTP ${r.status}`);
+  } catch (e) {
+    console.error(`crm api /api/public/schedule failed: ${e instanceof Error ? e.name : "error"}`);
+  }
+  return { kind: "error" };
+}

@@ -1,10 +1,11 @@
 import { db } from "../sql.ts";
-import { attributionPayload, parseTouch, touchFrom, trimUrl } from "../crm/attribution.ts";
+import { trimUrl } from "../crm/attribution.ts";
 import { fbcFrom, queueCapi } from "./capi.ts";
 import { crmLead, type CrmLeadInput } from "./crm-api.ts";
 import { PUBLIC_HOST } from "./host.ts";
 import { formNameFor, leadFormSettingsSchema, pageSlug, siteSettingsSchema, type LeadFormSettings } from "./model.ts";
 import { components } from "./publish.ts";
+import { landingAndAttribution, whatsappFallback } from "./public-request.ts";
 import { isUuid } from "./stats.ts";
 
 export type FormRaw = {
@@ -56,20 +57,7 @@ export async function submitForm(
   const f = parsed.data;
   const site = siteSettingsSchema.safeParse(page.settings);
 
-  const first = parseTouch(raw.firstTouch);
-  // Host and path are ours (the page being submitted); only the query comes from the visitor.
-  const landing = new URL(`https://${PUBLIC_HOST}${page.path}`);
-  try {
-    landing.search = new URL(raw.landingUrl).search;
-  } catch {}
-  const q = landing.searchParams;
-  const last = parseTouch(raw.lastTouch) ?? touchFrom(landing.href, raw.referrer);
-  const attribution = {
-    ...attributionPayload(first, last),
-    landingUrl: trimUrl(landing.href), // the page the form is on, which the stats match on
-    utmId: q.get("utm_id")?.slice(0, 200) || null,
-    utmAdId: q.get("utm_ad_id")?.slice(0, 200) || null,
-  } as NonNullable<CrmLeadInput["attribution"]>;
+  const { landing, q, attribution } = landingAndAttribution(page.path, raw);
 
   const input: CrmLeadInput = {
     idempotencyKey: raw.idempotencyKey,
@@ -90,8 +78,7 @@ export async function submitForm(
   };
   const r = await (ctx.crm ?? crmLead)(input, { clientIp: ctx.clientIp });
   if (r.kind === "error") {
-    const wa = site.success ? site.data.chatWidget?.whatsapp.replace(/\D/g, "") : "";
-    return { kind: "error", whatsapp: wa ? `https://wa.me/${wa}` : null };
+    return { kind: "error", whatsapp: whatsappFallback(page.settings) };
   }
   if (r.kind !== "ok") return r;
 
@@ -116,11 +103,4 @@ export async function submitForm(
     }
   }
   return { kind: "ok", after: f.after };
-}
-
-// Reads a request body as text, refusing more than `max` bytes (null = too big).
-export async function readCapped(req: Request, max: number): Promise<string | null> {
-  if (Number(req.headers.get("content-length") ?? 0) > max) return null;
-  const t = await req.text();
-  return new TextEncoder().encode(t).length > max ? null : t;
 }

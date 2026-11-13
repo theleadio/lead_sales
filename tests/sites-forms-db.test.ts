@@ -2,7 +2,8 @@
 import { after } from "node:test";
 import assert from "node:assert/strict";
 import { createFunnel, getSite, updateSiteSettings } from "../lib/sites/admin.ts";
-import { readCapped, submitForm, type FormRaw } from "../lib/sites/forms.ts";
+import { submitForm, type FormRaw } from "../lib/sites/forms.ts";
+import { readCapped } from "../lib/sites/public-request.ts";
 import { publishPage } from "../lib/sites/publish.ts";
 import type { CrmLeadInput } from "../lib/sites/crm-api.ts";
 import { closeDb, db } from "../lib/sql.ts";
