@@ -346,3 +346,47 @@ it("setStepPath: a view-only role is refused and audited", async () => {
   assert.equal(n, 1);
   assert.equal((await getSite(m, siteId))!.steps[0].path, s.steps[0].path);
 });
+
+it("after a forced take-over the displaced editor's save is refused and the draft is untouched", async () => {
+  const a = await newUser("marketing");
+  const b = await newUser("marketing");
+  const { siteId } = await createFunnel(a, { name: "F", language: "en", basePath: base() });
+  const page = (await getSite(a, siteId))!.steps[0];
+  assert.equal((await takeEditLock(a, page.id)).holder, null);
+  const first = await saveDraft(a, page.id, { project: { v: "a1" }, html: "<p>a1</p>", css: "" }, page.version);
+  assert.equal(first.kind, "ok");
+  const v = (first as { version: number }).version;
+  assert.equal((await takeEditLock(b, page.id, { force: true })).holder, null);
+  // a's next autosave, still on the old version: locked.
+  const r = await saveDraft(a, page.id, { project: { v: "a2" }, html: "<p>a2</p>", css: "" }, v);
+  assert.equal(r.kind, "locked");
+  assert.equal(await getDraft(b, page.id).then((d) => d.html), "<p>a1</p>");
+  // the take-over bumped the version: even after the lock goes stale, a's old version conflicts.
+  await db()`UPDATE sales.site_page SET edit_lock_at = now() - interval '3 minutes' WHERE id = ${page.id}`;
+  assert.deepEqual(await saveDraft(a, page.id, { project: { v: "a3" }, html: "<p>a3</p>", css: "" }, v), { kind: "conflict" });
+  assert.equal(await getDraft(b, page.id).then((d) => d.html), "<p>a1</p>");
+  // b, on the current version, saves fine.
+  const cur = (await getDraft(b, page.id)).version;
+  assert.equal(cur, v + 1);
+  assert.equal((await saveDraft(b, page.id, { project: {}, html: "<p>b</p>", css: "" }, cur)).kind, "ok");
+});
+
+it("the three starter templates create funnels with all their steps and html", async () => {
+  const { TEMPLATES } = await import("../scripts/site-templates-data.ts");
+  const m = await newUser("marketing");
+  for (const t of TEMPLATES) {
+    const name = `${t.name} ${crypto.randomUUID().slice(0, 6)}`;
+    const [row] = await db()`
+      INSERT INTO sales.site_template (kind, name, payload)
+      VALUES ('funnel', ${name}, ${db().json({ steps: t.steps } as never)}) RETURNING id`;
+    const { siteId } = await createFunnel(m, { name: "From template", language: "en", basePath: base(), templateId: row.id });
+    const steps = (await getSite(m, siteId))!.steps;
+    assert.equal(steps.length, t.steps.length, t.name);
+    for (const [i, s] of steps.entries()) {
+      assert.equal(s.name, t.steps[i].name);
+      assert.equal(s.kind, t.steps[i].kind);
+      const d = await getDraft(m, s.id);
+      assert.ok(d.html.length > 100 && d.css.length > 100, `${t.name} / ${s.name}`);
+    }
+  }
+});

@@ -95,6 +95,10 @@ export default function LeadEditor(props: EditorProps) {
         stopped.current = true;
         setStatus("Not saved");
         setBanner({ kind: "error", text: "Changed by someone else — reload", reload: true });
+      } else if (r.kind === "locked") {
+        stopped.current = true;
+        setStatus("Not saved");
+        setBanner({ kind: "error", text: `Someone else took over editing (${r.holder}). Reload to see their version.`, reload: true });
       } else {
         setStatus("Not saved");
         setBanner({ kind: "error", text: r.message });
@@ -191,7 +195,7 @@ export default function LeadEditor(props: EditorProps) {
           if (r.holder && !stopped.current) {
             stopped.current = true;
             setStatus("Not saved");
-            setBanner({ kind: "error", text: `${r.holder} took over editing this step. Reload to see their version.`, reload: true });
+            setBanner({ kind: "error", text: `Someone else took over editing (${r.holder}). Reload to see their version.`, reload: true });
           }
         }, LOCK_EVERY_MS);
     const warn = (ev: BeforeUnloadEvent) => {

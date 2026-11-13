@@ -369,12 +369,19 @@ export async function saveDraft(
   pageId: string,
   draft: { project: unknown; html: string; css: string },
   version: number,
-): Promise<Result> {
+): Promise<Result | { kind: "locked"; holder: string }> {
   await guard(viewer, "edit a page", true);
   if (Buffer.byteLength(draft.html) + Buffer.byteLength(draft.css) > MAX_DRAFT_BYTES)
     throw new Error("This page is too large to save (over 2 MB of HTML and CSS). Remove some content.");
   return withTransaction(async () => {
     const sql = db();
+    // Someone else holds a fresh lock (e.g. took over): this editor must stop.
+    const [l] = await sql`
+      SELECT p.edit_lock_user_id AS uid, u.full_name AS name,
+             coalesce(p.edit_lock_at > now() - ${LOCK_INTERVAL}::interval, false) AS fresh
+      FROM sales.site_page p LEFT JOIN app_user u ON u.id = p.edit_lock_user_id
+      WHERE p.id = ${pageId} FOR UPDATE OF p`;
+    if (l?.uid && l.uid !== viewer.id && l.fresh) return { kind: "locked", holder: l.name as string };
     const [p] = await sql`
       UPDATE sales.site_page
       SET version = version + 1, updated_at = now(), edit_lock_user_id = ${viewer.id}, edit_lock_at = now()
@@ -404,7 +411,11 @@ export async function takeEditLock(viewer: Viewer, pageId: string, opts: { force
     if (!p) throw new Error("No such step.");
     const other = p.uid && p.uid !== viewer.id && p.fresh;
     if (other && !opts.force) return { holder: { id: p.uid as string, name: p.name as string } };
-    await sql`UPDATE sales.site_page SET edit_lock_user_id = ${viewer.id}, edit_lock_at = now() WHERE id = ${pageId}`;
+    // A take-over also bumps the version, so the displaced editor's next save conflicts even if the lock check were skipped.
+    await sql`
+      UPDATE sales.site_page
+      SET edit_lock_user_id = ${viewer.id}, edit_lock_at = now(), version = version + ${other ? 1 : 0}
+      WHERE id = ${pageId}`;
     if (other)
       await audit(viewer, "update", "site_page", pageId, { lockHolderId: p.uid }, { lockHolderId: viewer.id });
     return { holder: null };
