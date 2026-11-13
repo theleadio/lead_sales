@@ -46,26 +46,29 @@ async function purge(pageIds: string[]) {
 const decode = (s: string) =>
   s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
-// Every <div ... data-lead="kind" ...>: its settings attribute, decoded and parsed.
-function components(html: string, kind: "form" | "order") {
-  const out: { settings: unknown }[] = [];
+// Scans the CLEANED html (sanitize-html serialises attributes uniformly): every
+// <div data-lead="kind">, its data-settings decoded and parsed.
+function components(html: string, kind: "form" | "order" | "global-section") {
+  const out: { settings: unknown; id: string }[] = [];
   for (const [tag] of html.matchAll(/<div\b[^>]*>/gi)) {
-    if (!new RegExp(`data-lead=["']${kind}["']`, "i").test(tag)) continue;
-    const m = /data-settings=(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+    if (/data-lead\s*=\s*["']?([a-z-]+)/i.exec(tag)?.[1]?.toLowerCase() !== kind) continue;
+    const m = /data-settings\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
     let settings: unknown;
     try {
       settings = m ? JSON.parse(decode(m[1] ?? m[2])) : undefined;
     } catch {
       settings = undefined;
     }
-    out.push({ settings });
+    out.push({ settings, id: dataId(tag) });
   }
   return out;
 }
 
-const GLOBAL_RE = /<div\b(?=[^>]*data-lead=["']global-section["'])[^>]*>\s*<\/div>/gi;
-const dataId = (tag: string) => /data-id=["']([^"']*)["']/i.exec(tag)?.[1] ?? "";
+const GLOBAL_RE = /<div\b(?=[^>]*data-lead\s*=\s*["']?global-section["']?)[^>]*>\s*<\/div>/gi;
+const dataId = (tag: string) => /data-id\s*=\s*["']?([0-9a-zA-Z-]*)/i.exec(tag)?.[1] ?? "";
 
+// Inlines each known global section; a missing one is left in place and
+// caught by publishCheck after cleaning.
 async function renderGlobals(html: string, css: string) {
   const found = new Map<string, { html: string; css: string }>();
   for (const id of new Set([...html.matchAll(GLOBAL_RE)].map((m) => dataId(m[0])))) {
@@ -76,7 +79,7 @@ async function renderGlobals(html: string, css: string) {
   let extra = "";
   const out = html.replace(GLOBAL_RE, (tag) => {
     const g = found.get(dataId(tag));
-    if (!g) return "";
+    if (!g) return tag;
     extra += `\n${g.css}`;
     return g.html;
   });
@@ -89,6 +92,7 @@ const todayKL = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/K
 export async function publishCheck(page: PageInfo, draft: { html: string }, site: SiteInfo): Promise<string[]> {
   const reasons: string[] = [];
   if (!site.settings?.privacyUrl) reasons.push("Add a privacy policy link in the site settings.");
+  for (const g of components(draft.html, "global-section")) reasons.push(`Missing global section ${g.id || "(no id)"}.`);
   for (const { settings } of components(draft.html, "form")) {
     const r = leadFormSettingsSchema.safeParse(settings);
     if (!r.success) {
@@ -127,21 +131,46 @@ async function load(pageId: string) {
   };
 }
 
+// Takes the route unless another site's page holds it (atomic: the conditional
+// upsert returns no row if the existing owner is outside this site). Also
+// reports a redirect target it replaced, for the audit trail.
+export async function writeRoute(domain: string, page: PageInfo, pageId: string) {
+  const sql = db();
+  const [old] = await sql`SELECT redirect_to FROM sales.site_route WHERE domain = ${domain} AND path = ${page.path}`;
+  const rows = await sql`
+    INSERT INTO sales.site_route (domain, path, page_id, redirect_to) VALUES (${domain}, ${page.path}, ${pageId}, NULL)
+    ON CONFLICT (domain, path) DO UPDATE SET page_id = EXCLUDED.page_id, redirect_to = NULL
+    WHERE sales.site_route.page_id IS NULL
+       OR sales.site_route.page_id IN (SELECT id FROM sales.site_page WHERE site_id = ${page.siteId})
+    RETURNING path`;
+  return { ok: rows.length > 0, replacedRedirect: (old?.redirect_to as string | null) ?? null };
+}
+
 // version undefined = skip the concurrency check (publishSite, restore).
 async function publishOne(
   viewer: Viewer,
   pageId: string,
   version: number | undefined,
   dryRun: boolean,
+  restoredFrom?: string,
 ): Promise<PublishResult> {
   const sql = db();
   const { page, site, version: cur, draft } = await load(pageId);
   if (version !== undefined && version !== cur) return { kind: "conflict" };
+  // One writer per (domain, path) at a time: the check and the route write below
+  // are then atomic against another site publishing the same path.
+  await sql`SELECT pg_advisory_xact_lock(hashtext(${site.domain + page.path}))`;
   const rendered = await renderGlobals(draft.html, draft.css);
-  const reasons = await publishCheck(page, rendered, site);
+  const clean = cleanPage(rendered.html, rendered.css);
+  const reasons = await publishCheck(page, clean, site);
   if (reasons.length) return { kind: "refused", reasons };
   if (dryRun) return { kind: "ok", removed: [] };
-  const clean = cleanPage(rendered.html, rendered.css);
+  // A page whose path changed since last publish stops answering at the old path.
+  await sql`
+    UPDATE sales.site_route SET page_id = NULL
+    WHERE page_id = ${pageId} AND NOT (domain = ${site.domain} AND path = ${page.path})`;
+  const route = await writeRoute(site.domain, page, pageId);
+  if (!route.ok) return { kind: "refused", reasons: [`The address ${page.path} is already used by another site.`] };
   const [prev] = await sql`
     UPDATE sales.page_version SET status = 'archived'
     WHERE page_id = ${pageId} AND variant = 'A' AND status = 'published' RETURNING id`;
@@ -150,22 +179,33 @@ async function publishOne(
     VALUES (${pageId}, ${sql.json(draft.project as never)}, ${clean.html}, ${clean.css}, 'published', ${viewer.id}, now())
     RETURNING id`;
   await sql`UPDATE sales.site_page SET active_version_id = ${v.id}, version = version + 1, updated_at = now() WHERE id = ${pageId}`;
-  // A page whose path changed since last publish stops answering at the old path.
-  await sql`
-    UPDATE sales.site_route SET page_id = NULL
-    WHERE page_id = ${pageId} AND NOT (domain = ${site.domain} AND path = ${page.path})`;
-  await sql`
-    INSERT INTO sales.site_route (domain, path, page_id, redirect_to) VALUES (${site.domain}, ${page.path}, ${pageId}, NULL)
-    ON CONFLICT (domain, path) DO UPDATE SET page_id = EXCLUDED.page_id, redirect_to = NULL`;
   await writeAudit({
     userId: viewer.id,
     action: "update",
     entity: "site_page",
     entityId: pageId,
-    before: { versionId: prev?.id ?? null },
-    after: { what: "publish", versionId: v.id },
+    before: { versionId: prev?.id ?? null, replacedRedirect: route.replacedRedirect },
+    after: { what: "publish", versionId: v.id, ...(restoredFrom ? { restoredFrom } : {}) },
   });
   return { kind: "ok", removed: clean.removed };
+}
+
+class Refused extends Error {
+  out: PublishResult;
+  constructor(out: PublishResult) {
+    super("refused");
+    this.out = out;
+  }
+}
+
+// A transaction that a Refused throw rolls back, returning the refusal.
+async function publishAll(fn: () => Promise<PublishResult>): Promise<PublishResult> {
+  try {
+    return await withTransaction(fn);
+  } catch (e) {
+    if (e instanceof Refused) return e.out;
+    throw e;
+  }
 }
 
 export async function publishPage(viewer: Viewer, pageId: string, version: number): Promise<PublishResult> {
@@ -179,7 +219,7 @@ export async function publishPage(viewer: Viewer, pageId: string, version: numbe
 export async function publishSite(viewer: Viewer, siteId: string): Promise<PublishResult> {
   await guard(viewer, "publish a site", true);
   let ids: string[] = [];
-  const r = await withTransaction(async (): Promise<PublishResult> => {
+  const r = await publishAll(async (): Promise<PublishResult> => {
     const pages = await db()`SELECT id, name FROM sales.site_page WHERE site_id = ${siteId} ORDER BY position`;
     if (!pages.length) throw new Error("No such site.");
     const reasons: string[] = [];
@@ -191,9 +231,18 @@ export async function publishSite(viewer: Viewer, siteId: string): Promise<Publi
     const removed: string[] = [];
     for (const p of pages) {
       const o = await publishOne(viewer, p.id, undefined, false);
-      if (o.kind === "ok") removed.push(...o.removed);
+      if (o.kind !== "ok") throw new Refused(o); // rolls back the pages already written
+      removed.push(...o.removed);
     }
     ids = pages.map((p) => p.id as string);
+    await writeAudit({
+      userId: viewer.id,
+      action: "update",
+      entity: "site",
+      entityId: siteId,
+      before: null,
+      after: { what: "publish", pageIds: ids },
+    });
     return { kind: "ok", removed };
   });
   if (r.kind === "ok") await purge(ids);
@@ -237,17 +286,15 @@ export async function listVersions(viewer: Viewer, pageId: string) {
   }));
 }
 
-class Refused extends Error {
-  out: PublishResult;
-  constructor(out: PublishResult) {
-    super("refused");
-    this.out = out;
-  }
-}
-
-// Copies the chosen version into the draft, then publishes the draft. A
-// refused publish rolls the draft copy back too.
-export async function restoreVersion(viewer: Viewer, pageId: string, versionId: string): Promise<PublishResult> {
+// Copies the chosen version into the draft, then publishes the draft. `version`
+// is the page's current version (stale = conflict). A refused or conflicting
+// publish rolls the draft copy back too.
+export async function restoreVersion(
+  viewer: Viewer,
+  pageId: string,
+  versionId: string,
+  version: number,
+): Promise<PublishResult> {
   await guard(viewer, "restore a version", true);
   let r: PublishResult;
   try {
@@ -262,7 +309,7 @@ export async function restoreVersion(viewer: Viewer, pageId: string, versionId: 
         VALUES (${pageId}, ${sql.json(v.project)}, ${v.html}, ${v.css})
         ON CONFLICT (page_id, variant) WHERE status = 'draft'
         DO UPDATE SET project = EXCLUDED.project, html = EXCLUDED.html, css = EXCLUDED.css`;
-      const out = await publishOne(viewer, pageId, undefined, false);
+      const out = await publishOne(viewer, pageId, version, false, versionId);
       if (out.kind !== "ok") throw new Refused(out);
       return out;
     });
