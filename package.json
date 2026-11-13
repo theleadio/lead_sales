@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build:runtime": "node scripts/build-runtime.ts",
+    "sites:seed": "node --env-file-if-exists=.env.local scripts/seed-site-templates.ts",
     "prebuild": "npm run build:runtime",
     "build": "next build",
     "start": "next start",
@@ -21,6 +22,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.0",
+    "grapesjs": "0.23.8",
     "libphonenumber-js": "^1.13.15",
     "lucide-react": "^1.47.0",
     "next": "16.3.6",
