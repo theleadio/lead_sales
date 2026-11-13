@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test, { beforeEach } from "node:test";
-import { crmLead, crmRegister, setCrmFetch } from "../lib/sites/crm-api.ts";
+import { crmLead, crmRegister, crmScheduleCached, resetCrmScheduleCache, setCrmFetch } from "../lib/sites/crm-api.ts";
 
 type Call = { url: string; init: RequestInit };
 let calls: Call[] = [];
@@ -14,6 +14,7 @@ const err = (code: string, extra: object = {}) => ({ error: { code, message: "x"
 
 beforeEach(() => {
   calls = [];
+  resetCrmScheduleCache();
   process.env.CRM_BASE_URL = "https://crm.test/";
   process.env.PUBLIC_API_KEY = "k-secret";
 });
@@ -90,8 +91,8 @@ test("errors never log the key, body or personal data", async () => {
 const reg = { fullName: "Ali", phone: "0123456789", classCode: "AIA-2611-EN", returnUrl: "https://ai.thelead.io/x" };
 
 test("register: 201 checkout -> url; posts to /register", async () => {
-  reply(201, { ok: true, next: "checkout", checkoutUrl: "https://stripe.test/s", personId: "p", dealId: "d" });
-  assert.deepEqual(await crmRegister(reg, none), { kind: "checkout", url: "https://stripe.test/s" });
+  reply(201, { ok: true, next: "checkout", checkoutUrl: "https://checkout.stripe.com/s", personId: "p", dealId: "d" });
+  assert.deepEqual(await crmRegister(reg, none), { kind: "checkout", url: "https://checkout.stripe.com/s" });
   assert.equal(calls[0].url, "https://crm.test/api/public/register");
   assert.equal(JSON.parse(calls[0].init.body as string).returnUrl, reg.returnUrl);
 });
@@ -135,4 +136,31 @@ test("register: 400/429/403 map as for leads", async () => {
   assert.deepEqual(await crmRegister(reg, none), { kind: "limited" });
   reply(403, err("captcha_failed"));
   assert.deepEqual(await crmRegister(reg, none), { kind: "captcha" });
+});
+
+test("register: a checkout url that is not https://checkout.stripe.com is an error", async () => {
+  for (const u of ["https://evil.com/x", "http://checkout.stripe.com/x", "javascript:alert(1)", "https://checkout.stripe.com.evil.com/x"]) {
+    reply(201, { ok: true, next: "checkout", checkoutUrl: u });
+    assert.deepEqual(await crmRegister(reg, none), { kind: "error" });
+  }
+});
+
+test("schedule: cached 60 s with one CRM call; errors are not cached", async () => {
+  reply(200, { classes: [{ code: "A" }] });
+  const t = Date.now();
+  await crmScheduleCached(t);
+  const r = await crmScheduleCached(t + 30_000);
+  assert.equal(r.kind, "ok");
+  assert.equal(calls.length, 1);
+  await crmScheduleCached(t + 61_000);
+  assert.equal(calls.length, 2);
+
+  resetCrmScheduleCache();
+  calls = [];
+  reply(500, {});
+  assert.equal((await crmScheduleCached(t)).kind, "error");
+  await new Promise((r) => setImmediate(r)); // let the error drop out of the cache
+  reply(200, { classes: [] });
+  assert.equal((await crmScheduleCached(t + 1)).kind, "ok");
+  assert.equal(calls.length, 2);
 });

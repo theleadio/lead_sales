@@ -112,8 +112,15 @@ export async function crmLead(input: CrmLeadInput, ctx: Ctx): Promise<CrmLeadRes
 export async function crmRegister(input: CrmRegisterInput, ctx: Ctx): Promise<CrmRegisterResult> {
   const path = "/api/public/register";
   const r = await post(path, input, ctx);
-  if (r?.status === 201 && r.body?.next === "checkout" && typeof r.body.checkoutUrl === "string")
-    return { kind: "checkout", url: r.body.checkoutUrl };
+  if (r?.status === 201 && r.body?.next === "checkout" && typeof r.body.checkoutUrl === "string") {
+    // The visitor is redirected here, so only a Stripe Checkout URL is believed.
+    try {
+      const u = new URL(r.body.checkoutUrl);
+      if (u.protocol === "https:" && u.hostname === "checkout.stripe.com") return { kind: "checkout", url: u.href };
+    } catch {}
+    console.error("crm: unexpected checkout url");
+    return { kind: "error" };
+  }
   // HRDC claimed: the CRM contacts the company, no checkout URL.
   if (r?.status === 201 && r.body?.next === "hrdc_contact") return { kind: "hrdc_contact" };
   // 409 from register(): handlers.ts handleRegister finish() switch.
@@ -156,3 +163,20 @@ export async function crmSchedule(): Promise<{ kind: "ok"; classes: CrmScheduleC
   }
   return { kind: "error" };
 }
+
+// 60 s in-process cache of a successful feed; errors are never cached and
+// concurrent misses share one CRM call. ponytail: per-instance, fine for a 60 s feed.
+let feed: { at: number; value: Promise<Awaited<ReturnType<typeof crmSchedule>>> } | null = null;
+export function crmScheduleCached(now = Date.now()) {
+  if (!feed || now - feed.at >= 60_000) {
+    const mine = { at: now, value: crmSchedule() };
+    feed = mine;
+    mine.value.then((r) => {
+      if (r.kind !== "ok" && feed === mine) feed = null;
+    });
+  }
+  return feed.value;
+}
+export const resetCrmScheduleCache = () => {
+  feed = null;
+};
