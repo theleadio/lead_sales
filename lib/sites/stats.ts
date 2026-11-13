@@ -3,7 +3,7 @@ import type { Role } from "../auth/roles.ts";
 import { db, withTransaction } from "../sql.ts";
 import { guard } from "./admin.ts";
 import { isPublicHost, PUBLIC_HOST } from "./host.ts";
-import { formNameFor, leadFormSettingsSchema, normalizePath } from "./model.ts";
+import { formNameFor, leadFormSettingsSchema, normalizePath, pageSlug } from "./model.ts";
 import { components } from "./publish.ts";
 
 type Viewer = { id: string; role: Role };
@@ -30,6 +30,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (s: unknown): s is string => typeof s === "string" && UUID.test(s);
 const VIEW_LIMIT_PER_MIN = 60;
 
+// Origin (or Referer) must be the public host, over https (site.localhost excepted).
+export function fromPublicOrigin(origin: string | null, referer: string | null): boolean {
+  try {
+    const from = new URL(origin || referer || "");
+    return isPublicHost(from.host) && (from.protocol === "https:" || from.hostname === "site.localhost");
+  } catch {
+    return false;
+  }
+}
+
 export type ViewPage = { path: string; domain: string; settings: unknown };
 export type ViewDecision =
   | { kind: "ok"; page: ViewPage }
@@ -54,11 +64,7 @@ export async function checkView(r: {
     return { kind: "off" };
   }
   if (!isUuid(r.pageId) || typeof r.variant !== "string" || !/^[A-Za-z0-9_-]{1,20}$/.test(r.variant)) return { kind: "bad" };
-  let from: URL | null = null;
-  try {
-    from = new URL(r.origin || r.referer || "");
-  } catch {}
-  if (!from || !isPublicHost(from.host) || (from.protocol !== "https:" && from.hostname !== "site.localhost")) return { kind: "forbidden" };
+  if (!fromPublicOrigin(r.origin, r.referer)) return { kind: "forbidden" };
   const secret = (process.env.RATE_LIMIT_SECRET ?? "").trim();
   if (secret.length < 16) {
     warnOnce("site-view: RATE_LIMIT_SECRET not configured");
@@ -191,7 +197,7 @@ export async function siteStats(viewer: Viewer, siteId: string, from: string, to
   for (const p of pages) {
     for (const c of components(p.html ?? "", "form")) {
       const s = leadFormSettingsSchema.safeParse(c.settings);
-      if (s.success) names.add(formNameFor(s.data, p.path === "/" ? "home" : p.path.slice(1)));
+      if (s.success) names.add(formNameFor(s.data, pageSlug(p.path)));
     }
   }
   const a = new Date(`${from}T00:00:00${KL}`);

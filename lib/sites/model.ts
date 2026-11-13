@@ -89,3 +89,7 @@ export function formNameFor(s: LeadFormSettings, pageSlug: string): string {
   }
   return s.formName?.trim() || `page:${pageSlug}`;
 }
+
+// Page slug used in generated form names: the path without its leading slash,
+// "home" for "/".
+export const pageSlug = (path: string): string => (path === "/" ? "home" : path.slice(1));
