@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS sales.site_page (
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now(),
   version            integer NOT NULL DEFAULT 1,
-  UNIQUE (site_id, position)
+  UNIQUE (site_id, position) DEFERRABLE INITIALLY DEFERRED
 );
 
 CREATE TABLE IF NOT EXISTS sales.page_version (
@@ -61,12 +61,13 @@ CREATE TABLE IF NOT EXISTS sales.page_version (
 CREATE UNIQUE INDEX IF NOT EXISTS page_version_one_draft
   ON sales.page_version (page_id, variant) WHERE status = 'draft';
 
--- Live routing. page_id is not cascaded: unpublish removes the row first.
+-- Live routing. A null page_id is a holding route (unpublished, or its site
+-- was deleted): the renderer shows the holding page.
 CREATE TABLE IF NOT EXISTS sales.site_route (
   domain       text NOT NULL,
   path         text NOT NULL CHECK (path = '/' OR path ~
                  '^/([a-z0-9]+(-[a-z0-9]+)*)(/[a-z0-9]+(-[a-z0-9]+)*){0,4}$'),
-  page_id      uuid REFERENCES sales.site_page(id),
+  page_id      uuid REFERENCES sales.site_page(id) ON DELETE SET NULL,
   redirect_to  text,
   PRIMARY KEY (domain, path)
 );
@@ -119,3 +120,5 @@ CREATE TABLE IF NOT EXISTS sales.capi_event (
   last_error       text,
   created_at       timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS capi_event_due
+  ON sales.capi_event (status, next_attempt_at);

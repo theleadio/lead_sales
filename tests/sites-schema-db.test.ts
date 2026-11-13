@@ -71,3 +71,19 @@ it("deleting a site removes its pages and versions", async () => {
          + (SELECT count(*) FROM sales.page_version WHERE page_id = ${pageId}) AS n`;
   assert.equal(Number(n), 0);
 });
+
+it("deleting a site with a published page keeps its route as a holding route (page_id null)", async () => {
+  const { siteId, pageId } = await newPage();
+  await db()`INSERT INTO sales.site_route (domain, path, page_id) VALUES ('ai.thelead.io', '/held', ${pageId})`;
+  await db()`DELETE FROM sales.site WHERE id = ${siteId}`;
+  const [r] = await db()`SELECT page_id FROM sales.site_route WHERE domain = 'ai.thelead.io' AND path = '/held'`;
+  assert.equal(r.page_id, null);
+});
+
+it("two steps can swap positions in one transaction", async () => {
+  const { siteId, pageId } = await newPage();
+  const [q] = await db()`INSERT INTO sales.site_page (site_id, position, name, path) VALUES (${siteId}, 2, 'Q', '/q') RETURNING id`;
+  await db()`UPDATE sales.site_page SET position = 3 - position WHERE id IN (${pageId}, ${q.id})`;
+  const rows = await db()`SELECT id, position FROM sales.site_page WHERE site_id = ${siteId} ORDER BY position`;
+  assert.deepEqual(rows.map((r) => r.id), [q.id, pageId]);
+});
