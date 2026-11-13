@@ -3,7 +3,10 @@ import { after } from "node:test";
 import assert from "node:assert/strict";
 import {
   cloneStep,
+  addStep,
   createFunnel,
+  renameStep,
+  saveTemplate,
   deleteStep,
   getDraft,
   getSite,
@@ -100,4 +103,57 @@ it("steps can be moved, cloned and deleted with positions kept contiguous", asyn
   assert.deepEqual(await deleteStep(m, siteId, 1, pay.id), { kind: "conflict" });
   await deleteStep(m, siteId, s.version, pay.id);
   assert.deepEqual((await getSite(m, siteId))!.steps.map((x) => x.position), [1, 2, 3]);
+});
+
+it("force take-over moves the lock and is audited", async () => {
+  const a = await newUser("marketing");
+  const b = await newUser("marketing");
+  const { siteId } = await createFunnel(a, { name: "F", language: "en", basePath: base() });
+  const page = (await getSite(a, siteId))!.steps[0];
+  await takeEditLock(a, page.id);
+  assert.equal((await takeEditLock(b, page.id, { force: true })).holder, null);
+  assert.equal((await takeEditLock(a, page.id)).holder?.id, b.id);
+  const [r] = await db()`
+    SELECT before, after FROM audit_log WHERE entity = 'site_page' AND entity_id = ${page.id} AND user_id = ${b.id}`;
+  assert.deepEqual(r.before, { lockHolderId: a.id });
+  assert.deepEqual(r.after, { lockHolderId: b.id });
+});
+
+it("view-only role gets an audited permission refusal before validation", async () => {
+  const m = await newUser("marketing");
+  const s = await newUser("sales");
+  const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: base() });
+  const site = (await getSite(m, siteId))!;
+  await assert.rejects(addStep(s, siteId, site.version, { name: "", path: "BAD PATH" }), SitesPermissionError);
+  await assert.rejects(renameStep(s, siteId, site.version, site.steps[0].id, ""), SitesPermissionError);
+  const [{ n }] = await db()`
+    SELECT count(*)::int AS n FROM audit_log WHERE user_id = ${s.id} AND action = 'permission_denied'`;
+  assert.equal(n, 2);
+});
+
+it("a damaged template is refused with a clear error", async () => {
+  const m = await newUser("marketing");
+  const [t] = await db()`
+    INSERT INTO sales.site_template (kind, name, payload)
+    VALUES ('funnel', 'bad', ${db().json({ steps: [{ name: "X", kind: "page" }] } as never)}) RETURNING id`;
+  await assert.rejects(
+    createFunnel(m, { name: "F", language: "en", basePath: base(), templateId: t.id }),
+    /damaged/,
+  );
+});
+
+it("saveTemplate suffixes respect path-segment boundaries", async () => {
+  const m = await newUser("marketing");
+  const b = base();
+  const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: b });
+  const site = (await getSite(m, siteId))!;
+  await addStep(m, siteId, site.version, { name: "Extra", path: `${b}/extra` });
+  const { templateId } = await saveTemplate(m, siteId, "T");
+  const [t] = await db()`SELECT payload FROM sales.site_template WHERE id = ${templateId}`;
+  assert.deepEqual(t.payload.steps.map((x: { suffix: string }) => x.suffix), ["", "/payment", "/thank-you", "/extra"]);
+  // /ab/x is outside base /a: refused rather than sliced into "b/x"
+  const { siteId: s2 } = await createFunnel(m, { name: "G", language: "en", basePath: `${b}-a` });
+  const v2 = (await getSite(m, s2))!.version;
+  await addStep(m, s2, v2, { name: "Other", path: `${b}-ab/x` });
+  await assert.rejects(saveTemplate(m, s2, "T2"), /outside/);
 });

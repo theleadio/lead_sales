@@ -1,5 +1,6 @@
 import { writeAudit } from "../audit.ts";
 import type { Role } from "../auth/roles.ts";
+import { z } from "zod";
 import { db, withTransaction } from "../sql.ts";
 import { normalizePath, pathSchema, siteSettingsSchema, type SiteSettings } from "./model.ts";
 import { canEditSites, canViewSites } from "./permissions.ts";
@@ -95,6 +96,21 @@ export async function listSites(viewer: Viewer, kind: Kind): Promise<SiteRow[]> 
   }));
 }
 
+const templateSchema = z.object({
+  steps: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(120),
+        kind: z.enum(["page", "checkout", "thank_you"]),
+        suffix: z.string(),
+        project: z.unknown().optional(),
+        html: z.string().optional(),
+        css: z.string().optional(),
+      }),
+    )
+    .min(1),
+});
+
 type StepSeed = { name: string; kind: string; suffix: string; project: unknown; html: string; css: string };
 const DEFAULT_STEPS: StepSeed[] = [
   { name: "Home", kind: "page", suffix: "" },
@@ -116,7 +132,9 @@ export async function createFunnel(
     if (input.templateId) {
       const [t] = await sql`SELECT payload FROM sales.site_template WHERE id = ${input.templateId} AND kind = 'funnel'`;
       if (!t) throw new Error("No such template.");
-      steps = t.payload.steps as StepSeed[];
+      const ok = templateSchema.safeParse(t.payload);
+      if (!ok.success) throw new Error("This template is damaged and cannot be used.");
+      steps = ok.data.steps as StepSeed[];
     }
     const [s] = await sql`
       INSERT INTO sales.site (kind, name, folder_id, base_path, language, created_by, updated_by)
@@ -222,6 +240,7 @@ export async function addStep(
   version: number,
   input: { name: string; path: string; kind?: "page" | "checkout" | "thank_you" },
 ) {
+  await guard(viewer, "add step", true);
   const name = cleanName(input.name);
   const path = cleanPath(input.path);
   return stepOp(viewer, siteId, version, "add step", async (sql) => {
@@ -247,6 +266,7 @@ export async function moveStep(viewer: Viewer, siteId: string, version: number, 
 }
 
 export async function renameStep(viewer: Viewer, siteId: string, version: number, pageId: string, name: string) {
+  await guard(viewer, "rename step", true);
   const n = cleanName(name);
   return stepOp(viewer, siteId, version, "rename step", async (sql) => {
     const r = await sql`
@@ -327,7 +347,7 @@ export async function saveDraft(viewer: Viewer, pageId: string, project: unknown
 
 // Soft lock: held while edit_lock_at is under 2 minutes old (saveDraft
 // refreshes it). Returns another user still holding it, else takes it.
-export async function takeEditLock(viewer: Viewer, pageId: string) {
+export async function takeEditLock(viewer: Viewer, pageId: string, opts: { force?: boolean } = {}) {
   await guard(viewer, "edit a page", true);
   return withTransaction(async () => {
     const sql = db();
@@ -337,9 +357,11 @@ export async function takeEditLock(viewer: Viewer, pageId: string) {
       FROM sales.site_page p LEFT JOIN app_user u ON u.id = p.edit_lock_user_id
       WHERE p.id = ${pageId} FOR UPDATE OF p`;
     if (!p) throw new Error("No such step.");
-    if (p.uid && p.uid !== viewer.id && p.fresh)
-      return { holder: { id: p.uid as string, name: p.name as string } };
+    const other = p.uid && p.uid !== viewer.id && p.fresh;
+    if (other && !opts.force) return { holder: { id: p.uid as string, name: p.name as string } };
     await sql`UPDATE sales.site_page SET edit_lock_user_id = ${viewer.id}, edit_lock_at = now() WHERE id = ${pageId}`;
+    if (other)
+      await audit(viewer, "update", "site_page", pageId, { lockHolderId: p.uid }, { lockHolderId: viewer.id });
     return { holder: null };
   });
 }
@@ -375,10 +397,15 @@ export async function saveTemplate(viewer: Viewer, siteId: string, name: string)
       LEFT JOIN sales.page_version v ON v.page_id = p.id AND v.variant = 'A' AND v.status = 'draft'
       WHERE p.site_id = ${siteId} ORDER BY p.position`;
     const base = s.base_path === "/" ? "" : (s.base_path as string);
+    const suffixOf = (b: string, path: string) => {
+      if (path === b || (b === "" && path === "/")) return "";
+      if (path.startsWith(`${b}/`)) return path.slice(b.length);
+      throw new Error(`Step path ${path} is outside the funnel's base path.`);
+    };
     const steps = pages.map((p) => ({
       name: p.name,
       kind: p.kind,
-      suffix: p.path !== "/" && (p.path as string).startsWith(base) ? (p.path as string).slice(base.length) : "",
+      suffix: suffixOf(base, p.path as string),
       project: p.project,
       html: p.html,
       css: p.css,
