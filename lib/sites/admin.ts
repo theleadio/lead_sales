@@ -21,7 +21,7 @@ export class SitesPermissionError extends Error {
   }
 }
 
-async function guard(v: Viewer, what: string, edit: boolean) {
+export async function guard(v: Viewer, what: string, edit: boolean) {
   if ((edit ? canEditSites : canViewSites)(v.role)) return;
   await writeAudit({
     userId: v.id,
