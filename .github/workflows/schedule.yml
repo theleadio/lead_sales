@@ -4,6 +4,7 @@
 #         (scripts/lms-run.ts)
 #   meta  retry Meta leads the webhook couldn't save yet (scripts/meta-run.ts)
 #   automations  start and advance automation runs (scripts/automations-run.ts)
+#   capi  send queued Meta Conversions API events (scripts/capi-run.ts)
 #
 # Every 5 minutes, GitHub's shortest schedule. GitHub runs scheduled
 # workflows from the default branch only, and may start them late or skip
@@ -14,7 +15,8 @@
 # Secrets (Settings > Secrets and variables > Actions): DATABASE_URL, and for
 # each job its own: LMS_HANDOFF_ENABLED, LMS_WEBHOOK_URL, LMS_WEBHOOK_SECRET;
 # META_PAGE_ACCESS_TOKEN (META_GRAPH_VERSION optional); for automations'
-# WhatsApp steps, WATI_API_HOST and WATI_API_TOKEN. A job whose secrets
+# WhatsApp steps, WATI_API_HOST and WATI_API_TOKEN; for capi, META_CAPI_TOKEN
+# and META_PIXEL_ID (META_TEST_EVENT_CODE optional). A job whose secrets
 # aren't set yet is skipped, not failed.
 #
 # Logs may be public: the scripts print counts and error messages only, and
@@ -117,3 +119,30 @@ jobs:
         run: npm ci --omit=dev
       - if: steps.ready.outputs.go == 'true'
         run: node --import=./scripts/ci-errors.mjs scripts/automations-run.ts
+
+  capi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      META_CAPI_TOKEN: ${{ secrets.META_CAPI_TOKEN }}
+      META_PIXEL_ID: ${{ secrets.META_PIXEL_ID }}
+      META_TEST_EVENT_CODE: ${{ secrets.META_TEST_EVENT_CODE }}
+    steps:
+      - name: Skip until configured
+        id: ready
+        run: |
+          if [ -n "$DATABASE_URL" ] && [ -n "$META_CAPI_TOKEN" ] && [ -n "$META_PIXEL_ID" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Meta CAPI secrets not set: skipped."
+          fi
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - if: steps.ready.outputs.go == 'true'
+        run: npm ci --omit=dev
+      - if: steps.ready.outputs.go == 'true'
+        run: node --import=./scripts/ci-errors.mjs scripts/capi-run.ts

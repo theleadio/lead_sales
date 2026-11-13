@@ -48,7 +48,7 @@ const decode = (s: string) =>
 
 // Scans the CLEANED html (sanitize-html serialises attributes uniformly): every
 // <div data-lead="kind">, its data-settings decoded and parsed.
-function components(html: string, kind: "form" | "order" | "global-section") {
+export function components(html: string, kind: "form" | "order" | "global-section") {
   const out: { settings: unknown; id: string }[] = [];
   for (const [tag] of html.matchAll(/<div\b[^>]*>/gi)) {
     if (/data-lead\s*=\s*["']?([a-z-]+)/i.exec(tag)?.[1]?.toLowerCase() !== kind) continue;
