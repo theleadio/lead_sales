@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { db } from "../sql.ts";
+import { holdingHtml } from "./holding.ts";
 import { isPublicHost, PUBLIC_HOST } from "./host.ts";
 import { normalizePath, siteSettingsSchema, type SiteSettings } from "./model.ts";
 
@@ -108,7 +109,7 @@ export function renderDocument(
 }
 
 export function csp(nonce: string): string {
-  return `default-src 'self'; script-src 'self' 'nonce-${nonce}' https://connect.facebook.net https://www.googletagmanager.com https://snap.licdn.com https://analytics.tiktok.com https://challenges.cloudflare.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com https://challenges.cloudflare.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com`;
+  return `default-src 'self'; script-src 'self' 'nonce-${nonce}' https://connect.facebook.net https://www.googletagmanager.com https://snap.licdn.com https://analytics.tiktok.com https://challenges.cloudflare.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com https://challenges.cloudflare.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'`;
 }
 
 export function pageResponse(r: Extract<Resolved, { kind: "page" }>): Response {
@@ -122,4 +123,19 @@ export function pageResponse(r: Extract<Resolved, { kind: "page" }>): Response {
   });
   if (r.site.settings.seo.noindex) h.set("X-Robots-Tag", "noindex");
   return new Response(renderDocument(r, r.site, nonce), { headers: h });
+}
+
+// The render route's whole behaviour, so it is testable and refuses on its own
+// when reached on a non-public host (not only through the proxy's path check).
+export async function handleRender(host: string, path: string): Promise<Response> {
+  if (!isPublicHost(host)) return new Response("Not found", { status: 404 });
+  const r = await resolve(host, path);
+  if (r.kind === "redirect") {
+    return new Response(null, { status: 301, headers: { Location: r.to, "Cache-Control": "public, max-age=300" } });
+  }
+  if (r.kind === "page") return pageResponse(r);
+  return new Response(holdingHtml(r.language), {
+    status: r.status,
+    headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": "noindex", "Cache-Control": "no-store" },
+  });
 }

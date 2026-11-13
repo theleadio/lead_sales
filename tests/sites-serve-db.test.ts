@@ -2,7 +2,7 @@ import { after } from "node:test";
 import assert from "node:assert/strict";
 import { createFunnel, getSite, updateSiteSettings } from "../lib/sites/admin.ts";
 import { publishPage, setRedirect, unpublishPage } from "../lib/sites/publish.ts";
-import { pageResponse, renderDocument, resolve } from "../lib/sites/serve.ts";
+import { handleRender, pageResponse, renderDocument, resolve } from "../lib/sites/serve.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
 
@@ -35,11 +35,33 @@ it("unknown path on ai.thelead.io returns the holding page with 404, not a sign-
   assert.deepEqual(r, { kind: "holding", language: "en", status: 404 });
 });
 
+it("/automations on the public host is the holding page with 404, not a redirect", async () => {
+  const res = await handleRender("ai.thelead.io", "/automations");
+  assert.equal(res.status, 404);
+  assert.equal(res.headers.get("Location"), null);
+  assert.match(await res.text(), /This page is not available/);
+});
+
+it("the render handler refuses a non-public host", async () => {
+  assert.equal((await handleRender("app.example.com", "/")).status, 404);
+});
+
+it("setRedirect refuses protocol-relative and backslash targets", async () => {
+  const m = await newUser("marketing");
+  for (const to of ["//evil.com", "/\\evil.com", "\\\\evil.com", "http://x.com", "javascript:x"]) {
+    await assert.rejects(setRedirect(m, "ai.thelead.io", `/r-${crypto.randomUUID().slice(0, 8)}`, to), /https URL or a path/, to);
+  }
+});
+
 it("a redirect route answers its target", async () => {
   const m = await newUser("marketing");
   const path = `/r-${crypto.randomUUID().slice(0, 8)}`;
   await setRedirect(m, "ai.thelead.io", path, "https://example.com/x");
   assert.deepEqual(await resolve("ai.thelead.io", path), { kind: "redirect", to: "https://example.com/x" });
+  const res = await handleRender("ai.thelead.io", path);
+  assert.equal(res.status, 301);
+  assert.equal(res.headers.get("Location"), "https://example.com/x");
+  assert.equal(res.headers.get("Cache-Control"), "public, max-age=300");
 });
 
 it("a published page returns its html with the cache tag and CSP", async () => {
@@ -50,6 +72,8 @@ it("a published page returns its html with the cache tag and CSP", async () => {
   const res = pageResponse(r);
   assert.equal(res.headers.get("Netlify-Cache-Tag"), `page:${page.id}`);
   assert.match(res.headers.get("Content-Security-Policy")!, /script-src 'self' 'nonce-[^']+' https:\/\/connect\.facebook\.net/);
+  const c = res.headers.get("Content-Security-Policy")!;
+  for (const d of ["form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'"]) assert.ok(c.includes(d), d);
   assert.match(await res.text(), /<p>hello<\/p>/);
 });
 

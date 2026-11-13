@@ -326,7 +326,7 @@ export async function setRedirect(viewer: Viewer, domain: string, path: string, 
   await guard(viewer, "set a redirect", true);
   const p = normalizePath(path);
   if (!pathSchema.safeParse(p).success) throw new Error(`Invalid path: ${path}`);
-  if (!/^https:\/\/\S+$/.test(to) && !/^\/(?!\/)\S*$/.test(to)) {
+  if (to.includes("\\") || (!/^https:\/\/\S+$/.test(to) && !/^\/(?!\/)\S*$/.test(to))) {
     throw new Error("Redirect target must be an https URL or a path.");
   }
   await withTransaction(async () => {

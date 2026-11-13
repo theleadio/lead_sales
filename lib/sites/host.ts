@@ -14,7 +14,17 @@ export type Route =
   | { action: "app" }; // app host: session refresh and sign-in redirect
 
 const PASS = [/^\/api\/site(\/|$)/, /^\/site\//, /^\/_next\//];
-const isRender = (p: string) => p === "/site-render" || p.startsWith("/site-render/");
+// Decoded and lower-cased first, so /site%2Drender/x and /SITE-RENDER/x are caught.
+const isRender = (raw: string) => {
+  let p = raw;
+  try {
+    p = decodeURIComponent(raw);
+  } catch {
+    return true; // undecodable: refuse
+  }
+  p = p.toLowerCase().replace(/\/+/g, "/");
+  return p === "/site-render" || p.startsWith("/site-render/");
+};
 
 export function routeFor(host: string, path: string): Route {
   // The render route never answers a direct request, on either host.

@@ -15,9 +15,13 @@ test("public host rewrites everything except the static and site API paths", () 
 test("direct /site-render is 404 on both hosts", () => {
   assert.equal(routeFor("app.example.com", "/site-render/x").action, "notfound");
   assert.equal(routeFor("ai.thelead.io", "/site-render").action, "notfound");
+  for (const p of ["/site%2Drender/x", "/SITE-RENDER/x", "/Site%2drender", "//site-render/x", "/%zz"]) {
+    assert.equal(routeFor("app.example.com", p).action, "notfound", p);
+  }
 });
 
 test("app host keeps the session refresh and sign-in redirect path", () => {
   assert.deepEqual(routeFor("sales.example.com", "/home"), { action: "app" });
+  assert.deepEqual(routeFor("sales.example.com", "/automations"), { action: "app" }); // signed-out visitor: proxy then redirects to /sign-in
   assert.deepEqual(routeFor("localhost:3000", "/sites/preview/abc"), { action: "app" });
 });
