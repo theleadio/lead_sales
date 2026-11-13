@@ -1,0 +1,122 @@
+// Server-to-server client for lead_crm's public API (PR #80: /api/public/leads
+// and /api/public/register). Field names mirror lead_crm lib/validation/public.ts
+// (leadSchema / registerSchema); keep in step. Never logs bodies or personal
+// data, only the failure kind and status.
+
+export type CrmAttribution = {
+  utmSource?: string | null; utmMedium?: string | null; utmCampaign?: string | null;
+  utmContent?: string | null; utmTerm?: string | null; utmId?: string | null; utmAdId?: string | null;
+  gclid?: string | null; fbclid?: string | null; gbraid?: string | null; wbraid?: string | null;
+  liFatId?: string | null; ttclid?: string | null;
+  landingUrl?: string | null; referrer?: string | null;
+  firstTouch?: { utmSource?: string | null; utmMedium?: string | null; utmCampaign?: string | null; occurredAt?: string | null } | null;
+};
+
+export type CrmLeadInput = {
+  idempotencyKey?: string | null;
+  formName?: string | null;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  companyName?: string | null;
+  jobTitle?: string | null;
+  message?: string | null;
+  preferredLanguage?: "en" | "zh" | null;
+  courseInterest?: string | null;
+  classCode?: string | null;
+  consentMarketing?: boolean | null;
+  hrdcIntended?: boolean | null;
+  captchaToken?: string | null;
+  createDeal?: boolean | null;
+  attribution?: CrmAttribution | null;
+};
+
+export type CrmRegisterInput = Omit<CrmLeadInput, "classCode"> & {
+  classCode: string;
+  locale?: "en" | "zh" | null;
+  returnUrl?: string | null;
+};
+
+type Ctx = { clientIp: string | null };
+type Common =
+  | { kind: "invalid"; fields: Record<string, string> }
+  | { kind: "limited" }
+  | { kind: "captcha" }
+  | { kind: "error" };
+
+export type CrmLeadResult = { kind: "ok"; personId: string; dealId: string | null } | Common;
+export type CrmRegisterResult =
+  | { kind: "checkout"; url: string }
+  | { kind: "full" }
+  | { kind: "closed" }
+  | Common;
+
+// ---- fetch (injectable for tests) ----
+
+let crmFetch: typeof fetch = (...a) => fetch(...a);
+export function setCrmFetch(f: typeof fetch) {
+  crmFetch = f;
+}
+
+type Raw = { status: number; body: any } | null;
+
+async function post(path: string, input: unknown, ctx: Ctx): Promise<Raw> {
+  const base = process.env.CRM_BASE_URL;
+  const key = process.env.PUBLIC_API_KEY;
+  if (!base || !key) {
+    console.error("crm api not configured");
+    return null;
+  }
+  const headers: Record<string, string> = { "Content-Type": "application/json", "X-Api-Key": key };
+  if (ctx.clientIp) headers["X-Lead-Client-Ip"] = ctx.clientIp;
+  try {
+    const r = await crmFetch(`${base.replace(/\/+$/, "")}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = await r.json().catch(() => null);
+    return { status: r.status, body };
+  } catch (e) {
+    console.error(`crm api ${path} failed: ${e instanceof Error ? e.name : "error"}`);
+    return null;
+  }
+}
+
+// Failures common to both routes. CRM codes: handlers.ts publicPost/intakeFlow
+// (400 validation_failed + fields, 429 rate_limited, 403 captcha_failed).
+function failure(path: string, r: Raw): Common {
+  if (!r) return { kind: "error" };
+  const code = r.body?.error?.code;
+  if (r.status === 400 && code === "validation_failed") {
+    const f = r.body.error.fields;
+    return { kind: "invalid", fields: f && typeof f === "object" ? f : {} };
+  }
+  if (r.status === 429) return { kind: "limited" };
+  if (r.status === 403 && code === "captcha_failed") return { kind: "captcha" };
+  console.error(`crm api ${path} failed: HTTP ${r.status} ${typeof code === "string" ? code : ""}`.trim());
+  return { kind: "error" };
+}
+
+export async function crmLead(input: CrmLeadInput, ctx: Ctx): Promise<CrmLeadResult> {
+  const path = "/api/public/leads";
+  const r = await post(path, input, ctx);
+  if (r?.status === 201 && typeof r.body?.personId === "string")
+    return { kind: "ok", personId: r.body.personId, dealId: typeof r.body.dealId === "string" ? r.body.dealId : null };
+  return failure(path, r);
+}
+
+export async function crmRegister(input: CrmRegisterInput, ctx: Ctx): Promise<CrmRegisterResult> {
+  const path = "/api/public/register";
+  const r = await post(path, input, ctx);
+  if (r?.status === 201 && r.body?.next === "checkout" && typeof r.body.checkoutUrl === "string")
+    return { kind: "checkout", url: r.body.checkoutUrl };
+  // 409 from register(): handlers.ts handleRegister finish() switch.
+  if (r?.status === 409) {
+    const code = r.body?.error?.code;
+    if (code === "no_seats") return { kind: "full" };
+    if (code === "class_unavailable") return { kind: "closed" };
+  }
+  return failure(path, r);
+}
