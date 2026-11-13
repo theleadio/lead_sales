@@ -33,9 +33,11 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Public pages: the help form is for customers, who have no account.
+  // Public pages: the help form and the landing pages (/p/…) are for
+  // customers, who have no account.
   const path = request.nextUrl.pathname;
-  if (path === "/help" || path.startsWith("/help/")) return response;
+  if (path === "/help" || path.startsWith("/help/") || path.startsWith("/p/"))
+    return response;
 
   const { data } = await supabase.auth.getUser();
   if (!data.user && path !== "/sign-in") {

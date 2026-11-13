@@ -42,3 +42,31 @@ body {
   background: var(--surface);
   color: var(--ink);
 }
+
+/* Landing pages (/p). Inter has no Chinese glyphs: name the system Chinese
+   fonts so headings and body match, and drop the tight Latin tracking. */
+:lang(zh) {
+  font-family:
+    var(--font-inter), "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+    sans-serif;
+}
+:lang(zh) :is(h1, h2) {
+  letter-spacing: 0;
+}
+
+/* The one entrance on a landing page's hero. With reduced motion the content is
+   simply there. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .rise-late {
+    animation-delay: 0.12s;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}

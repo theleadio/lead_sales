@@ -131,12 +131,17 @@ export const CONTACT_LIMIT_PER_HOUR = 3;
 // The IP bucket is an HMAC of the address keyed with RATE_LIMIT_SECRET, so
 // the CRM's rate_limit_hit table never holds an IP. Without a secret (16+
 // characters) the form stays closed rather than unlimited.
-async function ipLimited(env: Env, ip: string | null): Promise<boolean> {
+// `prefix` keeps each public form's count apart (lib/pages/lead.ts uses it too).
+export async function ipLimited(
+  env: Env,
+  ip: string | null,
+  prefix = "help-ip",
+): Promise<boolean> {
   const secret = (env.RATE_LIMIT_SECRET ?? "").trim();
   if (secret.length < 16) throw new Error("RATE_LIMIT_SECRET not configured");
   const bucket = ip
-    ? `help-ip:${createHmac("sha256", secret).update(ip).digest("hex")}`
-    : "help-ip:unknown";
+    ? `${prefix}:${createHmac("sha256", secret).update(ip).digest("hex")}`
+    : `${prefix}:unknown`;
   const [r] = await db()`SELECT rate_limit_take(${bucket}, 60) AS hits`;
   return r.hits > IP_LIMIT_PER_MINUTE;
 }
