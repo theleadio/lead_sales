@@ -195,6 +195,9 @@ async function lmsCauses(): Promise<Cause[]> {
     SELECT n.id, n.sent_at, e.id AS enrolment_id, e.person_id, e.class_id
     FROM sales.lms_notice n JOIN enrolment e ON e.id = n.ref_id
     WHERE n.kind = 'enrolment.confirmed' AND n.sent_at IS NOT NULL
+      -- Go-live backfill (scripts/lms-backfill.ts): those students were
+      -- onboarded before, so they don't start onboarding again.
+      AND n.source_key NOT LIKE 'backfill:%'
       AND n.sent_at > ${from}::text::timestamptz - make_interval(mins => ${OVERLAP_MINUTES})
       AND n.sent_at <= ${to}::text::timestamptz`,
   );
