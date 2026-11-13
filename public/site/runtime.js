@@ -187,7 +187,7 @@ function formSuccess(lang, body) {
 const a = obj(obj(body).after);
 if (a.kind === "url" && typeof a.url === "string" && a.url.startsWith("https://"))
 return { kind: "go", url: a.url };
-if (a.kind === "step" && typeof a.path === "string" && /^\/(?!\/)[^\\]*$/.test(a.path))
+if (a.kind === "step" && typeof a.path === "string" && /^\/(?!\/)[^\\\s\x00-\x1f]*$/.test(a.path))
 return { kind: "go", url: a.path };
 if (a.kind === "message" && typeof a.text === "string" && a.text)
 return { kind: "text", ok: true, text: a.text };

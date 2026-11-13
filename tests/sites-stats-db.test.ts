@@ -2,7 +2,7 @@
 import { after } from "node:test";
 import assert from "node:assert/strict";
 import { SitesPermissionError } from "../lib/sites/admin.ts";
-import { checkView, clientIp, klDay, recordView, resetViewWarnings, siteStats } from "../lib/sites/stats.ts";
+import { checkView, clientIp, klDay, recordView, resetViewWarnings, siteStats, siteSummaries } from "../lib/sites/stats.ts";
 import { closeDb } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
 import { buyer, liveFunnel } from "./sites-seed.ts";
@@ -119,4 +119,21 @@ it("clientIp prefers the Netlify header, then the first x-forwarded-for", async 
   assert.equal(clientIp(new Headers({ "x-nf-client-connection-ip": " 1.1.1.1 ", "x-forwarded-for": "2.2.2.2, 3.3.3.3" })), "1.1.1.1");
   assert.equal(clientIp(new Headers({ "x-forwarded-for": "2.2.2.2, 3.3.3.3" })), "2.2.2.2");
   assert.equal(clientIp(new Headers()), null);
+});
+
+it("siteSummaries gives views and opt-ins per site in one call, and refuses outsiders", async () => {
+  process.env.PAGE_VIEW_SALT = "x".repeat(20);
+  const formName = `F ${crypto.randomUUID()}`;
+  const a = await liveFunnel({ formName });
+  const b = await liveFunnel({ formName: `F ${crypto.randomUUID()}` });
+  await recordView(a.steps[0].id, "A", crypto.randomUUID(), new Date());
+  await recordView(a.steps[0].id, "A", crypto.randomUUID(), new Date());
+  await buyer(a.steps[0].path, formName, "100.00");
+  await buyer(b.steps[0].path, "Unrelated", "100.00");
+  const day = klDay(new Date());
+  const from = klDay(new Date(Date.now() - 6 * 86_400_000));
+  const s = await siteSummaries(a.m, "funnel", from, day);
+  assert.deepEqual(s.get(a.siteId), { views: 2, optins: 1 });
+  assert.deepEqual(s.get(b.siteId), { views: 0, optins: 0 });
+  await assert.rejects(siteSummaries(await newUser("support"), "funnel", from, day), SitesPermissionError);
 });

@@ -90,7 +90,7 @@ test("form success: message, https url, step falls back to thank-you", () => {
   assert.equal((formSuccess("en", { after: { kind: "url", url: "javascript:1" } }) as any).text, "Thank you! We'll be in touch.");
   assert.equal((formSuccess("en", { after: { kind: "step", pageId: "z" } }) as any).text, "Thank you! We'll be in touch.");
   assert.deepEqual(formSuccess("en", { after: { kind: "step", path: "/f/thank-you" } }), { kind: "go", url: "/f/thank-you" });
-  for (const path of ["//evil.com", "https://evil.com", "/\\evil.com", "x"]) {
+  for (const path of ["//evil.com", "https://evil.com", "/\\evil.com", "/\t/evil.com", "/a\nb", "/a b", "x"]) {
     assert.equal(formSuccess("en", { after: { kind: "step", path } }).kind, "text");
   }
 });

@@ -145,7 +145,7 @@ const obj = (b: unknown): any => (b && typeof b === "object" ? b : {});
 export function formSuccess(lang: Lang, body: unknown): Outcome {
   const a = obj(obj(body).after);
   if (a.kind === "url" && typeof a.url === "string" && a.url.startsWith("https://")) return { kind: "go", url: a.url };
-  if (a.kind === "step" && typeof a.path === "string" && /^\/(?!\/)[^\\]*$/.test(a.path)) return { kind: "go", url: a.path };
+  if (a.kind === "step" && typeof a.path === "string" && /^\/(?!\/)[^\\\s\x00-\x1f]*$/.test(a.path)) return { kind: "go", url: a.path };
   if (a.kind === "message" && typeof a.text === "string" && a.text) return { kind: "text", ok: true, text: a.text };
   return { kind: "text", ok: true, text: t(lang, "success") };
 }

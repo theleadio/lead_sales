@@ -240,3 +240,55 @@ export async function siteStats(viewer: Viewer, siteId: string, from: string, to
     };
   });
 }
+
+export type SiteSummary = { views: number; optins: number };
+
+// Views and opt-ins per site of one kind over KL days [from, to], for the list
+// screen: a few queries for all sites, same counting rules as siteStats.
+export async function siteSummaries(
+  viewer: Viewer,
+  kind: "funnel" | "website",
+  from: string,
+  to: string,
+): Promise<Map<string, SiteSummary>> {
+  await guard(viewer, "view site stats", false);
+  const sql = db();
+  const sites = await sql`SELECT id, domain FROM sales.site WHERE kind = ${kind}`;
+  const out = new Map<string, SiteSummary>(sites.map((s) => [s.id as string, { views: 0, optins: 0 }]));
+  if (!sites.length) return out;
+  const ids = sites.map((s) => s.id as string);
+  for (const r of await sql`
+    SELECT p.site_id, sum(d.views)::int AS views
+    FROM sales.page_view_day d JOIN sales.site_page p ON p.id = d.page_id
+    WHERE p.site_id = ANY(${ids}) AND d.day BETWEEN ${from}::date AND ${to}::date GROUP BY p.site_id`) {
+    out.get(r.site_id)!.views = r.views;
+  }
+  const pages = await sql`
+    SELECT p.site_id, p.path, v.html
+    FROM sales.site_page p
+    LEFT JOIN sales.page_version v ON v.id = p.active_version_id AND v.status = 'published'
+    WHERE p.site_id = ANY(${ids})`;
+  const names = new Map<string, Set<string>>(); // site -> form names
+  const paths = new Map<string, Set<string>>(); // site -> step paths
+  for (const p of pages) {
+    paths.set(p.site_id, (paths.get(p.site_id) ?? new Set()).add(p.path));
+    for (const c of components(p.html ?? "", "form")) {
+      const s = leadFormSettingsSchema.safeParse(c.settings);
+      if (s.success) names.set(p.site_id, (names.get(p.site_id) ?? new Set()).add(formNameFor(s.data, pageSlug(p.path))));
+    }
+  }
+  const all = [...new Set([...names.values()].flatMap((n) => [...n]))];
+  if (!all.length) return out;
+  const a = new Date(`${from}T00:00:00${KL}`);
+  const b = new Date(new Date(`${to}T00:00:00${KL}`).getTime() + 86_400_000);
+  const tps = await sql`
+    SELECT landing_url, form_name FROM touchpoint
+    WHERE channel = 'web_form' AND form_name = ANY(${all}) AND occurred_at >= ${a} AND occurred_at < ${b}`;
+  for (const s of sites) {
+    for (const t of tps) {
+      const path = pathOn(t.landing_url, s.domain);
+      if (path && names.get(s.id)?.has(t.form_name) && paths.get(s.id)?.has(path)) out.get(s.id)!.optins++;
+    }
+  }
+  return out;
+}

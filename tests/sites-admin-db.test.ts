@@ -13,6 +13,7 @@ import {
   listSites,
   moveStep,
   saveDraft,
+  setStepPath,
   SitesPermissionError,
   takeEditLock,
   updateSiteSettings,
@@ -302,4 +303,31 @@ it("save-template error outside the base path reads as a message", async () => {
   const { act } = await import("../lib/sites/admin-actions.ts");
   const r = await act(() => saveTemplate(m, siteId, "T"));
   assert.match(r.error!, /outside the funnel's base path/);
+});
+
+it("setStepPath: changes a path, refuses duplicates and stale versions, keeps the live route until republished", async () => {
+  const m = await newUser("marketing");
+  const b = base();
+  const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: b });
+  let s = (await getSite(m, siteId))!;
+  const [home, pay] = s.steps;
+  assert.deepEqual(await setStepPath(m, siteId, s.version, pay.id, ` ${b}/Pay-Now/ `), { kind: "ok", version: s.version + 1 });
+  s = (await getSite(m, siteId))!;
+  assert.equal(s.steps[1].path, `${b}/pay-now`);
+  await assert.rejects(setStepPath(m, siteId, s.version, pay.id, home.path), /already uses that path/);
+  await assert.rejects(setStepPath(m, siteId, s.version, pay.id, "/Bad Path"), /Invalid path/);
+  assert.deepEqual(await setStepPath(m, siteId, s.version - 1, pay.id, `${b}/other`), { kind: "conflict" });
+  const [a] = await db()`SELECT before, after FROM audit_log WHERE entity = 'site_page' AND entity_id = ${pay.id} ORDER BY created_at DESC LIMIT 1`;
+  assert.deepEqual([a.before, a.after], [{ path: `${b}/payment` }, { path: `${b}/pay-now` }]);
+});
+
+it("setStepPath: a view-only role is refused and audited", async () => {
+  const m = await newUser("marketing");
+  const o = await newUser("operations");
+  const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: base() });
+  const s = (await getSite(m, siteId))!;
+  await assert.rejects(setStepPath(o, siteId, s.version, s.steps[0].id, "/x-y"), SitesPermissionError);
+  const [{ n }] = await db()`SELECT count(*)::int AS n FROM audit_log WHERE user_id = ${o.id} AND action = 'permission_denied'`;
+  assert.equal(n, 1);
+  assert.equal((await getSite(m, siteId))!.steps[0].path, s.steps[0].path);
 });

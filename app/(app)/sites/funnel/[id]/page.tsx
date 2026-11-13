@@ -19,6 +19,7 @@ import {
   restoreVersionAction,
   saveSettingsAction,
   saveTemplateAction,
+  setStepPathAction,
   unpublishStepAction,
 } from "./actions";
 
@@ -193,9 +194,11 @@ async function Steps({
       {cur ? (
         <div className="border-line rounded-2xl border p-5" key={cur.id}>
           <h2 className="text-lg font-semibold">{cur.name}</h2>
-          <p className="text-ink-muted text-sm">
-            Path: <code>{cur.path}</code>
-          </p>
+          {!edit && (
+            <p className="text-ink-muted text-sm">
+              Path: <code>{cur.path}</code>
+            </p>
+          )}
           <div className="mt-4 flex flex-wrap gap-2 text-sm">
             {edit && (
               <Link href={`/sites/editor/${cur.id}`} className={button}>
@@ -281,6 +284,27 @@ async function Steps({
                   </button>
                 </ActionForm>
               </div>
+              <ActionForm
+                action={setStepPathAction}
+                className="flex items-end gap-2"
+              >
+                {hidden({ ...ids, pageId: cur.id })}
+                <Field
+                  label="Path"
+                  name="path"
+                  defaultValue={cur.path}
+                  required
+                />
+                <button type="submit" className={ghost}>
+                  Save path
+                </button>
+              </ActionForm>
+              {live(cur.id) && cur.livePath !== cur.path && (
+                <p role="status" className="text-sm">
+                  Live at <code>{cur.livePath ?? "—"}</code> until republished.
+                  Republish to apply.
+                </p>
+              )}
               <ActionForm
                 action={renameStepAction}
                 className="flex items-end gap-2"

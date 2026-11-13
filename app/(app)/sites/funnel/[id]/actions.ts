@@ -18,6 +18,7 @@ import {
   deleteStep,
   moveStep,
   renameStep,
+  setStepPath,
   saveTemplate,
 } from "@/lib/sites/admin";
 import {
@@ -80,6 +81,14 @@ export async function addStepAction(_: ActionState, f: FormData) {
 export async function renameStepAction(_: ActionState, f: FormData) {
   return run(f, z.object({ ...step, name: z.string() }), "Renamed.", (v, p) =>
     renameStep(v, p.siteId, p.version, p.pageId, p.name),
+  );
+}
+export async function setStepPathAction(_: ActionState, f: FormData) {
+  return run(
+    f,
+    z.object({ ...step, path: z.string() }),
+    "Path saved.",
+    (v, p) => setStepPath(v, p.siteId, p.version, p.pageId, p.path),
   );
 }
 export async function moveStepAction(_: ActionState, f: FormData) {

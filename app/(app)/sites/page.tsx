@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { listFolders, listSites, listTemplates } from "@/lib/sites/admin";
+import { klDay, siteSummaries } from "@/lib/sites/stats";
 import { canEditSites, canViewSites } from "@/lib/sites/permissions";
 import { button, field, myt } from "../ui";
 import { ActionForm, Field } from "./action-form";
@@ -18,10 +19,12 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
   const search = one("q").trim().toLowerCase();
   const folder = one("folder");
   const edit = canEditSites(user.role);
-  const [all, folders, templates] = await Promise.all([
+  const today = klDay(new Date());
+  const [all, folders, templates, summary] = await Promise.all([
     listSites(user, "funnel"),
     listFolders(user, "funnel"),
     listTemplates(user, "funnel"),
+    siteSummaries(user, "funnel", klDay(new Date(new Date(`${today}T00:00:00+08:00`).getTime() - 6 * 86_400_000)), today),
   ]);
   const sites = all.filter(
     (s) =>
@@ -102,6 +105,8 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
                 <th className="py-2 pr-4 font-medium">Name</th>
                 <th className="py-2 pr-4 font-medium">Folder</th>
                 <th className="py-2 pr-4 font-medium">Steps</th>
+                <th className="py-2 pr-4 font-medium">Views (7 days)</th>
+                <th className="py-2 pr-4 font-medium">Opt-ins (7 days)</th>
                 <th className="py-2 pr-4 font-medium">Updated</th>
                 <th className="py-2 font-medium">Live URL</th>
               </tr>
@@ -119,6 +124,8 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
                   </td>
                   <td className="py-2 pr-4">{s.folderName ?? "—"}</td>
                   <td className="py-2 pr-4">{s.steps}</td>
+                  <td className="py-2 pr-4">{summary.get(s.id)?.views ?? 0}</td>
+                  <td className="py-2 pr-4">{summary.get(s.id)?.optins ?? 0}</td>
                   <td className="py-2 pr-4">{myt(s.updatedAt)}</td>
                   <td className="py-2">{s.liveUrl}</td>
                 </tr>

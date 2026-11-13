@@ -159,8 +159,10 @@ export async function getSite(viewer: Viewer, siteId: string) {
   const [s] = await sql`SELECT * FROM sales.site WHERE id = ${siteId}`;
   if (!s) return null;
   const pages = await sql`
-    SELECT id, position, name, path, kind, version FROM sales.site_page
-    WHERE site_id = ${siteId} ORDER BY position`;
+    SELECT p.id, p.position, p.name, p.path, p.kind, p.version,
+           (SELECT r.path FROM sales.site_route r WHERE r.page_id = p.id LIMIT 1) AS live_path
+    FROM sales.site_page p
+    WHERE p.site_id = ${siteId} ORDER BY p.position`;
   return {
     id: s.id as string,
     kind: s.kind as Kind,
@@ -178,6 +180,7 @@ export async function getSite(viewer: Viewer, siteId: string) {
       path: p.path as string,
       kind: p.kind as string,
       version: p.version as number,
+      livePath: (p.live_path as string | null) ?? null,
     })),
   };
 }
@@ -250,6 +253,27 @@ export async function addStep(
       VALUES (${siteId}, ${n + 1}, ${name}, ${path}, ${input.kind ?? "page"}) RETURNING id`;
     await sql`INSERT INTO sales.page_version (page_id) VALUES (${p.id})`;
     return { pageId: p.id, name, path };
+  });
+}
+
+// Changes a step's path. A published step keeps its live route until it is
+// republished (site_route is written only by publish).
+export async function setStepPath(viewer: Viewer, siteId: string, version: number, pageId: string, path: string) {
+  await guard(viewer, "change step path", true);
+  const p = cleanPath(path);
+  return withTransaction(async () => {
+    const sql = db();
+    const [s] = await sql`SELECT id FROM sales.site WHERE id = ${siteId} FOR UPDATE`;
+    if (!s) throw new Error("No such site.");
+    const [cur] = await sql`SELECT path FROM sales.site_page WHERE id = ${pageId} AND site_id = ${siteId}`;
+    if (!cur) throw new Error("No such step.");
+    const [dup] = await sql`SELECT 1 FROM sales.site_page WHERE site_id = ${siteId} AND path = ${p} AND id <> ${pageId}`;
+    if (dup) throw new Error("Another step already uses that path.");
+    const v = await bumpSite(viewer, siteId, version);
+    if (v === null) return CONFLICT;
+    await sql`UPDATE sales.site_page SET path = ${p}, updated_at = now() WHERE id = ${pageId}`;
+    await audit(viewer, "update", "site_page", pageId, { path: cur.path }, { path: p });
+    return { kind: "ok", version: v } as Result;
   });
 }
 
