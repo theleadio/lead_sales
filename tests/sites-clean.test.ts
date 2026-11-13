@@ -126,6 +126,47 @@ test("allowed iframes survive", () => {
   }
 });
 
+test("iframes: forced sandbox/referrerpolicy, children dropped, mixed-case host ok", () => {
+  const r = cleanPage(
+    `<iframe src="https://WWW.YOUTUBE.com/embed/x" sandbox="allow-top-navigation" referrerpolicy="unsafe-url"><p>hi</p><img src=x>boo</iframe>`,
+    "",
+  );
+  assert.equal(
+    r.html,
+    `<iframe src="https://WWW.YOUTUBE.com/embed/x" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
+  );
+});
+
+test("backslash protocol-relative URLs are refused", () => {
+  for (const u of ["/\\evil.com", "\\\\evil.com", "/\\/evil.com", "\\/evil.com"]) {
+    const a = cleanPage(`<a href="${u.replace(/\\/g, "\\")}">x</a><img src="${u}">`, "");
+    assert.doesNotMatch(a.html, /evil/, `${u} -> ${a.html}`);
+  }
+  assert.match(cleanPage(`<a href="/ok">x</a>`, "").html, /href="\/ok"/);
+});
+
+test("css: escaped / commented @import is dropped", () => {
+  for (const css of [
+    `@\\69mport url(https://evil/x.css); .a{color:red}`,
+    `@\\69mport "https://evil/x.css"; .a{color:red}`,
+    `@im/**/port url(https://evil/x.css); .a{color:red}`,
+    `@IMPORT url(https://evil/x.css); .a{color:red}`,
+  ]) {
+    const r = cleanPage("", css);
+    assert.doesNotMatch(r.css, /evil/, r.css);
+    assert.match(r.css, /\.a\{color:red\}/);
+    assert.ok(r.removed.some((x) => x.toLowerCase().includes("@import")), JSON.stringify(r.removed));
+  }
+});
+
+test("css: pathological unclosed input cleans in linear time", () => {
+  for (const css of ["url(".repeat(25_000), "/*".repeat(50_000), '"'.repeat(100_000), "(".repeat(100_000)]) {
+    const t = Date.now();
+    cleanPage("", css);
+    assert.ok(Date.now() - t < 1000, `slow: ${Date.now() - t}ms`);
+  }
+});
+
 test("data-lead components keep data-lead, data-id, data-settings", () => {
   const r = cleanPage(`<div data-lead="order" data-id="o9" data-settings='{"a":"b"}'></div>`, "");
   assert.equal(r.html, `<div data-lead="order" data-id="o9" data-settings="{&quot;a&quot;:&quot;b&quot;}"></div>`);
