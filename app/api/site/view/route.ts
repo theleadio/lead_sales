@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { siteSettingsSchema } from "@/lib/sites/model";
 import { queueCapi } from "@/lib/sites/capi";
-import { checkView, isUuid, klDay, recordView } from "@/lib/sites/stats";
+import { checkView, clientIp, isUuid, klDay, recordView } from "@/lib/sites/stats";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     host: req.headers.get("host") ?? "",
     origin: req.headers.get("origin"),
     referer: req.headers.get("referer"),
-    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
+    ip: clientIp(req.headers),
     pageId: body?.pageId,
     variant: body?.variant,
   });
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       fbc: req.cookies.get("_fbc")?.value,
       fbp: req.cookies.get("_fbp")?.value,
       consent: false,
-      clientIp: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined,
+      clientIp: clientIp(req.headers) ?? undefined,
       userAgent: req.headers.get("user-agent") ?? undefined,
     });
   }

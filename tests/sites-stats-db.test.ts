@@ -2,7 +2,7 @@
 import { after } from "node:test";
 import assert from "node:assert/strict";
 import { SitesPermissionError } from "../lib/sites/admin.ts";
-import { checkView, klDay, recordView, siteStats } from "../lib/sites/stats.ts";
+import { checkView, clientIp, klDay, recordView, resetViewWarnings, siteStats } from "../lib/sites/stats.ts";
 import { closeDb } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
 import { buyer, liveFunnel } from "./sites-seed.ts";
@@ -95,4 +95,28 @@ it("checkView: 60 per minute per IP, then limited; another IP is unaffected", as
   assert.equal((await checkView(r(ip + "x"))).kind, "ok");
   delete process.env.RATE_LIMIT_SECRET;
   assert.equal((await checkView(r(ip + "y"))).kind, "limited");
+});
+
+it("missing salt / rate-limit secret fail closed and log once per process", async () => {
+  const { steps } = await liveFunnel({ formName: "x" });
+  const logged: string[] = [];
+  const orig = console.error;
+  console.error = (...a: unknown[]) => void logged.push(a.join(" "));
+  try {
+    resetViewWarnings();
+    process.env.RATE_LIMIT_SECRET = "short";
+    process.env.PAGE_VIEW_SALT = "x".repeat(20);
+    for (let i = 0; i < 3; i++) assert.equal((await checkView(req({ pageId: steps[0].id }))).kind, "limited");
+    process.env.PAGE_VIEW_SALT = "";
+    for (let i = 0; i < 3; i++) assert.equal((await checkView(req({ pageId: steps[0].id }))).kind, "off");
+  } finally {
+    console.error = orig;
+  }
+  assert.deepEqual(logged, ["site-view: RATE_LIMIT_SECRET not configured", "site-view: PAGE_VIEW_SALT not configured"]);
+});
+
+it("clientIp prefers the Netlify header, then the first x-forwarded-for", async () => {
+  assert.equal(clientIp(new Headers({ "x-nf-client-connection-ip": " 1.1.1.1 ", "x-forwarded-for": "2.2.2.2, 3.3.3.3" })), "1.1.1.1");
+  assert.equal(clientIp(new Headers({ "x-forwarded-for": "2.2.2.2, 3.3.3.3" })), "2.2.2.2");
+  assert.equal(clientIp(new Headers()), null);
 });

@@ -11,6 +11,19 @@ type Viewer = { id: string; role: Role };
 const KL = "+08:00"; // Malaysia has no daylight saving.
 export const klDay = (d: Date): string => d.toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
 
+const warned = new Set<string>();
+const warnOnce = (msg: string) => {
+  if (warned.has(msg)) return;
+  warned.add(msg);
+  console.error(msg);
+};
+export const resetViewWarnings = () => warned.clear();
+
+// Netlify's own header first (a client cannot set it), then the first
+// x-forwarded-for entry.
+export const clientIp = (h: Headers): string | null =>
+  h.get("x-nf-client-connection-ip")?.trim() || h.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+
 export const viewsEnabled = () => (process.env.PAGE_VIEW_SALT ?? "").length >= 16;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -36,7 +49,10 @@ export async function checkView(r: {
   variant: unknown;
 }): Promise<ViewDecision> {
   if (!isPublicHost(r.host)) return { kind: "notfound" };
-  if (!viewsEnabled()) return { kind: "off" };
+  if (!viewsEnabled()) {
+    warnOnce("site-view: PAGE_VIEW_SALT not configured");
+    return { kind: "off" };
+  }
   if (!isUuid(r.pageId) || typeof r.variant !== "string" || !/^[A-Za-z0-9_-]{1,20}$/.test(r.variant)) return { kind: "bad" };
   let from: URL | null = null;
   try {
@@ -44,7 +60,10 @@ export async function checkView(r: {
   } catch {}
   if (!from || !isPublicHost(from.host) || (from.protocol !== "https:" && from.hostname !== "site.localhost")) return { kind: "forbidden" };
   const secret = (process.env.RATE_LIMIT_SECRET ?? "").trim();
-  if (secret.length < 16) return { kind: "limited" }; // not configured: count nothing
+  if (secret.length < 16) {
+    warnOnce("site-view: RATE_LIMIT_SECRET not configured");
+    return { kind: "limited" }; // fails closed: count nothing
+  }
   const bucket = `site-view:${r.ip ? createHmac("sha256", secret).update(r.ip).digest("hex") : "unknown"}`;
   const [lim] = await db()`SELECT rate_limit_take(${bucket}, 60) AS hits`;
   if (lim.hits > VIEW_LIMIT_PER_MIN) return { kind: "limited" };

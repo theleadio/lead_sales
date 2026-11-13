@@ -208,3 +208,41 @@ it("sent and failed events lose their IP and user agent", async () => {
   assert.equal((await row(a.eventId)).payload.user_data.fbp, "fb.1.2.3");
   assert.equal((await row(b.eventId)).status, "failed");
 });
+
+it("a systemic 400 stops the run within 25 calls and fails nothing", async () => {
+  env();
+  const es = Array.from({ length: 40 }, () => ev());
+  for (const e of es) await queueCapi("PageView", e);
+  const logged: string[] = [];
+  const orig = console.error;
+  console.error = (...a: unknown[]) => void logged.push(a.join(" "));
+  let calls = 0;
+  let r;
+  const now = new Date(Date.now() + 1000);
+  try {
+    r = await drainCapi(now, (async () => (calls++, new Response("{}", { status: 400 }))) as typeof fetch);
+  } finally {
+    console.error = orig;
+  }
+  assert.ok(calls <= 25, `calls ${calls}`);
+  assert.equal(r.failed, 0);
+  assert.deepEqual(logged, ["capi: batch rejected — check pixel id / test code"]);
+  for (const e of es) {
+    const x = await row(e.eventId);
+    assert.equal(x.status, "queued");
+    assert.equal(x.attempts, 0);
+    assert.equal(x.next_attempt_at.getTime(), now.getTime() + 30 * 60_000);
+  }
+});
+
+it("one bad event among 8 fails only that one", async () => {
+  env();
+  const es = Array.from({ length: 8 }, () => ev());
+  for (const e of es) await queueCapi("PageView", e);
+  const bad = es[5];
+  const f = (async (_u: unknown, init?: RequestInit) =>
+    new Response("{}", { status: bodyIds(init).includes(bad.eventId) ? 400 : 200 })) as typeof fetch;
+  const r = await drainCapi(new Date(Date.now() + 1000), f);
+  assert.equal(r.failed, 1);
+  for (const e of es) assert.equal((await row(e.eventId)).status, e === bad ? "failed" : "sent");
+});

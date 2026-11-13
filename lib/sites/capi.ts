@@ -94,7 +94,9 @@ const TOKEN_BACKOFF_MIN = 30;
 const strip = (sql: ReturnType<typeof db>) => sql`payload = jsonb_set(payload, '{user_data}', (payload->'user_data') - 'client_ip_address' - 'client_user_agent')`;
 
 type Due = { id: string; payload: unknown; attempts: number };
-type Out = { sent: number; failed: number; stop: boolean };
+type Out = { sent: number; stop: boolean; was400: boolean };
+
+const MAX_400_CALLS = 25;
 
 // Sends everything due, up to 1000 events, claimed atomically (FOR UPDATE
 // SKIP LOCKED) so overlapping runs never take the same row. The claim marker is
@@ -102,10 +104,15 @@ type Out = { sent: number; failed: number; stop: boolean };
 // status): a run that dies leaves its rows due again after 15 minutes.
 //
 // Outcomes: 2xx sent. Token rejected (401/403, or OAuthException / code 190)
-// stops the run and leaves the rows queued, 30 minutes on, attempts unchanged.
-// 400: the batch is halved and resent until the one bad event is alone, then
-// that one is failed. 429, 5xx, network error: retry after BACKOFF_MIN[attempts-1]
-// and fail on the 5th attempt.
+// stops the run. 400: the batch is halved and resent until the one bad event
+// is alone; failures are held back until the run ends, because a config fault
+// (wrong pixel id or test code) 400s everything: if both halves of a split
+// return 400, or more than 25 calls returned 400, the run stops and fails
+// nothing. A stopped run leaves every unsettled claimed row queued, 30 minutes
+// on, attempts unchanged. 429, 5xx, network error: retry after
+// BACKOFF_MIN[attempts-1] and fail on the 5th attempt.
+// ponytail: two genuinely bad events in different halves look like a config
+// fault and stop the run too; they get isolated once one of them is sent apart.
 export async function drainCapi(now: Date, fetchImpl: typeof fetch = fetch): Promise<{ sent: number; failed: number }> {
   const token = process.env.META_CAPI_TOKEN;
   const pixel = process.env.META_PIXEL_ID;
@@ -125,6 +132,10 @@ export async function drainCapi(now: Date, fetchImpl: typeof fetch = fetch): Pro
 
   const test = process.env.META_TEST_EVENT_CODE;
   const url = `https://graph.facebook.com/v21.0/${encodeURIComponent(pixel)}/events?access_token=${encodeURIComponent(token)}`;
+  const hold: Due[] = []; // events a single-event 400 isolated; failed when the run ends cleanly
+  let calls400 = 0;
+  let failedNow = 0; // 5th-attempt failures
+  let stopMsg = "";
 
   const attempt = async (rows: Due[]): Promise<Out> => {
     let status = 0;
@@ -146,44 +157,56 @@ export async function drainCapi(now: Date, fetchImpl: typeof fetch = fetch): Pro
     const ids = rows.map((r) => r.id);
     if (status >= 200 && status < 300) {
       await sql`UPDATE sales.capi_event SET status = 'sent', attempts = attempts + 1, last_error = NULL, ${strip(sql)} WHERE id = ANY(${ids}::uuid[])`;
-      return { sent: rows.length, failed: 0, stop: false };
+      return { sent: rows.length, stop: false, was400: false };
     }
     if (status === 401 || status === 403 || oauth) {
-      console.error("capi: token rejected");
-      const next = new Date(now.getTime() + TOKEN_BACKOFF_MIN * 60_000);
-      await sql`UPDATE sales.capi_event SET last_error = 'token rejected', next_attempt_at = ${next} WHERE id = ANY(${ids}::uuid[])`;
-      return { sent: 0, failed: 0, stop: true };
+      stopMsg = "capi: token rejected";
+      return { sent: 0, stop: true, was400: false };
     }
     if (status === 400) {
+      if (++calls400 > MAX_400_CALLS) {
+        stopMsg = "capi: batch rejected — check pixel id / test code";
+        return { sent: 0, stop: true, was400: true };
+      }
       if (rows.length === 1) {
-        await sql`UPDATE sales.capi_event SET status = 'failed', attempts = attempts + 1, last_error = 'HTTP 400', ${strip(sql)} WHERE id = ${rows[0].id}`;
-        return { sent: 0, failed: 1, stop: false };
+        hold.push(rows[0]);
+        return { sent: 0, stop: false, was400: true };
       }
       const mid = rows.length >> 1;
       const a = await attempt(rows.slice(0, mid));
-      if (a.stop) {
-        // The other half is still claimed: put it back as it was.
-        await sql`UPDATE sales.capi_event SET next_attempt_at = ${new Date(now.getTime() + TOKEN_BACKOFF_MIN * 60_000)} WHERE id = ANY(${rows.slice(mid).map((r) => r.id)}::uuid[])`;
-        return a;
-      }
+      if (a.stop) return { ...a, was400: true };
       const b = await attempt(rows.slice(mid));
-      return { sent: a.sent + b.sent, failed: a.failed + b.failed, stop: b.stop };
+      if (!b.stop && a.was400 && b.was400) {
+        stopMsg = "capi: batch rejected — check pixel id / test code";
+        return { sent: a.sent + b.sent, stop: true, was400: true };
+      }
+      return { sent: a.sent + b.sent, stop: b.stop, was400: true };
     }
     const error = status ? `HTTP ${status}` : "network error";
-    let failed = 0;
     for (const r of rows) {
       const attempts = r.attempts + 1;
       if (attempts >= MAX_ATTEMPTS) {
-        failed++;
         await sql`UPDATE sales.capi_event SET status = 'failed', attempts = ${attempts}, last_error = ${error}, ${strip(sql)} WHERE id = ${r.id}`;
+        failedNow++;
       } else {
         const next = new Date(now.getTime() + BACKOFF_MIN[attempts - 1] * 60_000);
         await sql`UPDATE sales.capi_event SET attempts = ${attempts}, last_error = ${error}, next_attempt_at = ${next} WHERE id = ${r.id}`;
       }
     }
-    return { sent: 0, failed, stop: false };
+    return { sent: 0, stop: false, was400: false };
   };
 
   const r = await attempt(due);
-  return { sent: r.sent, failed: r.failed };
+  if (r.stop) {
+    console.error(stopMsg);
+    const next = new Date(now.getTime() + TOKEN_BACKOFF_MIN * 60_000);
+    await sql`
+      UPDATE sales.capi_event SET last_error = ${stopMsg.includes("token") ? "token rejected" : "batch rejected"}, next_attempt_at = ${next}
+      WHERE id = ANY(${due.map((d) => d.id)}::uuid[]) AND status = 'queued' AND next_attempt_at = ${claimUntil}`;
+    return { sent: r.sent, failed: failedNow };
+  }
+  for (const h of hold) {
+    await sql`UPDATE sales.capi_event SET status = 'failed', attempts = attempts + 1, last_error = 'HTTP 400', ${strip(sql)} WHERE id = ${h.id}`;
+  }
+  return { sent: r.sent, failed: failedNow + hold.length };
 }
