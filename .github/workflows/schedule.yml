@@ -93,6 +93,8 @@ jobs:
     timeout-minutes: 10
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AUTOMATION_WEBHOOKS: ${{ secrets.AUTOMATION_WEBHOOKS }}
+      AUTOMATION_WEBHOOK_SECRET: ${{ secrets.AUTOMATION_WEBHOOK_SECRET }}
     steps:
       - name: Skip until configured
         id: ready

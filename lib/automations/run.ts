@@ -4,6 +4,7 @@ import { db, withTransaction } from "../sql.ts";
 import { replyDueAt } from "../tickets/deadline.ts";
 import { loadHolidays, TicketError, type Actor } from "../tickets/service.ts";
 import { canEditAutomations } from "./admin.ts";
+import type { Hook } from "./webhook.ts";
 import {
   BACKOFF_SECONDS,
   MAX_ATTEMPTS,
@@ -38,7 +39,10 @@ export type SendRequest = {
   idempotencyKey: string;
 };
 export type Sender = (req: SendRequest) => Promise<void>;
-export type Senders = Partial<Record<"email" | "whatsapp", Sender>>;
+export type Senders = Partial<Record<"email" | "whatsapp", Sender>> & {
+  // The webhooks set up by name, for the call_webhook step.
+  webhooks?: Map<string, Hook>;
+};
 
 class Final extends Error {}
 
@@ -209,6 +213,49 @@ async function runStep(
         log: "done",
         detail: `Sent ${channel} "${step.settings.template}"`,
       };
+    }
+    case "call_webhook": {
+      const name = step.settings.hook;
+      const call = senders.webhooks?.get(name);
+      if (!call) throw new Final(`Webhook "${name}" isn't set up`);
+      const [a] = await sql`
+        SELECT trigger FROM sales.automation WHERE id = ${run.automation_id}`;
+      const [p] = await sql`
+        SELECT full_name, email, coalesce(whatsapp_e164, phone_e164) AS phone,
+               preferred_language
+        FROM person WHERE id = ${run.person_id}`;
+      const [cl] =
+        typeof ctx.classId === "string"
+          ? await sql`
+              SELECT c.code, c.start_date::text AS start_date, c.language,
+                     co.code AS course_code, co.name_en AS course_name
+              FROM class c JOIN course co ON co.id = c.course_id
+              WHERE c.id = ${ctx.classId}`
+          : [];
+      await call(
+        {
+          event: a.trigger,
+          person: {
+            id: run.person_id,
+            fullName: p.full_name,
+            email: p.email,
+            phone: p.phone,
+            language: p.preferred_language,
+          },
+          class: cl
+            ? {
+                code: cl.code,
+                startDate: cl.start_date,
+                language: cl.language,
+                courseCode: cl.course_code,
+                courseName: cl.course_name,
+              }
+            : null,
+          context: ctx,
+        },
+        `auto:${run.id}:${position}`,
+      );
+      return { kind: "next", log: "done", detail: `Called webhook "${name}"` };
     }
   }
 }

@@ -120,6 +120,9 @@ export function conditionsHold(conds: Condition[], f: Facts): boolean {
 
 const tag = z.string().trim().min(1).max(60);
 
+// A webhook's name (lib/automations/webhook.ts).
+export const HOOK_NAME = /^[a-z][a-z0-9_-]{0,39}$/;
+
 const sendSettings = z.object({
   template: z.string().trim().min(1).max(100),
   // service: course messages to students (onboarding, reminders), sent
@@ -172,6 +175,15 @@ export const stepSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("stop_if_replied"), settings: z.object({}) }),
   z.object({ kind: z.literal("send_email"), settings: sendSettings }),
   z.object({ kind: z.literal("send_whatsapp"), settings: sendSettings }),
+  // POSTs the person and the trigger's details to a webhook an admin has
+  // set up by name (lib/automations/webhook.ts). The step holds the name,
+  // never the address.
+  z.object({
+    kind: z.literal("call_webhook"),
+    settings: z.object({
+      hook: z.string().trim().regex(HOOK_NAME, "A webhook name, e.g. zoom"),
+    }),
+  }),
 ]);
 export type Step = z.infer<typeof stepSchema>;
 export const stepsSchema = z.array(stepSchema).min(1).max(50);

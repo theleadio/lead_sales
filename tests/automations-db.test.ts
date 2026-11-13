@@ -1,6 +1,7 @@
 // Automations (lib/automations): triggers start one run per cause, the
 // kill switch, conditions, steps, waits, stop-if-replied, consent and
 // "not connected" for sends, and who may edit. Each test is rolled back.
+import { createHmac } from "node:crypto";
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -14,6 +15,7 @@ import {
   type Condition,
 } from "../lib/automations/model.ts";
 import { retryRun, runDue, type Sender } from "../lib/automations/run.ts";
+import { webhooksFromEnv } from "../lib/automations/webhook.ts";
 import { watchTriggers } from "../lib/automations/watch.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newPerson, newUser } from "./seed.ts";
@@ -417,4 +419,75 @@ it("'Run again' is for editors only; a refusal is audited, and a bad id changes 
     false,
     "only a failed run can be retried",
   );
+});
+
+test("webhooks: https and a plain name only; the call is signed and keyed", async () => {
+  const seen: { url: string; init: RequestInit }[] = [];
+  let status = 200;
+  const fake = (async (url: URL, init: RequestInit) => {
+    seen.push({ url: String(url), init });
+    return new Response("", { status });
+  }) as unknown as typeof fetch;
+  const hooks = webhooksFromEnv(
+    {
+      AUTOMATION_WEBHOOKS:
+        "zoom=https://n8n.example/webhook/abc?x=1, plain=http://n8n.example/x, Bad Name=https://n8n.example/y, constructor",
+      AUTOMATION_WEBHOOK_SECRET: "s3cret",
+    },
+    fake,
+  );
+  assert.deepEqual([...hooks.keys()], ["zoom"]);
+  await hooks.get("zoom")!({ a: 1 }, "auto:run:1");
+  assert.equal(seen[0].url, "https://n8n.example/webhook/abc?x=1");
+  const h = seen[0].init.headers as Record<string, string>;
+  assert.equal(h["Idempotency-Key"], "auto:run:1");
+  assert.equal(
+    h["X-Lead-Signature"],
+    "sha256=" + createHmac("sha256", "s3cret").update('{"a":1}').digest("hex"),
+  );
+  status = 500;
+  await assert.rejects(hooks.get("zoom")!({}, "k"), (e: Error) => {
+    assert.equal(e.message, 'Webhook "zoom" answered 500');
+    return true;
+  });
+});
+
+it("a call_webhook step posts the person and class once; an unknown name fails the run", async () => {
+  await fresh();
+  const b = await boss();
+  const id = await saveAutomation(b, {
+    name: "Zoom",
+    trigger: "LeadCaptured",
+    conditions: [],
+    steps: [{ kind: "call_webhook", settings: { hook: "zoom" } }],
+  });
+  await setAutomationActive(b, id, true);
+  const p = await newPerson("Webhook Person");
+  await leadEvent(p);
+  await watchTriggers();
+
+  assert.equal((await runDue({})).failed, 1);
+  assert.match((await runOf(p)).last_error, /Webhook "zoom" isn't set up/);
+
+  const calls: { body: Record<string, unknown>; key: string }[] = [];
+  const webhooks = new Map([
+    [
+      "zoom",
+      async (body: unknown, key: string) => {
+        calls.push({ body: body as Record<string, unknown>, key });
+      },
+    ],
+  ]);
+  assert.equal(await retryRun(b, (await runOf(p)).id), true);
+  assert.equal((await runDue({ webhooks })).done, 1);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.event, "LeadCaptured");
+  assert.equal(
+    (calls[0].body.person as { fullName: string }).fullName,
+    "Webhook Person",
+  );
+  assert.equal(calls[0].body.class, null);
+  assert.match(calls[0].key, /^auto:[0-9a-f-]{36}:1$/);
+  assert.equal((await runDue({ webhooks })).done, 0, "not called twice");
+  assert.equal(calls.length, 1);
 });

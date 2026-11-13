@@ -24,7 +24,8 @@ type StepKind =
   | "wait"
   | "stop_if_replied"
   | "send_email"
-  | "send_whatsapp";
+  | "send_whatsapp"
+  | "call_webhook";
 
 type StepRow = {
   key: string;
@@ -39,6 +40,7 @@ type StepRow = {
   waitHours: string;
   template: string;
   purpose: string;
+  hook: string;
 };
 
 // What the server sent for an existing automation (the shapes of
@@ -58,6 +60,7 @@ const STEP_LABEL: Record<StepKind, string> = {
   stop_if_replied: "Stop if the customer replied",
   send_email: "Send an email",
   send_whatsapp: "Send a WhatsApp message",
+  call_webhook: "Call a webhook",
 };
 
 let counter = 0;
@@ -76,6 +79,7 @@ const blankStep = (kind: StepKind): StepRow => ({
   waitHours: "0",
   template: "",
   purpose: "service",
+  hook: "",
 });
 
 function stepFromInitial(s: InitialStep): StepRow {
@@ -97,6 +101,7 @@ function stepFromInitial(s: InitialStep): StepRow {
   row.waitHours = num(x.hours, "0");
   row.template = str(x.template);
   row.purpose = str(x.purpose, "service");
+  row.hook = str(x.hook);
   return row;
 }
 
@@ -166,6 +171,8 @@ function stepToJson(s: StepRow): Record<string, unknown> {
         kind: s.kind,
         settings: { template: s.template, purpose: s.purpose },
       };
+    case "call_webhook":
+      return { kind: s.kind, settings: { hook: s.hook } };
   }
 }
 
@@ -641,6 +648,26 @@ function StepFields({
           <p className="text-ink-muted text-xs sm:col-span-2">
             Sending isn&apos;t connected yet: until it is, this step stops the
             run with a clear message in its log.
+          </p>
+        </div>
+      );
+    case "call_webhook":
+      return (
+        <div className="mt-2">
+          <label className={label}>
+            Webhook name
+            <input
+              value={s.hook}
+              onChange={(e) => patch({ hook: e.target.value })}
+              maxLength={40}
+              placeholder="zoom"
+              className={ctl}
+            />
+          </label>
+          <p className="text-ink-muted mt-2 text-xs">
+            Sends the person&apos;s name, email and phone, and the class, to a
+            webhook an admin has set up under this name. A name that isn&apos;t
+            set up stops the run with a clear message in its log.
           </p>
         </div>
       );
