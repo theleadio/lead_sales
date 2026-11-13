@@ -199,3 +199,37 @@ it("setRedirect stores a redirect, audits it, and publishing over it audits the 
   assert.equal(r2.page_id, page.id);
   await assert.rejects(setRedirect(m, s.domain, page.path, "/elsewhere"), /live page/);
 });
+
+it("saving site settings purges every published page of the site, never fails the save", async () => {
+  const bodies: string[] = [];
+  process.env.NETLIFY_PURGE_TOKEN = "t";
+  process.env.NETLIFY_SITE_ID = "s";
+  setPurgeFetch((async (_u: unknown, init: { body: string }) => {
+    bodies.push(init.body);
+    return new Response("{}");
+  }) as never);
+  try {
+    const { m, s, page } = await setup();
+    assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
+    bodies.length = 0;
+    const v = (await getSite(m, s.id))!.version;
+    assert.equal((await updateSiteSettings(m, s.id, { ...settings, pixels: { meta: "123456789" } }, v)).kind, "ok");
+    assert.equal(bodies.length, 1); // only the published step
+    assert.match(bodies[0], new RegExp(`page:${page.id}`));
+    // a purge that throws is logged, the save still succeeds
+    setPurgeFetch((async () => {
+      throw new Error("down");
+    }) as never);
+    const v2 = (await getSite(m, s.id))!.version;
+    assert.equal((await updateSiteSettings(m, s.id, settings, v2)).kind, "ok");
+    // unset env: no calls
+    delete process.env.NETLIFY_PURGE_TOKEN;
+    bodies.length = 0;
+    setPurgeFetch((async (_u: unknown, init: { body: string }) => (bodies.push(init.body), new Response("{}"))) as never);
+    await updateSiteSettings(m, s.id, settings, (await getSite(m, s.id))!.version);
+    assert.equal(bodies.length, 0);
+  } finally {
+    delete process.env.NETLIFY_PURGE_TOKEN;
+    delete process.env.NETLIFY_SITE_ID;
+  }
+});

@@ -7,7 +7,7 @@ test("public host rewrites everything except the static and site API paths", () 
   assert.deepEqual(routeFor("ai.thelead.io", "/workshop"), { action: "rewrite", to: "/site-render/workshop" });
   assert.deepEqual(routeFor("ai.thelead.io:443", "/automations"), { action: "rewrite", to: "/site-render/automations" });
   assert.deepEqual(routeFor("site.localhost:3000", "/x"), { action: "rewrite", to: "/site-render/x" });
-  for (const p of ["/api/site/lead", "/site/runtime.js", "/_next/static/a.js"]) {
+  for (const p of ["/api/site/form", "/api/site/checkout", "/api/site/view", "/api/site/class/AI-2026-12", "/site/runtime.js", "/_next/static/a.js"]) {
     assert.deepEqual(routeFor("ai.thelead.io", p), { action: "pass" });
   }
 });
@@ -24,4 +24,14 @@ test("app host keeps the session refresh and sign-in redirect path", () => {
   assert.deepEqual(routeFor("sales.example.com", "/home"), { action: "app" });
   assert.deepEqual(routeFor("sales.example.com", "/automations"), { action: "app" }); // signed-out visitor: proxy then redirects to /sign-in
   assert.deepEqual(routeFor("localhost:3000", "/sites/preview/abc"), { action: "app" });
+});
+
+test("traversal and unlisted site paths never reach the app or an upload route", () => {
+  for (const p of ["/site/../automations", "/site/%2e%2e/automations", "/api/site/../../automations", "/site\\x", "/a%2fb", "/a%5Cb", "/x%00", "/%2e%2e/x"]) {
+    assert.equal(routeFor("ai.thelead.io", p).action, "notfound", p);
+  }
+  // image upload and other /api/site paths are not reachable on the public host
+  for (const p of ["/api/site/image", "/api/site/lead", "/site/other.js"]) {
+    assert.deepEqual(routeFor("ai.thelead.io", p), { action: "rewrite", to: `/site-render${p}` }, p);
+  }
 });

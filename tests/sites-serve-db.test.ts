@@ -73,7 +73,7 @@ it("a published page returns its html with the cache tag and CSP", async () => {
   assert.equal(res.headers.get("Netlify-Cache-Tag"), `page:${page.id}`);
   assert.match(res.headers.get("Content-Security-Policy")!, /script-src 'self' 'nonce-[^']+' https:\/\/connect\.facebook\.net/);
   const c = res.headers.get("Content-Security-Policy")!;
-  for (const d of ["form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'"]) assert.ok(c.includes(d), d);
+  for (const d of ["form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'", "connect-src 'self'", "https://px.ads.linkedin.com", "https://*.google-analytics.com", "https://analytics.tiktok.com", "https://www.facebook.com", "https://challenges.cloudflare.com"]) assert.ok(c.includes(d), d);
   assert.match(await res.text(), /<p>hello<\/p>/);
 });
 

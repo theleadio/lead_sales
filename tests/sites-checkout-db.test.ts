@@ -28,6 +28,7 @@ async function funnel(order: unknown = { classCode: "AI-2026-12", askCompany: tr
   const html = `<div data-lead="order" data-id="${ORDER_ID}" data-settings="${esc(order)}"></div>`;
   await db()`UPDATE sales.page_version SET html = ${html} WHERE page_id = ${pay.id} AND status = 'draft'`;
   assert.equal((await publishPage(m, pay.id, pay.version)).kind, "ok");
+  assert.equal((await publishPage(m, thanks.id, thanks.version)).kind, "ok");
   return { pay, thanks, home };
 }
 
@@ -97,4 +98,12 @@ it("CRM error returns the error kind", async () => {
   const { pay } = await funnel();
   const r = await submitOrder(raw(pay.id), { clientIp: null, crm: fakeCrm({ kind: "error" }).crm });
   assert.equal(r.kind, "error");
+});
+
+it("an unpublished thank-you step means not_found, not a return to the holding page", async () => {
+  const { pay, thanks } = await funnel();
+  const { calls, crm } = fakeCrm();
+  await db()`UPDATE sales.site_page SET active_version_id = NULL WHERE id = ${thanks.id}`;
+  assert.deepEqual(await submitOrder(raw(pay.id), { clientIp: null, crm }), { kind: "not_found" });
+  assert.equal(calls.length, 0);
 });

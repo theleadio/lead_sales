@@ -13,25 +13,38 @@ export type Route =
   | { action: "notfound" }
   | { action: "app" }; // app host: session refresh and sign-in redirect
 
-const PASS = [/^\/api\/site(\/|$)/, /^\/site\//, /^\/_next\//];
-// Decoded and lower-cased first, so /site%2Drender/x and /SITE-RENDER/x are caught.
-const isRender = (raw: string) => {
-  let p = raw;
+// Exactly what the public host serves outside the render route.
+const PASS = [
+  /^\/api\/site\/(form|checkout|view)$/,
+  /^\/api\/site\/class\/[A-Za-z0-9_.-]+$/,
+  /^\/site\/runtime\.js$/,
+  /^\/_next\//,
+];
+
+// Decode once, refuse (null) anything that could be a traversal or smuggle a
+// separator: undecodable, backslash, encoded slash, control chars, ".." segment.
+function normalise(raw: string): string | null {
+  if (/%(2f|5c)/i.test(raw)) return null;
+  let p: string;
   try {
     p = decodeURIComponent(raw);
   } catch {
-    return true; // undecodable: refuse
+    return null;
   }
-  p = p.toLowerCase().replace(/\/+/g, "/");
-  return p === "/site-render" || p.startsWith("/site-render/");
-};
+  // eslint-disable-next-line no-control-regex
+  if (/[\\\u0000-\u001f\u007f]/.test(p) || p.split("/").includes("..")) return null;
+  return p.replace(/\/+/g, "/");
+}
 
 export function routeFor(host: string, path: string): Route {
+  const p = normalise(path);
+  if (p === null) return { action: "notfound" };
   // The render route never answers a direct request, on either host.
-  if (isRender(path)) return { action: "notfound" };
+  const lower = p.toLowerCase();
+  if (lower === "/site-render" || lower.startsWith("/site-render/")) return { action: "notfound" };
   if (isPublicHost(host)) {
-    if (PASS.some((r) => r.test(path))) return { action: "pass" };
-    return { action: "rewrite", to: `/site-render${path === "/" ? "" : path}` };
+    if (PASS.some((r) => r.test(p))) return { action: "pass" };
+    return { action: "rewrite", to: `/site-render${p === "/" ? "" : p}` };
   }
   return { action: "app" };
 }

@@ -4,7 +4,10 @@ import { db, withTransaction } from "../sql.ts";
 import { guard } from "./admin.ts";
 import { cleanPage } from "./clean.ts";
 import { leadFormSettingsSchema, normalizePath, orderFormSettingsSchema, pathSchema, type SiteSettings } from "./model.ts";
+import { purge } from "./purge.ts";
 import { isRealDate } from "./workshop-name.ts";
+
+export { setPurgeFetch } from "./purge.ts";
 
 // Publish / unpublish / restore / history. site_route is written only here.
 
@@ -15,31 +18,6 @@ export type PublishResult =
   | { kind: "ok"; removed: string[] }
   | { kind: "refused"; reasons: string[] }
   | { kind: "conflict" };
-
-// ---- CDN purge (injectable for tests) ----
-
-let purgeFetch: typeof fetch = (...a) => fetch(...a);
-export function setPurgeFetch(f: typeof fetch) {
-  purgeFetch = f;
-}
-
-async function purge(pageIds: string[]) {
-  const token = process.env.NETLIFY_PURGE_TOKEN;
-  const siteId = process.env.NETLIFY_SITE_ID;
-  if (!token || !siteId) return;
-  for (const id of pageIds) {
-    try {
-      const r = await purgeFetch("https://api.netlify.com/api/v1/purge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ site_id: siteId, cache_tags: [`page:${id}`] }),
-      });
-      if (!r.ok) console.error(`CDN purge for page ${id} failed: HTTP ${r.status}`);
-    } catch (e) {
-      console.error(`CDN purge for page ${id} failed: ${e instanceof Error ? e.message : "error"}`);
-    }
-  }
-}
 
 // ---- rendering and checks ----
 

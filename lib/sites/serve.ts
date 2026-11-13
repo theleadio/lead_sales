@@ -113,7 +113,7 @@ export function renderDocument(
 }
 
 export function csp(nonce: string): string {
-  return `default-src 'self'; script-src 'self' 'nonce-${nonce}' https://connect.facebook.net https://www.googletagmanager.com https://snap.licdn.com https://analytics.tiktok.com https://challenges.cloudflare.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com https://challenges.cloudflare.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'`;
+  return `default-src 'self'; script-src 'self' 'nonce-${nonce}' https://connect.facebook.net https://www.googletagmanager.com https://snap.licdn.com https://analytics.tiktok.com https://challenges.cloudflare.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com https://challenges.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://www.facebook.com https://connect.facebook.net https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.doubleclick.net https://px.ads.linkedin.com https://analytics.tiktok.com https://*.tiktok.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'`;
 }
 
 export function pageResponse(r: Extract<Resolved, { kind: "page" }>): Response {

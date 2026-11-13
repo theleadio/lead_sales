@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db, withTransaction } from "../sql.ts";
 import { normalizePath, pathSchema, siteSettingsSchema, type SiteSettings } from "./model.ts";
 import { canEditSites, canViewSites } from "./permissions.ts";
+import { purge } from "./purge.ts";
 
 // Server-side data layer for the sites admin screens and the editor. Every
 // function takes the viewer first; a refusal is audited and throws.
@@ -193,7 +194,7 @@ export async function updateSiteSettings(
 ): Promise<Result> {
   await guard(viewer, "change site settings", true);
   const parsed = siteSettingsSchema.parse(settings);
-  return withTransaction(async () => {
+  const r = await withTransaction(async (): Promise<Result> => {
     const sql = db();
     const [before] = await sql`SELECT settings FROM sales.site WHERE id = ${siteId} FOR UPDATE`;
     if (!before) throw new Error("No such site.");
@@ -203,6 +204,12 @@ export async function updateSiteSettings(
     await audit(viewer, "update", "site", siteId, { settings: before.settings }, { settings: parsed });
     return { kind: "ok", version: v };
   });
+  // Pages bake the settings (pixels, SEO, favicon) into cached HTML.
+  if (r.kind === "ok") {
+    const live = await db()`SELECT id FROM sales.site_page WHERE site_id = ${siteId} AND active_version_id IS NOT NULL`;
+    await purge(live.map((p) => p.id as string));
+  }
+  return r;
 }
 
 // ---- steps: each takes the site's version and bumps it ----

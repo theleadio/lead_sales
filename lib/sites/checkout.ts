@@ -58,7 +58,8 @@ export async function submitOrder(
   if (!order || !parsed.success) return { kind: "not_found" };
   const o = parsed.data;
   const [thanks] = await db()`
-    SELECT path FROM sales.site_page WHERE site_id = ${page.site_id} AND kind = 'thank_you' ORDER BY position LIMIT 1`;
+    SELECT path FROM sales.site_page WHERE site_id = ${page.site_id} AND kind = 'thank_you' AND active_version_id IS NOT NULL
+    ORDER BY position LIMIT 1`;
   if (!thanks) return { kind: "not_found" };
   const site = siteSettingsSchema.safeParse(page.settings);
 
