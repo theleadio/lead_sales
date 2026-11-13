@@ -1,10 +1,25 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { routeFor } from "./lib/sites/host.ts";
 
 // Refreshes the Supabase session cookie on every request and sends anyone
 // not signed in to /sign-in. "Signed in" only: roles are checked per page and
 // per route (lib/auth/current-user.ts), as in lead_crm.
 export async function proxy(request: NextRequest) {
+  // Public host: marketing-authored HTML is served here and must never meet a
+  // session cookie, so no Supabase client, refresh or sign-in redirect.
+  const route = routeFor(
+    request.headers.get("host") ?? "",
+    request.nextUrl.pathname,
+  );
+  if (route.action === "notfound") return new NextResponse(null, { status: 404 });
+  if (route.action === "pass") return NextResponse.next();
+  if (route.action === "rewrite") {
+    const url = request.nextUrl.clone();
+    url.pathname = route.to;
+    return NextResponse.rewrite(url);
+  }
+
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
