@@ -43,6 +43,7 @@ export async function submitForm(
   ctx: { clientIp: string | null; crm?: typeof crmLead },
 ): Promise<FormResult> {
   if (!isUuid(raw.pageId)) return { kind: "not_found" };
+  if (!/^[A-Za-z0-9_.:-]{8,100}$/.test(raw.idempotencyKey)) return { kind: "invalid", fields: { idempotencyKey: "invalid" } };
   const [page] = await db()`
     SELECT p.path, s.settings, v.html
     FROM sales.site_page p JOIN sales.site s ON s.id = p.site_id
@@ -56,14 +57,16 @@ export async function submitForm(
   const site = siteSettingsSchema.safeParse(page.settings);
 
   const first = parseTouch(raw.firstTouch);
-  const last = parseTouch(raw.lastTouch) ?? touchFrom(raw.landingUrl, raw.referrer);
-  let q = new URLSearchParams();
+  // Host and path are ours (the page being submitted); only the query comes from the visitor.
+  const landing = new URL(`https://${PUBLIC_HOST}${page.path}`);
   try {
-    q = new URL(raw.landingUrl).searchParams;
+    landing.search = new URL(raw.landingUrl).search;
   } catch {}
+  const q = landing.searchParams;
+  const last = parseTouch(raw.lastTouch) ?? touchFrom(landing.href, raw.referrer);
   const attribution = {
     ...attributionPayload(first, last),
-    landingUrl: trimUrl(raw.landingUrl), // the page the form is on, which the stats match on
+    landingUrl: trimUrl(landing.href), // the page the form is on, which the stats match on
     utmId: q.get("utm_id")?.slice(0, 200) || null,
     utmAdId: q.get("utm_ad_id")?.slice(0, 200) || null,
   } as NonNullable<CrmLeadInput["attribution"]>;
@@ -99,7 +102,7 @@ export async function submitForm(
       await queueCapi("Lead", {
         eventId: `lead:${raw.idempotencyKey}`,
         eventTime: now,
-        sourceUrl: trimUrl(raw.landingUrl) ?? `https://${PUBLIC_HOST}${page.path}`,
+        sourceUrl: trimUrl(landing.href) ?? landing.href,
         fbc: fbclid ? fbcFrom(fbclid, now.getTime()) : undefined,
         fbp: raw.fbp,
         email: raw.email,
@@ -113,4 +116,11 @@ export async function submitForm(
     }
   }
   return { kind: "ok", after: f.after };
+}
+
+// Reads a request body as text, refusing more than `max` bytes (null = too big).
+export async function readCapped(req: Request, max: number): Promise<string | null> {
+  if (Number(req.headers.get("content-length") ?? 0) > max) return null;
+  const t = await req.text();
+  return new TextEncoder().encode(t).length > max ? null : t;
 }

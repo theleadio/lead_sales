@@ -2,7 +2,7 @@
 import { after } from "node:test";
 import assert from "node:assert/strict";
 import { createFunnel, getSite, updateSiteSettings } from "../lib/sites/admin.ts";
-import { submitForm, type FormRaw } from "../lib/sites/forms.ts";
+import { readCapped, submitForm, type FormRaw } from "../lib/sites/forms.ts";
 import { publishPage } from "../lib/sites/publish.ts";
 import type { CrmLeadInput } from "../lib/sites/crm-api.ts";
 import { closeDb, db } from "../lib/sql.ts";
@@ -122,4 +122,31 @@ it("CRM error answers with the WhatsApp link and logs no personal data", async (
     console.error = orig;
   }
   assert.ok(!logged.join("\n").includes("ann@example.com"));
+});
+
+it("landing url host and path are ours; only the query comes from the body", async () => {
+  const { page } = await funnel({ form: interest, capi: true });
+  const { calls, crm } = fakeCrm();
+  const r = raw(page.id, { landingUrl: "https://evil.com/other-step?utm_source=x" });
+  await submitForm(r, { clientIp: null, crm });
+  const want = `https://ai.thelead.io${page.path}?utm_source=x`;
+  assert.equal(calls[0].attribution?.landingUrl, want);
+  const [e] = await db()`SELECT payload FROM sales.capi_event WHERE event_id = ${`lead:${r.idempotencyKey}`}`;
+  assert.equal(e.payload.event_source_url, want);
+});
+
+it("a bad idempotency key is invalid and never reaches the CRM", async () => {
+  const { page } = await funnel({ form: interest });
+  const { calls, crm } = fakeCrm();
+  for (const k of ["short", "has space here", "x".repeat(101)]) {
+    const r = await submitForm(raw(page.id, { idempotencyKey: k }), { clientIp: null, crm });
+    assert.equal(r.kind, "invalid");
+  }
+  assert.equal(calls.length, 0);
+});
+
+it("readCapped refuses bodies over the cap", async () => {
+  const mk = (b: string) => new Request("https://ai.thelead.io/api/site/form", { method: "POST", body: b });
+  assert.equal(await readCapped(mk("{}"), 16), "{}");
+  assert.equal(await readCapped(mk("x".repeat(17)), 16), null);
 });

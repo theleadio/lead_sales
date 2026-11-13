@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { submitForm } from "@/lib/sites/forms";
+import { readCapped, submitForm } from "@/lib/sites/forms";
 import { isPublicHost } from "@/lib/sites/host";
 import { clientIp, fromPublicOrigin } from "@/lib/sites/stats";
 
@@ -14,7 +14,9 @@ export async function POST(req: NextRequest) {
   if (!fromPublicOrigin(req.headers.get("origin"), req.headers.get("referer"))) return new Response("Forbidden", { status: 403 });
   let b: Record<string, unknown> = {};
   try {
-    const j = await req.json();
+    const text = await readCapped(req, 16 * 1024);
+    if (text === null) return new Response("Payload too large", { status: 413 });
+    const j = JSON.parse(text);
     if (j && typeof j === "object") b = j;
   } catch {}
   if (typeof b.pageId !== "string" || typeof b.formId !== "string" || typeof b.idempotencyKey !== "string") {
