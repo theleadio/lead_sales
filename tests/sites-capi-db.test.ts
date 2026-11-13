@@ -114,3 +114,97 @@ it("drain queues one Purchase per attributed payment, net of refunds, once", asy
   const [{ n }] = await db()`SELECT count(*)::int n FROM sales.capi_event WHERE event_id = ${`purchase:${paymentId}`}`;
   assert.equal(n, 1);
 });
+
+const bodyIds = (init?: RequestInit) => (JSON.parse(String(init?.body)).data as { event_id: string }[]).map((d) => d.event_id);
+
+it("two drains in parallel send each event once", async () => {
+  env();
+  const es = [ev(), ev(), ev()];
+  for (const e of es) await queueCapi("PageView", e);
+  const seen: string[] = [];
+  const f = (async (_u: unknown, init?: RequestInit) => {
+    seen.push(...bodyIds(init));
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  const now = new Date(Date.now() + 1000);
+  await Promise.all([drainCapi(now, f), drainCapi(now, f)]);
+  for (const e of es) {
+    assert.equal(seen.filter((s) => s === e.eventId).length, 1);
+    assert.equal((await row(e.eventId)).attempts, 1);
+  }
+});
+
+it("a 400 bisects: only the bad event fails, the rest are sent", async () => {
+  env();
+  const good = [ev(), ev(), ev()];
+  const bad = ev();
+  for (const e of [good[0], bad, good[1], good[2]]) await queueCapi("PageView", e);
+  const f = (async (_u: unknown, init?: RequestInit) =>
+    new Response("{}", { status: bodyIds(init).includes(bad.eventId) ? 400 : 200 })) as typeof fetch;
+  await drainCapi(new Date(Date.now() + 1000), f);
+  assert.equal((await row(bad.eventId)).status, "failed");
+  assert.equal((await row(bad.eventId)).last_error, "HTTP 400");
+  for (const e of good) assert.equal((await row(e.eventId)).status, "sent");
+});
+
+it("a rejected token stops the run, leaves rows queued, logs no secret", async () => {
+  env();
+  const es = [ev(), ev()];
+  for (const e of es) await queueCapi("PageView", e);
+  const now = new Date(Date.now() + 1000);
+  const logged: string[] = [];
+  const orig = console.error;
+  console.error = (...a: unknown[]) => void logged.push(a.join(" "));
+  let calls = 0;
+  try {
+    // 401 on a plain status; then OAuthException on a 400.
+    for (const res of [() => new Response("{}", { status: 401 }), () => Response.json({ error: { type: "OAuthException", code: 190 } }, { status: 400 })]) {
+      calls = 0;
+      await drainCapi(new Date(now.getTime() + 60 * 60_000 * logged.length), (async () => (calls++, res())) as typeof fetch);
+      assert.equal(calls, 1);
+      for (const e of es) {
+        const r = await row(e.eventId);
+        assert.equal(r.status, "queued");
+        assert.equal(r.attempts, 0);
+        assert.equal(r.last_error, "token rejected");
+      }
+    }
+  } finally {
+    console.error = orig;
+  }
+  assert.ok(logged.length >= 2 && logged.every((l) => l === "capi: token rejected"));
+});
+
+it("429 and 5xx retry; the 5th attempt fails the event", async () => {
+  env();
+  const e = ev();
+  await queueCapi("PageView", e);
+  await db()`UPDATE sales.capi_event SET attempts = 4 WHERE event_id = ${e.eventId}`;
+  const r = await drainCapi(new Date(Date.now() + 1000), (async () => new Response("{}", { status: 429 })) as typeof fetch);
+  assert.ok(r.failed >= 1);
+  assert.equal((await row(e.eventId)).status, "failed");
+  const e2 = ev();
+  await queueCapi("PageView", e2);
+  await drainCapi(new Date(Date.now() + 1000), (async () => new Response("{}", { status: 429 })) as typeof fetch);
+  assert.equal((await row(e2.eventId)).status, "queued");
+  assert.equal((await row(e2.eventId)).last_error, "HTTP 429");
+});
+
+it("sent and failed events lose their IP and user agent", async () => {
+  env();
+  const a = ev({ clientIp: "1.2.3.4", userAgent: "UA", fbp: "fb.1.2.3" });
+  const b = ev({ clientIp: "1.2.3.4", userAgent: "UA" });
+  await queueCapi("PageView", a);
+  await queueCapi("PageView", b);
+  assert.equal((await row(a.eventId)).payload.user_data.client_ip_address, "1.2.3.4");
+  const now = new Date(Date.now() + 1000);
+  await drainCapi(now, (async (_u: unknown, init?: RequestInit) =>
+    new Response("{}", { status: bodyIds(init).length === 1 && bodyIds(init)[0] === b.eventId ? 400 : bodyIds(init).includes(b.eventId) ? 400 : 200 })) as typeof fetch);
+  for (const e of [a, b]) {
+    const u = (await row(e.eventId)).payload.user_data;
+    assert.equal(u.client_ip_address, undefined);
+    assert.equal(u.client_user_agent, undefined);
+  }
+  assert.equal((await row(a.eventId)).payload.user_data.fbp, "fb.1.2.3");
+  assert.equal((await row(b.eventId)).status, "failed");
+});

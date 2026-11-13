@@ -1,7 +1,8 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import type { Role } from "../auth/roles.ts";
 import { db, withTransaction } from "../sql.ts";
 import { guard } from "./admin.ts";
+import { isPublicHost, PUBLIC_HOST } from "./host.ts";
 import { formNameFor, leadFormSettingsSchema, normalizePath } from "./model.ts";
 import { components } from "./publish.ts";
 
@@ -9,6 +10,54 @@ type Viewer = { id: string; role: Role };
 
 const KL = "+08:00"; // Malaysia has no daylight saving.
 export const klDay = (d: Date): string => d.toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
+
+export const viewsEnabled = () => (process.env.PAGE_VIEW_SALT ?? "").length >= 16;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isUuid = (s: unknown): s is string => typeof s === "string" && UUID.test(s);
+const VIEW_LIMIT_PER_MIN = 60;
+
+export type ViewPage = { path: string; domain: string; settings: unknown };
+export type ViewDecision =
+  | { kind: "ok"; page: ViewPage }
+  | { kind: "notfound" | "bad" | "forbidden" } // 404, 400, 403
+  | { kind: "off" | "limited" }; // 204, nothing recorded
+
+// Whether a view request is to be counted. Order: public host, no salt (off),
+// body shape, Origin/Referer on the public host, per-IP limit (60/min, HMAC
+// bucket keyed by RATE_LIMIT_SECRET so no IP is stored), then the page must be
+// published on the public domain and `variant` one of its published variants.
+export async function checkView(r: {
+  host: string;
+  origin: string | null;
+  referer: string | null;
+  ip: string | null;
+  pageId: unknown;
+  variant: unknown;
+}): Promise<ViewDecision> {
+  if (!isPublicHost(r.host)) return { kind: "notfound" };
+  if (!viewsEnabled()) return { kind: "off" };
+  if (!isUuid(r.pageId) || typeof r.variant !== "string" || !/^[A-Za-z0-9_-]{1,20}$/.test(r.variant)) return { kind: "bad" };
+  let from: URL | null = null;
+  try {
+    from = new URL(r.origin || r.referer || "");
+  } catch {}
+  if (!from || !isPublicHost(from.host) || (from.protocol !== "https:" && from.hostname !== "site.localhost")) return { kind: "forbidden" };
+  const secret = (process.env.RATE_LIMIT_SECRET ?? "").trim();
+  if (secret.length < 16) return { kind: "limited" }; // not configured: count nothing
+  const bucket = `site-view:${r.ip ? createHmac("sha256", secret).update(r.ip).digest("hex") : "unknown"}`;
+  const [lim] = await db()`SELECT rate_limit_take(${bucket}, 60) AS hits`;
+  if (lim.hits > VIEW_LIMIT_PER_MIN) return { kind: "limited" };
+  const [page] = await db()`
+    SELECT p.path, s.domain, s.settings,
+           EXISTS (SELECT 1 FROM sales.page_version v WHERE v.page_id = p.id AND v.variant = ${r.variant} AND v.status = 'published') AS has_variant
+    FROM sales.site_page p JOIN sales.site s ON s.id = p.site_id
+    JOIN sales.page_version a ON a.id = p.active_version_id AND a.status = 'published'
+    WHERE p.id = ${r.pageId} AND s.domain = ${PUBLIC_HOST}`;
+  if (!page) return { kind: "notfound" };
+  if (!page.has_variant) return { kind: "bad" };
+  return { kind: "ok", page: { path: page.path, domain: page.domain, settings: page.settings } };
+}
 
 // First sighting of a visitor on a page that KL day bumps `uniques`. The hash
 // is salted per deployment and per day, so it can't follow a visitor across

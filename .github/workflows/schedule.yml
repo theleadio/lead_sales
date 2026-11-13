@@ -121,6 +121,7 @@ jobs:
         run: node --import=./scripts/ci-errors.mjs scripts/automations-run.ts
 
   capi:
+    concurrency: { group: capi, cancel-in-progress: false }
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

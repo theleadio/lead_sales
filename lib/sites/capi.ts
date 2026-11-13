@@ -86,11 +86,26 @@ async function queuePurchases(now: Date) {
 
 const BACKOFF_MIN = [1, 5, 30, 120, 720];
 const MAX_ATTEMPTS = 5;
+const CLAIM_MIN = 15;
+const TOKEN_BACKOFF_MIN = 30;
 
-// Sends everything due in one batch (max 1000). 2xx = sent; 4xx (not 429) =
-// failed for good; anything else retries after BACKOFF_MIN[attempts-1], and
-// fails on the 5th attempt. ponytail: one bad event in a 400 batch fails the
-// whole batch; split the batch if that ever happens in practice.
+// Drops what is only needed to send: once an event is sent or failed its IP
+// and user agent are not kept.
+const strip = (sql: ReturnType<typeof db>) => sql`payload = jsonb_set(payload, '{user_data}', (payload->'user_data') - 'client_ip_address' - 'client_user_agent')`;
+
+type Due = { id: string; payload: unknown; attempts: number };
+type Out = { sent: number; failed: number; stop: boolean };
+
+// Sends everything due, up to 1000 events, claimed atomically (FOR UPDATE
+// SKIP LOCKED) so overlapping runs never take the same row. The claim marker is
+// next_attempt_at pushed 15 minutes ahead (the 006 CHECK has no 'sending'
+// status): a run that dies leaves its rows due again after 15 minutes.
+//
+// Outcomes: 2xx sent. Token rejected (401/403, or OAuthException / code 190)
+// stops the run and leaves the rows queued, 30 minutes on, attempts unchanged.
+// 400: the batch is halved and resent until the one bad event is alone, then
+// that one is failed. 429, 5xx, network error: retry after BACKOFF_MIN[attempts-1]
+// and fail on the 5th attempt.
 export async function drainCapi(now: Date, fetchImpl: typeof fetch = fetch): Promise<{ sent: number; failed: number }> {
   const token = process.env.META_CAPI_TOKEN;
   const pixel = process.env.META_PIXEL_ID;
@@ -98,43 +113,77 @@ export async function drainCapi(now: Date, fetchImpl: typeof fetch = fetch): Pro
   const sql = db();
   await queuePurchases(now);
   await sql`DELETE FROM sales.page_view_seen WHERE day < ${klDay(new Date(now.getTime() - 2 * 86_400_000))}::date`;
-  const due = await sql`
-    SELECT id, payload, attempts FROM sales.capi_event
-    WHERE status = 'queued' AND next_attempt_at <= ${now} ORDER BY created_at LIMIT 1000`;
+  const claimUntil = new Date(now.getTime() + CLAIM_MIN * 60_000);
+  const due = (await sql`
+    UPDATE sales.capi_event SET next_attempt_at = ${claimUntil}
+    WHERE id IN (
+      SELECT id FROM sales.capi_event WHERE status = 'queued' AND next_attempt_at <= ${now}
+      ORDER BY created_at LIMIT 1000 FOR UPDATE SKIP LOCKED)
+    RETURNING id, payload, attempts, created_at`) as unknown as (Due & { created_at: Date })[];
+  due.sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
   if (!due.length) return { sent: 0, failed: 0 };
 
   const test = process.env.META_TEST_EVENT_CODE;
-  let status = 0;
-  try {
-    const res = await fetchImpl(
-      `https://graph.facebook.com/v21.0/${encodeURIComponent(pixel)}/events?access_token=${encodeURIComponent(token)}`,
-      {
+  const url = `https://graph.facebook.com/v21.0/${encodeURIComponent(pixel)}/events?access_token=${encodeURIComponent(token)}`;
+
+  const attempt = async (rows: Due[]): Promise<Out> => {
+    let status = 0;
+    let oauth = false;
+    try {
+      const res = await fetchImpl(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: due.map((r) => r.payload), ...(test && { test_event_code: test }) }),
-      },
-    );
-    status = res.status;
-  } catch {
-    // status stays 0: a network error, retried. The error text is dropped on purpose.
-  }
-  const ids = due.map((r) => r.id as string);
-  if (status >= 200 && status < 300) {
-    await sql`UPDATE sales.capi_event SET status = 'sent', attempts = attempts + 1, last_error = NULL WHERE id = ANY(${ids}::uuid[])`;
-    return { sent: ids.length, failed: 0 };
-  }
-  const error = status ? `HTTP ${status}` : "network error";
-  const permanent = status >= 400 && status < 500 && status !== 429;
-  let failed = 0;
-  for (const r of due) {
-    const attempts = (r.attempts as number) + 1;
-    if (permanent || attempts >= MAX_ATTEMPTS) {
-      failed++;
-      await sql`UPDATE sales.capi_event SET status = 'failed', attempts = ${attempts}, last_error = ${error} WHERE id = ${r.id}`;
-    } else {
-      const next = new Date(now.getTime() + BACKOFF_MIN[attempts - 1] * 60_000);
-      await sql`UPDATE sales.capi_event SET attempts = ${attempts}, last_error = ${error}, next_attempt_at = ${next} WHERE id = ${r.id}`;
+        body: JSON.stringify({ data: rows.map((r) => r.payload), ...(test && { test_event_code: test }) }),
+      });
+      status = res.status;
+      if (status >= 400) {
+        const e = ((await res.json().catch(() => null)) as { error?: { type?: string; code?: number } } | null)?.error;
+        oauth = e?.type === "OAuthException" || e?.code === 190;
+      }
+    } catch {
+      // status stays 0: a network error, retried. The error text is dropped on purpose.
     }
-  }
-  return { sent: 0, failed };
+    const ids = rows.map((r) => r.id);
+    if (status >= 200 && status < 300) {
+      await sql`UPDATE sales.capi_event SET status = 'sent', attempts = attempts + 1, last_error = NULL, ${strip(sql)} WHERE id = ANY(${ids}::uuid[])`;
+      return { sent: rows.length, failed: 0, stop: false };
+    }
+    if (status === 401 || status === 403 || oauth) {
+      console.error("capi: token rejected");
+      const next = new Date(now.getTime() + TOKEN_BACKOFF_MIN * 60_000);
+      await sql`UPDATE sales.capi_event SET last_error = 'token rejected', next_attempt_at = ${next} WHERE id = ANY(${ids}::uuid[])`;
+      return { sent: 0, failed: 0, stop: true };
+    }
+    if (status === 400) {
+      if (rows.length === 1) {
+        await sql`UPDATE sales.capi_event SET status = 'failed', attempts = attempts + 1, last_error = 'HTTP 400', ${strip(sql)} WHERE id = ${rows[0].id}`;
+        return { sent: 0, failed: 1, stop: false };
+      }
+      const mid = rows.length >> 1;
+      const a = await attempt(rows.slice(0, mid));
+      if (a.stop) {
+        // The other half is still claimed: put it back as it was.
+        await sql`UPDATE sales.capi_event SET next_attempt_at = ${new Date(now.getTime() + TOKEN_BACKOFF_MIN * 60_000)} WHERE id = ANY(${rows.slice(mid).map((r) => r.id)}::uuid[])`;
+        return a;
+      }
+      const b = await attempt(rows.slice(mid));
+      return { sent: a.sent + b.sent, failed: a.failed + b.failed, stop: b.stop };
+    }
+    const error = status ? `HTTP ${status}` : "network error";
+    let failed = 0;
+    for (const r of rows) {
+      const attempts = r.attempts + 1;
+      if (attempts >= MAX_ATTEMPTS) {
+        failed++;
+        await sql`UPDATE sales.capi_event SET status = 'failed', attempts = ${attempts}, last_error = ${error}, ${strip(sql)} WHERE id = ${r.id}`;
+      } else {
+        const next = new Date(now.getTime() + BACKOFF_MIN[attempts - 1] * 60_000);
+        await sql`UPDATE sales.capi_event SET attempts = ${attempts}, last_error = ${error}, next_attempt_at = ${next} WHERE id = ${r.id}`;
+      }
+    }
+    return { sent: 0, failed, stop: false };
+  };
+
+  const r = await attempt(due);
+  return { sent: r.sent, failed: r.failed };
 }

@@ -2,7 +2,7 @@
 import { after } from "node:test";
 import assert from "node:assert/strict";
 import { SitesPermissionError } from "../lib/sites/admin.ts";
-import { klDay, recordView, siteStats } from "../lib/sites/stats.ts";
+import { checkView, klDay, recordView, siteStats } from "../lib/sites/stats.ts";
 import { closeDb } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
 import { buyer, liveFunnel } from "./sites-seed.ts";
@@ -55,4 +55,44 @@ it("a viewer without site access is refused", async () => {
   const { siteId } = await liveFunnel({ formName: "x" });
   const nobody = await newUser("support");
   await assert.rejects(siteStats(nobody, siteId, "2026-01-01", "2026-01-02"), SitesPermissionError);
+});
+
+const ORIGIN = "https://ai.thelead.io";
+const req = (over: Record<string, unknown>) => ({
+  host: "ai.thelead.io", origin: ORIGIN, referer: null, ip: `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.1`,
+  pageId: "", variant: "A", ...over,
+});
+
+it("checkView: host, origin, variant, salt and page gates", async () => {
+  process.env.PAGE_VIEW_SALT = "x".repeat(20);
+  process.env.RATE_LIMIT_SECRET = "s".repeat(20);
+  const { steps } = await liveFunnel({ formName: "x" });
+  const pageId = steps[0].id;
+  assert.equal((await checkView(req({ pageId }))).kind, "ok");
+  assert.equal((await checkView(req({ pageId, host: "app.example.com" }))).kind, "notfound");
+  assert.equal((await checkView(req({ pageId, origin: "https://evil.example" }))).kind, "forbidden");
+  assert.equal((await checkView(req({ pageId, origin: null }))).kind, "forbidden");
+  assert.equal((await checkView(req({ pageId, origin: null, referer: `${ORIGIN}/x/y` }))).kind, "ok");
+  assert.equal((await checkView(req({ pageId, variant: "Z" }))).kind, "bad");
+  assert.equal((await checkView(req({ pageId, variant: "a b" }))).kind, "bad");
+  assert.equal((await checkView(req({ pageId: "nope" }))).kind, "bad");
+  assert.equal((await checkView(req({ pageId: crypto.randomUUID() }))).kind, "notfound");
+  // unpublished step (never published): not found
+  assert.equal((await checkView(req({ pageId: steps[1].id }))).kind, "notfound");
+  process.env.PAGE_VIEW_SALT = "short";
+  assert.equal((await checkView(req({ pageId }))).kind, "off");
+});
+
+it("checkView: 60 per minute per IP, then limited; another IP is unaffected", async () => {
+  process.env.PAGE_VIEW_SALT = "x".repeat(20);
+  process.env.RATE_LIMIT_SECRET = "s".repeat(20);
+  const { steps } = await liveFunnel({ formName: "x" });
+  const ip = `192.0.2.${Math.floor(Math.random() * 250)}`;
+  const bucketKey = crypto.randomUUID(); // keep this IP's bucket unique to the run
+  const r = (i: string) => req({ pageId: steps[0].id, ip: `${i}-${bucketKey}` });
+  for (let i = 0; i < 60; i++) assert.equal((await checkView(r(ip))).kind, "ok");
+  assert.equal((await checkView(r(ip))).kind, "limited");
+  assert.equal((await checkView(r(ip + "x"))).kind, "ok");
+  delete process.env.RATE_LIMIT_SECRET;
+  assert.equal((await checkView(r(ip + "y"))).kind, "limited");
 });
