@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { workshopFormName } from "./workshop-name.ts";
+import { isRealDate, workshopFormName } from "./workshop-name.ts";
 
 export { workshopFormName };
 
@@ -13,8 +13,23 @@ export function normalizePath(input: string): string {
   return p === "" ? "/" : p;
 }
 
+// https only: blocks javascript:, data:, http: from ever being stored.
+const httpsUrl = z
+  .string()
+  .refine((v) => {
+    try {
+      return new URL(v).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "must be an https:// URL");
+
+// WhatsApp widget holds a phone number (digits, optional leading +, 8-15 digits),
+// not a URL; the widget builds the wa.me link itself.
+const whatsappNumber = z.string().regex(/^\+?\d{8,15}$/, "must be a phone number");
+
 export const siteSettingsSchema = z.object({
-  favicon: z.string().optional(),
+  favicon: httpsUrl.optional(),
   pixels: z.object({
     meta: z.string().optional(),
     google: z.string().optional(),
@@ -22,24 +37,25 @@ export const siteSettingsSchema = z.object({
     tiktok: z.string().optional(),
   }),
   capi: z.boolean(),
-  chatWidget: z.object({ whatsapp: z.string() }).optional(),
+  chatWidget: z.object({ whatsapp: whatsappNumber }).optional(),
   paymentMode: z.enum(["live", "test"]),
   seo: z.object({
     title: z.string().optional(),
     description: z.string().optional(),
-    image: z.string().optional(),
+    image: httpsUrl.optional(),
     noindex: z.boolean().optional(),
   }),
-  privacyUrl: z.string().optional(),
+  privacyUrl: httpsUrl.optional(),
 });
 export type SiteSettings = z.infer<typeof siteSettingsSchema>;
 
-export const leadFormSettingsSchema = z.object({
+export const leadFormSettingsSchema = z
+  .object({
   type: z.enum(["workshop", "interest", "enquiry"]),
   workshop: z
     .object({
       title: z.string().min(1),
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      date: z.string().refine(isRealDate, "must be a real YYYY-MM-DD date"),
       language: z.enum(["en", "zh"]),
     })
     .optional(),
@@ -51,9 +67,14 @@ export const leadFormSettingsSchema = z.object({
   after: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("message"), text: z.string() }),
     z.object({ kind: z.literal("step"), pageId: z.string() }),
-    z.object({ kind: z.literal("url"), url: z.string() }),
+    z.object({ kind: z.literal("url"), url: httpsUrl }),
   ]),
-});
+  })
+  .superRefine((s, ctx) => {
+    if (s.type === "workshop" && !s.workshop) {
+      ctx.addIssue({ code: "custom", path: ["workshop"], message: "required for workshop forms" });
+    }
+  });
 export type LeadFormSettings = z.infer<typeof leadFormSettingsSchema>;
 
 export const orderFormSettingsSchema = z.object({
