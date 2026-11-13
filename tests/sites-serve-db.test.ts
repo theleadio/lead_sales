@@ -89,6 +89,8 @@ it("SEO title and Meta pixel id appear, invalid or unset pixels do not", async (
   assert.doesNotMatch(html, /ttq|linkedin/);
   assert.match(html, /<script nonce="N0NCE">/);
   assert.match(html, /\/site\/runtime\.js/);
+  assert.match(html, new RegExp(`<meta name="lead-page" content="${r.pageId}"><meta name="lead-variant" content="A">`));
+  assert.doesNotMatch(renderDocument({ html: "", css: "" }, r.site, "N"), /lead-page/);
 });
 
 it("an unpublished page shows the holding page in its language, status 200", async () => {

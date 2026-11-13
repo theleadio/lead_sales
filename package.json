@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "build:runtime": "node scripts/build-runtime.ts",
+    "prebuild": "npm run build:runtime",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

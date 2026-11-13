@@ -90,13 +90,14 @@ function pixels(p: SiteSettings["pixels"], nonce: string): string {
 // ponytail: no page-level SEO or linked-language model exists yet, so only
 // site SEO is used and `alternates` is supplied by the caller (none today).
 export function renderDocument(
-  page: { html: string; css: string },
+  page: { html: string; css: string; pageId?: string },
   site: Pick<SiteRow, "language" | "settings">,
   nonce: string,
   opts: { alternates?: { lang: string; url: string }[] } = {},
 ): string {
   const { seo, favicon, pixels: px } = site.settings;
   const meta = [
+    page.pageId && `<meta name="lead-page" content="${esc(page.pageId)}"><meta name="lead-variant" content="A">`,
     seo.description && `<meta name="description" content="${esc(seo.description)}">`,
     seo.title && `<meta property="og:title" content="${esc(seo.title)}">`,
     seo.description && `<meta property="og:description" content="${esc(seo.description)}">`,
