@@ -141,11 +141,11 @@ const RESULTS = ["full", "closed", "already_enrolled", "hrdc_contact"];
 const WA = /^https:\/\/wa\.me\/\d+$/;
 const obj = (b: unknown): any => (b && typeof b === "object" ? b : {});
 
-// 200 from /api/site/form. A step target cannot be resolved client-side yet
-// (the route returns the step's pageId, not its path), so it shows the thank-you.
+// 200 from /api/site/form. A step target arrives as a same-origin path.
 export function formSuccess(lang: Lang, body: unknown): Outcome {
   const a = obj(obj(body).after);
   if (a.kind === "url" && typeof a.url === "string" && a.url.startsWith("https://")) return { kind: "go", url: a.url };
+  if (a.kind === "step" && typeof a.path === "string" && /^\/(?!\/)[^\\]*$/.test(a.path)) return { kind: "go", url: a.path };
   if (a.kind === "message" && typeof a.text === "string" && a.text) return { kind: "text", ok: true, text: a.text };
   return { kind: "text", ok: true, text: t(lang, "success") };
 }

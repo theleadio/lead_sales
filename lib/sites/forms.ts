@@ -29,7 +29,7 @@ export type FormRaw = {
 };
 
 export type FormResult =
-  | { kind: "ok"; after: LeadFormSettings["after"] }
+  | { kind: "ok"; after: Exclude<LeadFormSettings["after"], { kind: "step" }> | { kind: "step"; path: string } }
   | { kind: "invalid"; fields: Record<string, string> }
   | { kind: "limited" }
   | { kind: "captcha" }
@@ -101,6 +101,15 @@ export async function submitForm(
     } catch {
       console.error("site-form: capi queue failed"); // the lead exists; never fail the visitor over it
     }
+  }
+  // A step target becomes that step's live path on this site; a step that
+  // is not published (or not on this site) falls back to the message kind.
+  if (f.after.kind === "step") {
+    const [t] = await db()`
+      SELECT p.path FROM sales.site_page p
+      WHERE p.id::text = ${f.after.pageId} AND p.site_id = (SELECT site_id FROM sales.site_page WHERE id = ${raw.pageId})
+        AND p.active_version_id IS NOT NULL`;
+    return { kind: "ok", after: t ? { kind: "step", path: t.path as string } : { kind: "message", text: "" } };
   }
   return { kind: "ok", after: f.after };
 }

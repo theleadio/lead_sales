@@ -89,6 +89,17 @@ it("SEO title and Meta pixel id appear, invalid or unset pixels do not", async (
   assert.doesNotMatch(html, /ttq|linkedin/);
   assert.match(html, /<script nonce="N0NCE">/);
   assert.match(html, /\/site\/runtime\.js/);
+  assert.doesNotMatch(html, /data-turnstile/);
+  const prev = process.env.TURNSTILE_SITE_KEY;
+  try {
+    process.env.TURNSTILE_SITE_KEY = "0x4AAAAAAAkey_ok-1";
+    assert.match(renderDocument(r, r.site, "N"), /<html lang="\w+" data-turnstile="0x4AAAAAAAkey_ok-1">/);
+    process.env.TURNSTILE_SITE_KEY = 'bad"><script>';
+    assert.doesNotMatch(renderDocument(r, r.site, "N"), /data-turnstile/);
+  } finally {
+    if (prev === undefined) delete process.env.TURNSTILE_SITE_KEY;
+    else process.env.TURNSTILE_SITE_KEY = prev;
+  }
   assert.match(html, new RegExp(`<meta name="lead-page" content="${r.pageId}"><meta name="lead-variant" content="A">`));
   assert.doesNotMatch(renderDocument({ html: "", css: "" }, r.site, "N"), /lead-page/);
 });

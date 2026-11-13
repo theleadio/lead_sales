@@ -35,7 +35,7 @@ async function funnel(opts: { form: unknown; capi?: boolean; whatsapp?: string; 
   const html = `<div data-lead="form" data-id="${FORM_ID}" data-settings="${esc(opts.form)}"></div>`;
   await db()`UPDATE sales.page_version SET html = ${html} WHERE page_id = ${s.steps[0].id} AND status = 'draft'`;
   if (opts.publish !== false) assert.equal((await publishPage(m, s.steps[0].id, s.steps[0].version)).kind, "ok");
-  return { page: s.steps[0] };
+  return { page: s.steps[0], steps: s.steps, siteId, m };
 }
 
 const raw = (pageId: string, over: Partial<FormRaw> = {}): FormRaw => ({
@@ -150,4 +150,17 @@ it("readCapped refuses bodies over the cap", async () => {
   const mk = (b: string) => new Request("https://ai.thelead.io/api/site/form", { method: "POST", body: b });
   assert.equal(await readCapped(mk("{}"), 16), "{}");
   assert.equal(await readCapped(mk("x".repeat(17)), 16), null);
+});
+
+it("an after-step form returns the live path of the target step, or the message kind when it is not published", async () => {
+  const { page, steps, m } = await funnel({ form: interest, publish: false });
+  const form = { ...interest, after: { kind: "step", pageId: steps[2].id } };
+  const html = `<div data-lead="form" data-id="${FORM_ID}" data-settings="${esc(form)}"></div>`;
+  await db()`UPDATE sales.page_version SET html = ${html} WHERE page_id = ${page.id} AND status = 'draft'`;
+  assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
+  const ctx = (crm: ReturnType<typeof fakeCrm>["crm"]) => ({ clientIp: null, crm });
+  assert.deepEqual((await submitForm(raw(page.id), ctx(fakeCrm().crm))), { kind: "ok", after: { kind: "message", text: "" } });
+  assert.equal((await publishPage(m, steps[2].id, steps[2].version)).kind, "ok");
+  const r = await submitForm({ ...raw(page.id), idempotencyKey: "second-key-12345" }, ctx(fakeCrm().crm));
+  assert.deepEqual(r, { kind: "ok", after: { kind: "step", path: steps[2].path } });
 });
