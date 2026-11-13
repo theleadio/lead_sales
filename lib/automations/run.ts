@@ -17,9 +17,9 @@ import {
 // wait, the end, a stop, or a failure. Every step's outcome is logged in
 // sales.automation_log.
 //
-// Sending: email and WhatsApp go through a Sender. None is connected yet
-// (email provider and WATI templates are open questions), so a send step
-// fails the run with "not connected" and the run log says so. Before any
+// Sending: email and WhatsApp go through a Sender. Email is Resend
+// (lib/email/resend.ts); WhatsApp (WATI) isn't connected yet. A step with
+// no sender fails the run with "not connected" and the run log says so. Before any
 // sender is called the engine checks:
 //   - marketing consent, for a marketing message (service messages to
 //     students go without it, decided 4 Nov)
