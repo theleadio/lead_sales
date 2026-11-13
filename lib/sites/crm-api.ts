@@ -49,6 +49,8 @@ export type CrmRegisterResult =
   | { kind: "checkout"; url: string }
   | { kind: "full" }
   | { kind: "closed" }
+  | { kind: "already_enrolled" }
+  | { kind: "hrdc_contact" }
   | Common;
 
 // ---- fetch (injectable for tests) ----
@@ -112,11 +114,14 @@ export async function crmRegister(input: CrmRegisterInput, ctx: Ctx): Promise<Cr
   const r = await post(path, input, ctx);
   if (r?.status === 201 && r.body?.next === "checkout" && typeof r.body.checkoutUrl === "string")
     return { kind: "checkout", url: r.body.checkoutUrl };
+  // HRDC claimed: the CRM contacts the company, no checkout URL.
+  if (r?.status === 201 && r.body?.next === "hrdc_contact") return { kind: "hrdc_contact" };
   // 409 from register(): handlers.ts handleRegister finish() switch.
   if (r?.status === 409) {
     const code = r.body?.error?.code;
     if (code === "no_seats") return { kind: "full" };
     if (code === "class_unavailable") return { kind: "closed" };
+    if (code === "already_enrolled") return { kind: "already_enrolled" };
   }
   return failure(path, r);
 }

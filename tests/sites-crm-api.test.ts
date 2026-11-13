@@ -96,7 +96,7 @@ test("register: 201 checkout -> url; posts to /register", async () => {
   assert.equal(JSON.parse(calls[0].init.body as string).returnUrl, reg.returnUrl);
 });
 
-test("register: 409 no_seats -> full, class_unavailable -> closed, already_enrolled -> error", async () => {
+test("register: 409 no_seats -> full, class_unavailable -> closed", async () => {
   const orig = console.error;
   console.error = () => {};
   try {
@@ -104,22 +104,31 @@ test("register: 409 no_seats -> full, class_unavailable -> closed, already_enrol
     assert.deepEqual(await crmRegister(reg, none), { kind: "full" });
     reply(409, err("class_unavailable"));
     assert.deepEqual(await crmRegister(reg, none), { kind: "closed" });
-    reply(409, err("already_enrolled"));
-    assert.deepEqual(await crmRegister(reg, none), { kind: "error" });
   } finally {
     console.error = orig;
   }
 });
 
-test("register: hrdc_contact is not a checkout -> error; 400/429/403 map as for leads", async () => {
-  const orig = console.error;
-  console.error = () => {};
-  try {
-    reply(201, { ok: true, next: "hrdc_contact", personId: "p", dealId: "d" });
-    assert.deepEqual(await crmRegister(reg, none), { kind: "error" });
-  } finally {
-    console.error = orig;
-  }
+test("register: 409 already_enrolled -> already_enrolled", async () => {
+  reply(409, err("already_enrolled"));
+  assert.deepEqual(await crmRegister(reg, none), { kind: "already_enrolled" });
+});
+
+test("register: 201 hrdc_contact -> hrdc_contact", async () => {
+  reply(201, { ok: true, next: "hrdc_contact", personId: "p", dealId: "d" });
+  assert.deepEqual(await crmRegister(reg, none), { kind: "hrdc_contact" });
+});
+
+test("utmId/utmAdId reach the request body unchanged, on both routes", async () => {
+  const attribution = { utmSource: "fb", utmId: "123", utmAdId: "456" };
+  reply(201, { personId: "p", dealId: null });
+  await crmLead({ fullName: "A", email: "a@b.my", attribution }, none);
+  reply(201, { next: "hrdc_contact" });
+  await crmRegister({ ...reg, attribution }, none);
+  for (const c of calls) assert.deepEqual(JSON.parse(c.init.body as string).attribution, attribution);
+});
+
+test("register: 400/429/403 map as for leads", async () => {
   reply(400, err("validation_failed", { fields: { classCode: "Choose a class" } }));
   assert.deepEqual(await crmRegister(reg, none), { kind: "invalid", fields: { classCode: "Choose a class" } });
   reply(429, err("rate_limited"));
