@@ -341,18 +341,38 @@ export async function cloneStep(viewer: Viewer, siteId: string, version: number,
 export async function getDraft(viewer: Viewer, pageId: string) {
   await guard(viewer, "view sites", false);
   const [r] = await db()`
-    SELECT p.version, v.project, u.full_name AS holder
+    SELECT p.version, p.site_id, p.name, p.path, v.project, v.html, v.css, u.full_name AS holder
     FROM sales.site_page p
     LEFT JOIN sales.page_version v ON v.page_id = p.id AND v.variant = 'A' AND v.status = 'draft'
     LEFT JOIN app_user u ON u.id = p.edit_lock_user_id AND p.edit_lock_user_id <> ${viewer.id}
          AND p.edit_lock_at > now() - ${LOCK_INTERVAL}::interval
     WHERE p.id = ${pageId}`;
   if (!r) throw new Error("No such step.");
-  return { project: (r.project ?? {}) as unknown, version: r.version as number, lockedBy: (r.holder as string | null) ?? null };
+  return {
+    siteId: r.site_id as string,
+    name: r.name as string,
+    path: r.path as string,
+    project: (r.project ?? {}) as unknown,
+    html: (r.html ?? "") as string,
+    css: (r.css ?? "") as string,
+    version: r.version as number,
+    lockedBy: (r.holder as string | null) ?? null,
+  };
 }
 
-export async function saveDraft(viewer: Viewer, pageId: string, project: unknown, version: number): Promise<Result> {
+export const MAX_DRAFT_BYTES = 2 * 1024 * 1024;
+
+// Stores the editor's project and its rendered html/css (publish reads the
+// html/css). html + css over 2 MB are refused.
+export async function saveDraft(
+  viewer: Viewer,
+  pageId: string,
+  draft: { project: unknown; html: string; css: string },
+  version: number,
+): Promise<Result> {
   await guard(viewer, "edit a page", true);
+  if (Buffer.byteLength(draft.html) + Buffer.byteLength(draft.css) > MAX_DRAFT_BYTES)
+    throw new Error("This page is too large to save (over 2 MB of HTML and CSS). Remove some content.");
   return withTransaction(async () => {
     const sql = db();
     const [p] = await sql`
@@ -361,9 +381,10 @@ export async function saveDraft(viewer: Viewer, pageId: string, project: unknown
       WHERE id = ${pageId} AND version = ${version} RETURNING version, site_id`;
     if (!p) return CONFLICT;
     await sql`
-      INSERT INTO sales.page_version (page_id, project) VALUES (${pageId}, ${sql.json(project as never)})
+      INSERT INTO sales.page_version (page_id, project, html, css)
+      VALUES (${pageId}, ${sql.json(draft.project as never)}, ${draft.html}, ${draft.css})
       ON CONFLICT (page_id, variant) WHERE status = 'draft'
-      DO UPDATE SET project = EXCLUDED.project`;
+      DO UPDATE SET project = EXCLUDED.project, html = EXCLUDED.html, css = EXCLUDED.css`;
     await sql`UPDATE sales.site SET updated_at = now(), updated_by = ${viewer.id} WHERE id = ${p.site_id}`;
     return { kind: "ok", version: p.version as number };
   });
@@ -446,6 +467,18 @@ export async function listTemplates(viewer: Viewer, kind: "funnel" | "website" |
   await guard(viewer, "view sites", false);
   const rows = await db()`SELECT id, name, created_at FROM sales.site_template WHERE kind = ${kind} ORDER BY name`;
   return rows.map((r) => ({ id: r.id as string, name: r.name as string, createdAt: r.created_at as Date }));
+}
+
+// Prebuilt sections for the editor's Add panel: payload is { html, css }.
+export async function listSectionTemplates(viewer: Viewer) {
+  await guard(viewer, "view sites", false);
+  const rows = await db()`SELECT id, name, payload FROM sales.site_template WHERE kind = 'section' ORDER BY name`;
+  return rows.flatMap((r) => {
+    const p = r.payload as { html?: unknown; css?: unknown } | null;
+    return typeof p?.html === "string"
+      ? [{ id: r.id as string, name: r.name as string, html: p.html, css: typeof p.css === "string" ? p.css : "" }]
+      : [];
+  });
 }
 
 export async function listGlobalSections(viewer: Viewer) {

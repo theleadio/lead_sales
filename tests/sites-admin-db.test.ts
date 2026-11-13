@@ -83,14 +83,29 @@ it("a stale draft save is refused as conflict", async () => {
     basePath: base(),
   });
   const page = (await getSite(m, siteId))!.steps[0];
-  assert.deepEqual(await saveDraft(m, page.id, { a: 1 }, page.version), {
+  assert.deepEqual(await saveDraft(m, page.id, { project: { a: 1 }, html: "<p>1</p>", css: "p{}" }, page.version), {
     kind: "ok",
     version: page.version + 1,
   });
-  assert.deepEqual(await saveDraft(m, page.id, { a: 2 }, page.version), {
+  assert.deepEqual(await saveDraft(m, page.id, { project: { a: 2 }, html: "<p>2</p>", css: "" }, page.version), {
     kind: "conflict",
   });
-  assert.deepEqual((await getDraft(m, page.id)).project, { a: 1 });
+  const d = await getDraft(m, page.id);
+  assert.deepEqual(d.project, { a: 1 });
+  assert.equal(d.html, "<p>1</p>");
+  assert.equal(d.css, "p{}");
+});
+
+it("a draft over 2 MB of html and css is refused and not stored", async () => {
+  const m = await newUser("marketing");
+  const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: base() });
+  const page = (await getSite(m, siteId))!.steps[0];
+  await assert.rejects(
+    saveDraft(m, page.id, { project: {}, html: "x".repeat(1024 * 1024), css: "y".repeat(1024 * 1024 + 1) }, page.version),
+    /too large/,
+  );
+  assert.equal((await getDraft(m, page.id)).html, "");
+  assert.equal((await getSite(m, siteId))!.steps[0].version, page.version);
 });
 
 it("a second editor sees the first editor as lock holder until 2 minutes pass", async () => {
