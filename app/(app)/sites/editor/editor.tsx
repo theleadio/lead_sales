@@ -166,6 +166,9 @@ export default function LeadEditor(props: EditorProps) {
       });
 
     editor.on("load", () => {
+      // Strict Mode's throwaway first editor can still append its Classes block; keep only this editor's.
+      const live = (editor.Selectors as unknown as { selectorTags?: { el: Element } }).selectorTags?.el;
+      styles.current?.querySelectorAll(".gjs-clm-tags").forEach((el) => el !== live && el.remove());
       const doc = editor.Canvas.getDocument();
       if (doc) {
         const s = doc.createElement("style");

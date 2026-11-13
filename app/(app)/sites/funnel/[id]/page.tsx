@@ -520,9 +520,10 @@ function General({ site, edit }: { site: Site; edit: boolean }) {
             defaultValue={s.chatWidget?.whatsapp}
             hint="Digits, e.g. 60123456789"
           />
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1 text-sm" htmlFor="s-payment-mode">
             <span className="font-medium">Payment mode</span>
             <select
+              id="s-payment-mode"
               name="paymentMode"
               defaultValue={s.paymentMode}
               className={field}

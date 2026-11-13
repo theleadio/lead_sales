@@ -5,6 +5,7 @@ import {
   startTransition,
   useActionState,
   useContext,
+  useId,
   type ReactNode,
 } from "react";
 import type { ActionState } from "@/lib/sites/admin-actions";
@@ -81,19 +82,28 @@ export function Field({
   required?: boolean;
 }) {
   const bad = !!useContext(Errors)[name];
+  const id = useId();
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
+    <div className="flex flex-col gap-1 text-sm">
+      <label htmlFor={id} className="font-medium">
+        {label}
+      </label>
       <input
+        id={id}
         name={name}
         type={type}
         defaultValue={defaultValue}
         required={required}
         aria-invalid={bad}
+        aria-describedby={hint ? `${id}-hint` : undefined}
         className={field}
       />
-      {hint && <span className="text-ink-muted text-xs">{hint}</span>}
+      {hint && (
+        <span id={`${id}-hint`} className="text-ink-muted text-xs">
+          {hint}
+        </span>
+      )}
       <FieldError name={name} />
-    </label>
+    </div>
   );
 }

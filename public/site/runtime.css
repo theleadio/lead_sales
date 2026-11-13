@@ -1,0 +1,104 @@
+/* Default look of the LEAD form and order form that runtime.js builds. Loaded
+   before the page's own CSS, and every selector starts with :where(), so any
+   rule the marketer writes overrides it. */
+:where(.lead-form, [data-lead="form"], [data-lead="order"]) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 480px;
+  margin-inline: auto;
+  font: 16px/1.5 Inter, system-ui, sans-serif;
+  color: #0a0a0a;
+  text-align: left;
+}
+:where(.lead-form .lead-form) {
+  width: 100%;
+  margin: 0;
+}
+:where(.lead-form) label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+:where(.lead-form) :is(input:not([type="checkbox"]), textarea, select) {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #c7c7cc;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0a0a0a;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+}
+:where(.lead-form) textarea {
+  resize: vertical;
+}
+:where(.lead-form) :is(input, textarea, select)[aria-invalid="true"] {
+  border-color: #b42318;
+}
+:where(.lead-form) :is(input, textarea, select, button):focus-visible {
+  outline: 2px solid #0a0a0a;
+  outline-offset: 2px;
+}
+:where(.lead-form) label:has(> input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  font-weight: 400;
+}
+:where(.lead-form) input[type="checkbox"] {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: #3d3d3d;
+}
+/* Error text sits right under its field (the field's label above it). */
+:where(.lead-form) [role="alert"] {
+  margin-top: -8px;
+  color: #b42318;
+  font-size: 13px;
+}
+:where(.lead-form) [role="alert"]:empty {
+  display: none;
+}
+:where(.lead-form) button[type="submit"] {
+  min-height: 48px;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #3d3d3d;
+  color: #ffffff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+:where(.lead-form) button[type="submit"]:hover:not(:disabled) {
+  background: #0a0a0a;
+}
+:where(.lead-form) button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+:where(.lead-form) [role="status"]:not(:empty) {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f5f5f7;
+  font-size: 15px;
+}
+:where(.lead-form) .lead-class {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+:where(.lead-form) .lead-class:empty {
+  display: none;
+}

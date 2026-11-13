@@ -109,7 +109,7 @@ export function renderDocument(
   ].filter(Boolean);
   const key = process.env.TURNSTILE_SITE_KEY ?? "";
   const turnstile = /^[0-9A-Za-z_-]{10,100}$/.test(key) ? ` data-turnstile="${esc(key)}"` : "";
-  return `<!doctype html><html lang="${site.language}"${turnstile}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(seo.title ?? "")}</title>${meta.join("")}<link rel="stylesheet" href="${FONTS_URL}"><style>${page.css.replace(/<\/style/gi, "<\\/style")}</style>${pixels(px, nonce)}</head><body>${page.html}<script src="/site/runtime.js" defer></script></body></html>`;
+  return `<!doctype html><html lang="${site.language}"${turnstile}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(seo.title ?? "")}</title>${meta.join("")}<link rel="stylesheet" href="${FONTS_URL}"><link rel="stylesheet" href="/site/runtime.css"><style>${page.css.replace(/<\/style/gi, "<\\/style")}</style>${pixels(px, nonce)}</head><body>${page.html}<script src="/site/runtime.js" defer></script></body></html>`;
 }
 
 export function csp(nonce: string): string {

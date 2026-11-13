@@ -150,16 +150,16 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
               hint="Steps live under this path, e.g. /ai-workshop"
               required
             />
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm" htmlFor="nf-language">
               <span className="font-medium">Language</span>
-              <select name="language" className={field}>
+              <select id="nf-language" name="language" className={field}>
                 <option value="en">English</option>
                 <option value="zh">中文</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm" htmlFor="nf-folder">
               <span className="font-medium">Folder</span>
-              <select name="folderId" className={field}>
+              <select id="nf-folder" name="folderId" className={field}>
                 <option value="">No folder</option>
                 {folders.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -168,9 +168,9 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm" htmlFor="nf-template">
               <span className="font-medium">Start from</span>
-              <select name="templateId" className={field}>
+              <select id="nf-template" name="templateId" className={field}>
                 <option value="">Blank (Home, Payment Form, Thank You)</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>

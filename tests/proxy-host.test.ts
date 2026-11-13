@@ -7,7 +7,7 @@ test("public host rewrites everything except the static and site API paths", () 
   assert.deepEqual(routeFor("ai.thelead.io", "/workshop"), { action: "rewrite", to: "/site-render/workshop" });
   assert.deepEqual(routeFor("ai.thelead.io:443", "/automations"), { action: "rewrite", to: "/site-render/automations" });
   assert.deepEqual(routeFor("site.localhost:3000", "/x"), { action: "rewrite", to: "/site-render/x" });
-  for (const p of ["/api/site/form", "/api/site/checkout", "/api/site/view", "/api/site/class/AI-2026-12", "/site/runtime.js", "/_next/static/a.js"]) {
+  for (const p of ["/api/site/form", "/api/site/checkout", "/api/site/view", "/api/site/class/AI-2026-12", "/site/runtime.js", "/site/runtime.css", "/_next/static/a.js"]) {
     assert.deepEqual(routeFor("ai.thelead.io", p), { action: "pass" });
   }
 });

@@ -47,6 +47,21 @@ const interest = (name: string) => ({
   after: { kind: "message", text: `Thanks! ${P}` },
 });
 
+// Counts as a workshop sign-up form (Home's Free workshops). The date is a
+// visible placeholder: seed day + 30, KL time.
+const workshop = (name: string) => ({
+  type: "workshop",
+  workshop: {
+    title: `Workshop title ${P}`,
+    date: new Date(Date.now() + 30 * 864e5).toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" }),
+    language: "en",
+  },
+  formName: `${name} ${P}`,
+  fields: [],
+  createDeal: false,
+  after: { kind: "message", text: `Thanks! ${P}` },
+});
+
 export const TEMPLATES: { name: string; steps: ReturnType<typeof step>[] }[] = [
   {
     name: "Workshop sign-up",
@@ -58,7 +73,7 @@ export const TEMPLATES: { name: string; steps: ReturnType<typeof step>[] }[] = [
         hero("Workshop title", "One line on who it is for", "Save my seat") +
           learn +
           schedule +
-          sec(h("Sign up") + form("f-workshop", interest("Workshop sign-up"))) +
+          sec(h("Sign up") + form("f-workshop", workshop("Workshop sign-up"))) +
           sec(h("Questions") + faq(3)) +
           footer,
       ),

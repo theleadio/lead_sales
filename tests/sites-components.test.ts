@@ -126,4 +126,10 @@ test("starter templates: clean, placeholder copy, forms valid, three of them", a
       for (const f of components(out.html, "form")) assert.ok(leadFormSettingsSchema.safeParse(f.settings).success);
     }
   assert.equal(TEMPLATES[1].steps[1].kind, "checkout");
+  // Workshop template's form counts for Home's Free workshops: type workshop, a real future date.
+  const [wf] = components(TEMPLATES[0].steps[0].html, "form");
+  const ws = leadFormSettingsSchema.parse(wf.settings);
+  assert.equal(ws.type, "workshop");
+  assert.match(ws.workshop!.title, /\[placeholder\]/);
+  assert.ok(ws.workshop!.date > new Date().toISOString().slice(0, 10));
 });

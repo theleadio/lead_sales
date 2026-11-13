@@ -89,6 +89,7 @@ it("SEO title and Meta pixel id appear, invalid or unset pixels do not", async (
   assert.doesNotMatch(html, /ttq|linkedin/);
   assert.match(html, /<script nonce="N0NCE">/);
   assert.match(html, /\/site\/runtime\.js/);
+  assert.match(html, /<link rel="stylesheet" href="\/site\/runtime\.css"><style>/); // before the page CSS so it can override
   assert.doesNotMatch(html, /data-turnstile/);
   const prev = process.env.TURNSTILE_SITE_KEY;
   try {

@@ -58,5 +58,6 @@ export const SECTORS = [
 export const EDITOR_CSS = `
 .gjs-one-bg{background-color:#f5f5f7}.gjs-two-color{color:#0a0a0a}.gjs-three-bg{background-color:#3d3d3d}.gjs-four-color,.gjs-four-color-h:hover{color:#3d3d3d}
 .gjs-block{width:46%;min-height:56px}
+.gjs-editor .gjs-cv-canvas{overflow-x:auto;overflow-y:hidden}
 .gjs-block-category .gjs-title{background:#ffffff;color:#0a0a0a}
 `;

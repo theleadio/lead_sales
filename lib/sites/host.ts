@@ -17,7 +17,7 @@ export type Route =
 const PASS = [
   /^\/api\/site\/(form|checkout|view)$/,
   /^\/api\/site\/class\/[A-Za-z0-9_.-]+$/,
-  /^\/site\/runtime\.js$/,
+  /^\/site\/runtime\.(js|css)$/,
   /^\/_next\//,
 ];
 

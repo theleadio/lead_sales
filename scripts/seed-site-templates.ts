@@ -1,5 +1,5 @@
 // Inserts the starter funnel templates (see site-templates-data.ts). Safe to
-// run again: a template whose name already exists is skipped.
+// run again: a template whose name already exists is updated in place.
 //
 //   node --env-file-if-exists=.env.local scripts/seed-site-templates.ts
 //
@@ -10,14 +10,13 @@ import { TEMPLATES } from "./site-templates-data.ts";
 try {
   const sql = db();
   for (const t of TEMPLATES) {
-    const [have] = await sql`SELECT 1 FROM sales.site_template WHERE kind = 'funnel' AND name = ${t.name}`;
-    if (have) {
-      console.log(`seed-site-templates: "${t.name}" exists, skipped`);
+    const payload = sql.json({ steps: t.steps } as never);
+    const done = await sql`UPDATE sales.site_template SET payload = ${payload} WHERE kind = 'funnel' AND name = ${t.name}`;
+    if (done.count) {
+      console.log(`seed-site-templates: "${t.name}" updated`);
       continue;
     }
-    await sql`
-      INSERT INTO sales.site_template (kind, name, payload)
-      VALUES ('funnel', ${t.name}, ${sql.json({ steps: t.steps } as never)})`;
+    await sql`INSERT INTO sales.site_template (kind, name, payload) VALUES ('funnel', ${t.name}, ${payload})`;
     console.log(`seed-site-templates: "${t.name}" added`);
   }
 } catch (e) {
