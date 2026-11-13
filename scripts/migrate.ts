@@ -17,12 +17,20 @@ const dir = join(import.meta.dirname, "..", "db", "migrations");
 
 try {
   const sql = db();
-  await sql`CREATE SCHEMA IF NOT EXISTS sales`;
-  await sql`CREATE TABLE IF NOT EXISTS sales.schema_migration (
-    name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
-  const applied = (await sql`SELECT name FROM sales.schema_migration`).map(
-    (r) => r.name as string,
-  );
+  // A dry run writes nothing: on a database with no ledger yet (the first
+  // production run) every file is pending, and only --apply creates it.
+  if (apply) {
+    await sql`CREATE SCHEMA IF NOT EXISTS sales`;
+    await sql`CREATE TABLE IF NOT EXISTS sales.schema_migration (
+      name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
+  }
+  const [{ ledger }] =
+    await sql`SELECT to_regclass('sales.schema_migration') IS NOT NULL AS ledger`;
+  const applied = ledger
+    ? (await sql`SELECT name FROM sales.schema_migration`).map(
+        (r) => r.name as string,
+      )
+    : [];
   const todo = pendingMigrations(await readdir(dir), applied);
   if (!todo.length) console.log("nothing to apply");
   for (const file of todo) {
