@@ -1,10 +1,9 @@
 // Page model (spec §3): Page > Section > Row > Column > Element. The nesting
 // is fixed by the schema, so no other shape can be saved.
 import { z } from "zod";
-import { elementPropsSchema, ELEMENT_TYPES, rSchema } from "./elements.ts";
-import { sanitizeRich } from "./richtext.ts";
+import { elementPropsSchema, ELEMENT_TYPES, rSchema, safeUrl, type ElementType } from "./elements.ts";
 
-export { ELEMENT_TYPES, elementPropsSchema, defaultProps, type R, type ElementType } from "./elements.ts";
+export { ELEMENT_TYPES, elementPropsSchema, defaultProps, safeUrl, type R, type ElementType } from "./elements.ts";
 
 export const MAX_PROJECT_BYTES = 1_500_000;
 export const MAX_SECTIONS = 200;
@@ -31,11 +30,18 @@ const elementSchema = z
     }),
     props: z.unknown(),
   })
-  .superRefine((e, ctx) => {
-    const r = elementPropsSchema(e.type).safeParse(e.props);
-    if (!r.success) {
-      ctx.addIssue({ code: "custom", message: `props for ${e.type}: ${r.error.issues[0]?.message}`, path: ["props"] });
+  .transform((e, ctx) => {
+    const r = elementPropsSchema(e.type)?.safeParse(e.props);
+    if (!r?.success) {
+      ctx.issues.push({
+        code: "custom",
+        message: `props for ${e.type}: ${r?.error.issues[0]?.message ?? "unknown type"}`,
+        input: e.props,
+        path: ["props"],
+      });
+      return z.NEVER;
     }
+    return { ...e, props: r.data as unknown }; // parsed: unknown keys stripped
   });
 
 const columnSchema = z.object({
@@ -68,7 +74,7 @@ const sectionSchema = z.object({
   name,
   width: z.enum(["full", "wide", "medium", "small"]),
   bg: color,
-  bgImage: z.string().max(2048).optional(),
+  bgImage: safeUrl.optional(),
   pt: rSchema,
   pb: rSchema,
   hideOn: z.object({ d: z.boolean(), t: z.boolean(), m: z.boolean() }),
@@ -84,11 +90,34 @@ const popupSchema = z.object({
   sections: z.array(sectionSchema).max(20),
 });
 
-export const pageSchema = z.object({
-  version: z.literal(2),
-  sections: z.array(sectionSchema).max(MAX_SECTIONS),
-  popups: z.array(popupSchema).max(20),
-});
+export const pageSchema = z
+  .object({
+    version: z.literal(2),
+    sections: z.array(sectionSchema).max(MAX_SECTIONS),
+    popups: z.array(popupSchema).max(20),
+  })
+  .superRefine((page, ctx) => {
+    const seen = new Set<string>();
+    const dup = (id: string) => {
+      if (seen.has(id)) ctx.addIssue({ code: "custom", message: `duplicate id ${id}`, path: ["sections"] });
+      seen.add(id);
+    };
+    const walk = (s: z.infer<typeof sectionSchema>) => {
+      dup(s.id);
+      for (const r of s.rows) {
+        dup(r.id);
+        for (const c of r.cols) {
+          dup(c.id);
+          for (const e of c.els) dup(e.id);
+        }
+      }
+    };
+    page.sections.forEach(walk);
+    for (const p of page.popups) {
+      dup(p.id);
+      p.sections.forEach(walk);
+    }
+  });
 
 export type Page = z.infer<typeof pageSchema>;
 export type Section = z.infer<typeof sectionSchema>;
@@ -100,40 +129,17 @@ export type Popup = z.infer<typeof popupSchema>;
 export const newId = (prefix: "s" | "r" | "c" | "e" | "p"): string =>
   `${prefix}_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
 
-// Parse untrusted JSON-ish input: size cap + schema.
-export function parsePage(input: unknown): { ok: true; page: Page } | { ok: false; message: string } {
-  if (Buffer.byteLength(JSON.stringify(input) ?? "") > MAX_PROJECT_BYTES) {
-    return { ok: false, message: "Page is too large (limit 1.5 MB)" };
-  }
-  const r = pageSchema.safeParse(input);
-  if (!r.success) {
-    const i = r.error.issues[0];
-    return { ok: false, message: `${i.path.join(".")}: ${i.message}` };
-  }
-  return { ok: true, page: r.data };
-}
 
-// Sanitise every rich-text field of a parsed page (call before storing).
-export function sanitizePage(page: Page): Page {
-  const fix = (s: Section): Section => ({
-    ...s,
-    rows: s.rows.map((r) => ({
-      ...r,
-      cols: r.cols.map((c) => ({
-        ...c,
-        els: c.els.map((e) => {
-          const p = e.props as Record<string, unknown>;
-          if (typeof p.text === "string") return { ...e, props: { ...p, text: sanitizeRich(p.text) } };
-          if (Array.isArray(p.items) && (e.type === "list" || e.type === "faq")) {
-            const items = p.items.map((i: unknown) =>
-              Array.isArray(i) ? i.map((x) => sanitizeRich(String(x))) : sanitizeRich(String(i)),
-            );
-            return { ...e, props: { ...p, items } };
-          }
-          return e;
-        }),
-      })),
-    })),
-  });
-  return { ...page, sections: page.sections.map(fix), popups: page.popups.map((p) => ({ ...p, sections: p.sections.map(fix) })) };
-}
+// Which element props hold rich HTML (sanitised with sanitizeRich on save and
+// rendered as HTML). Every other string - button text, alt, labels, names - is
+// plain text and must never be sanitised or rendered as HTML.
+//   "text"  : the prop `text`
+//   "items" : every entry of `items` (list), every question and answer (faq)
+export const RICH_FIELDS: Partial<Record<ElementType, "text" | "items">> = {
+  headline: "text",
+  sub: "text",
+  para: "text",
+  "icon-text": "text",
+  list: "items",
+  faq: "items",
+};

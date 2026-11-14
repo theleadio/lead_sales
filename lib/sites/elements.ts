@@ -20,8 +20,14 @@ const textProps = {
   color,
   font: z.enum(["hf", "cf"]),
 };
-const img = z.string().max(2048); // image URL, "" = none
-const url = z.string().max(2048);
+// Empty, https:, mailto:, tel:, #anchor or a site-relative /path. Refuses
+// javascript:, data:, http:, //host and /\host (browsers read that as //).
+export const safeUrl = z
+  .string()
+  .max(2048)
+  .refine((v) => v === "" || /^(https:|mailto:|tel:|#)/i.test(v) || /^\/(?![/\\])/.test(v), "unsafe URL");
+const img = safeUrl; // image URL, "" = none
+const url = safeUrl;
 const imgItem = z.object({ src: img, alt: z.string().max(300) });
 
 const schemas = {
