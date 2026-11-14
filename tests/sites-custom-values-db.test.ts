@@ -7,7 +7,7 @@ import { publishPage, setPurgeFetch } from "../lib/sites/publish.ts";
 import { handleRender } from "../lib/sites/serve.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
-import { paraPage, setDraftTree } from "./sites-fixtures.ts";
+import { formPage, paraPage, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 
@@ -76,4 +76,24 @@ it("a value with <script> renders escaped in body and title, and a change purges
   }
   assert.ok(purged.some((b) => b.includes(`page:${page.id}`)));
   assert.match(await (await handleRender("ai.thelead.io", base)).text(), /<title>Welcome Acme<\/title>/);
+});
+
+it("a value with quote, backslash and newline keeps the form's data-settings valid JSON", async () => {
+  const m = await newUser("marketing");
+  const k = key();
+  const base = `/t-${crypto.randomUUID().slice(0, 8)}`;
+  const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: base });
+  let s = (await getSite(m, siteId))!;
+  await updateSiteSettings(m, siteId, { pixels: {}, capi: false, paymentMode: "test", seo: {}, privacyUrl: "https://example.com/privacy" }, s.version);
+  s = (await getSite(m, siteId))!;
+  const page = s.steps[0];
+  const nasty = 'say "hi" \ back\nnext <b> & \'x\'';
+  const settings = { type: "interest", fields: [], createDeal: false, after: { kind: "message", text: `Thanks {{${k}}}!` } };
+  await setDraftTree(page.id, formPage("form-1", settings));
+  await saveCustomValue(m, { key: k, label: "Nasty", value: nasty }, null);
+  assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
+  const html = await (await handleRender("ai.thelead.io", base)).text();
+  const attr = /data-settings="([^"]*)"/.exec(html)![1];
+  const decoded = attr.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+  assert.equal(JSON.parse(decoded).after.text, `Thanks ${nasty}!`);
 });

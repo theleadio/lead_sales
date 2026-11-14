@@ -146,3 +146,30 @@ test("the static serialiser matches react-dom/server on every element type", asy
   const { serialize } = await import("../lib/sites/render/html.ts");
   assert.equal(serialize(view), renderToStaticMarkup(view).replace(/&#x27;/g, "'"));
 });
+
+test("serialiser escapes hostile plain text and attributes exactly like react-dom/server", async () => {
+  const React = (await import("react")).default;
+  const { renderToStaticMarkup } = (await import("react-dom/server")).default as typeof import("react-dom/server");
+  const { PageView } = await import("../lib/sites/render/view.ts");
+  const { serialize } = await import("../lib/sites/render/html.ts");
+  const bad = `"><svg onload=1> & ' <`;
+  const url = `https://x.test/?a="&b=<'>`;
+  const p = pageOf(
+    el("button", { text: bad, sub: bad, action: "url", url }),
+    el("image", { src: url, alt: bad, link: url }),
+    el("social", { items: [{ network: "x", url }] }),
+    el("nav", { items: [{ label: bad, href: url }] }),
+    el("logos", { items: [{ src: url, alt: bad }] }),
+    el("counter", { to: 1, prefix: `"<&`, suffix: `'>`, label: bad }),
+    el("countdown", { to: bad, doneText: bad }),
+    el("form", { button: bad }),
+  );
+  const r = parsePage(p);
+  assert.ok(r.ok, r.ok ? "" : r.message);
+  const view = React.createElement(PageView, { page: r.page, ctx });
+  const ours = serialize(view);
+  assert.equal(ours, renderToStaticMarkup(view).replace(/&#x27;/g, "'"));
+  assert.ok(!ours.includes("<svg") && !ours.includes(`" onload`));
+  // every raw "<" starts a real tag we emit, never user text
+  assert.ok([...ours.matchAll(/<(?![a-z/])/g)].length === 0);
+});

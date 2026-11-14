@@ -17,9 +17,20 @@ const valueSchema = z.object({
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-// Unknown keys become empty text; values are HTML-escaped.
+// Unknown keys become empty text; values are HTML-escaped. Inside
+// data-settings="..." (JSON in an attribute) the value is JSON-escaped first, so
+// quotes, backslashes and newlines cannot break the form settings.
 export function applyValues(html: string, values: Map<string, string>): string {
-  return html.replace(/\{\{([a-z][a-z0-9_]{1,40})\}\}/g, (_, k: string) => esc(values.get(k) ?? ""));
+  const re = /\{\{([a-z][a-z0-9_]{1,40})\}\}/g;
+  return html
+    .split(/(data-settings="[^"]*")/)
+    .map((part, i) =>
+      part.replace(re, (_, k: string) => {
+        const v = values.get(k) ?? "";
+        return esc(i % 2 ? JSON.stringify(v).slice(1, -1) : v);
+      }),
+    )
+    .join("");
 }
 
 // No permission check: used by serve and preview, which have their own.
