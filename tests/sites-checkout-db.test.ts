@@ -7,6 +7,7 @@ import { publishPage } from "../lib/sites/publish.ts";
 import type { CrmRegisterInput, CrmRegisterResult } from "../lib/sites/crm-api.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
+import { formPage, orderPage, paraPage, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 
@@ -25,8 +26,7 @@ async function funnel(order: unknown = { classCode: "AI-2026-12", askCompany: tr
   );
   s = (await getSite(m, siteId))!;
   const [home, pay, thanks] = s.steps;
-  const html = `<div data-lead="order" data-id="${ORDER_ID}" data-settings="${esc(order)}"></div>`;
-  await db()`UPDATE sales.page_version SET html = ${html} WHERE page_id = ${pay.id} AND status = 'draft'`;
+  await setDraftTree(pay.id, orderPage(ORDER_ID, order));
   assert.equal((await publishPage(m, pay.id, pay.version)).kind, "ok");
   assert.equal((await publishPage(m, thanks.id, thanks.version)).kind, "ok");
   return { pay, thanks, home };

@@ -18,7 +18,7 @@ async function viewer() {
 }
 
 const uuid = z.uuid();
-const draftShape = z.object({ project: z.unknown(), html: z.string(), css: z.string() });
+const draftShape = z.object({ project: z.unknown() });
 const FORBIDDEN = "You don't have permission to do that.";
 const BAD = "That wasn't possible. Reload the page and try again.";
 

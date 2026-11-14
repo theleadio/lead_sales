@@ -5,6 +5,7 @@ import { db, withTransaction } from "../sql.ts";
 import { normalizePath, pathSchema, siteSettingsSchema, type SiteSettings } from "./model.ts";
 import { canEditSites, canViewSites } from "./permissions.ts";
 import { purge } from "./purge.ts";
+import { parsePage, sanitizePage } from "./tree-server.ts";
 
 // Server-side data layer for the sites admin screens and the editor. Every
 // function takes the viewer first; a refusal is audited and throws.
@@ -367,19 +368,19 @@ export async function getDraft(viewer: Viewer, pageId: string) {
   };
 }
 
-export const MAX_DRAFT_BYTES = 2 * 1024 * 1024;
 
-// Stores the editor's project and its rendered html/css (publish reads the
-// html/css). html + css over 2 MB are refused.
+// Stores the page tree. html/css are not stored on drafts: publish and preview
+// render them from the tree. An invalid tree is refused, nothing is written.
 export async function saveDraft(
   viewer: Viewer,
   pageId: string,
-  draft: { project: unknown; html: string; css: string },
+  draft: { project: unknown },
   version: number,
-): Promise<Result | { kind: "locked"; holder: string }> {
+): Promise<Result | { kind: "locked"; holder: string } | { kind: "invalid"; message: string }> {
   await guard(viewer, "edit a page", true);
-  if (Buffer.byteLength(draft.html) + Buffer.byteLength(draft.css) > MAX_DRAFT_BYTES)
-    throw new Error("This page is too large to save (over 2 MB of HTML and CSS). Remove some content.");
+  const parsed = parsePage(draft.project);
+  if (!parsed.ok) return { kind: "invalid", message: parsed.message };
+  const project = sanitizePage(parsed.page);
   return withTransaction(async () => {
     const sql = db();
     // Someone else holds a fresh lock (e.g. took over): this editor must stop.
@@ -396,9 +397,9 @@ export async function saveDraft(
     if (!p) return CONFLICT;
     await sql`
       INSERT INTO sales.page_version (page_id, project, html, css)
-      VALUES (${pageId}, ${sql.json(draft.project as never)}, ${draft.html}, ${draft.css})
+      VALUES (${pageId}, ${sql.json(project as never)}, '', '')
       ON CONFLICT (page_id, variant) WHERE status = 'draft'
-      DO UPDATE SET project = EXCLUDED.project, html = EXCLUDED.html, css = EXCLUDED.css`;
+      DO UPDATE SET project = EXCLUDED.project, html = '', css = ''`;
     await sql`UPDATE sales.site SET updated_at = now(), updated_by = ${viewer.id} WHERE id = ${p.site_id}`;
     return { kind: "ok", version: p.version as number };
   });

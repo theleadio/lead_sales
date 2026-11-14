@@ -8,6 +8,7 @@ import { publishPage } from "../lib/sites/publish.ts";
 import type { CrmLeadInput } from "../lib/sites/crm-api.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
+import { formPage, orderPage, paraPage, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 
@@ -32,8 +33,7 @@ async function funnel(opts: { form: unknown; capi?: boolean; whatsapp?: string; 
     s.version,
   );
   s = (await getSite(m, siteId))!;
-  const html = `<div data-lead="form" data-id="${FORM_ID}" data-settings="${esc(opts.form)}"></div>`;
-  await db()`UPDATE sales.page_version SET html = ${html} WHERE page_id = ${s.steps[0].id} AND status = 'draft'`;
+  await setDraftTree(s.steps[0].id, formPage(FORM_ID, opts.form));
   if (opts.publish !== false) assert.equal((await publishPage(m, s.steps[0].id, s.steps[0].version)).kind, "ok");
   return { page: s.steps[0], steps: s.steps, siteId, m };
 }
@@ -155,8 +155,7 @@ it("readCapped refuses bodies over the cap", async () => {
 it("an after-step form returns the live path of the target step, or the message kind when it is not published", async () => {
   const { page, steps, m } = await funnel({ form: interest, publish: false });
   const form = { ...interest, after: { kind: "step", pageId: steps[2].id } };
-  const html = `<div data-lead="form" data-id="${FORM_ID}" data-settings="${esc(form)}"></div>`;
-  await db()`UPDATE sales.page_version SET html = ${html} WHERE page_id = ${page.id} AND status = 'draft'`;
+  await setDraftTree(page.id, formPage(FORM_ID, form));
   assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
   const ctx = (crm: ReturnType<typeof fakeCrm>["crm"]) => ({ clientIp: null, crm });
   assert.deepEqual((await submitForm(raw(page.id), ctx(fakeCrm().crm))), { kind: "ok", after: { kind: "message", text: "" } });

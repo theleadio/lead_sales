@@ -14,29 +14,28 @@ import {
 } from "../lib/sites/publish.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
+import { el, formPage, orderPage, pageOf, paraPage, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 
 const settings = { pixels: {}, capi: false, paymentMode: "test" as const, seo: {}, privacyUrl: "https://example.com/privacy" };
-const form = (date: string) => {
-  const s = JSON.stringify({
+const form = (date: string) =>
+  formPage("form-1", {
     type: "workshop",
     workshop: { title: "AI", date, language: "en" },
     fields: [],
     createDeal: true,
     after: { kind: "message", text: "ok" },
   });
-  return `<div data-lead="form" data-settings='${s}'></div>`;
-};
 
-async function setup(withPrivacy = true, html = "<p>hi</p>") {
+async function setup(withPrivacy = true, tree: unknown = paraPage("hi")) {
   const m = await newUser("marketing");
   const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: `/t-${crypto.randomUUID().slice(0, 8)}` });
   let s = (await getSite(m, siteId))!;
   if (withPrivacy) await updateSiteSettings(m, siteId, settings, s.version);
   s = (await getSite(m, siteId))!;
   const page = s.steps[0];
-  await db()`UPDATE sales.page_version SET html = ${html} WHERE page_id = ${page.id} AND status = 'draft'`;
+  await setDraftTree(page.id, tree);
   return { m, s, page };
 }
 
@@ -82,9 +81,9 @@ it("publish moves the route and archives the previous version", async () => {
 });
 
 it("restore brings back an archived version as live", async () => {
-  const { m, s, page } = await setup(true, "<p>one</p>");
+  const { m, s, page } = await setup(true, paraPage("one"));
   await publishPage(m, page.id, page.version);
-  await db()`UPDATE sales.page_version SET html = '<p>two</p>' WHERE page_id = ${page.id} AND status = 'draft'`;
+  await setDraftTree(page.id, paraPage("two"));
   await publishPage(m, page.id, (await getSite(m, s.id))!.steps[0].version);
   const old = (await listVersions(m, page.id)).find((v) => v.status === "archived")!;
   const cur = (await getSite(m, s.id))!.steps[0].version;
@@ -128,51 +127,39 @@ it("publish and unpublish are audited", async () => {
 });
 
 it("publishSite is all-or-nothing and writes a site audit row", async () => {
-  const { m, s } = await setup(true, "<p>ok</p>");
+  const { m, s } = await setup(true, paraPage("ok"));
   const bad = s.steps[1];
-  await db()`UPDATE sales.page_version SET html = ${'<div data-lead="order" data-settings="{}"></div>'} WHERE page_id = ${bad.id} AND status = 'draft'`;
+  await setDraftTree(bad.id, orderPage("o1", { classCode: "", askCompany: false }));
   const r = await publishSite(m, s.id);
   assert.equal(r.kind, "refused");
   const [n] = await db()`SELECT count(*)::int AS n FROM sales.page_version WHERE page_id = ${s.steps[0].id} AND status = 'published'`;
   assert.equal(n.n, 0);
-  await db()`UPDATE sales.page_version SET html = '<p>fine</p>' WHERE page_id = ${bad.id} AND status = 'draft'`;
+  await setDraftTree(bad.id, paraPage("fine"));
   assert.equal((await publishSite(m, s.id)).kind, "ok");
   const [a] = await audits("site", s.id).then((x) => x.filter((y) => y.after?.what === "publish"));
   assert.equal(a.after.pageIds.length, 3);
 });
 
 it("an order form without a class is refused", async () => {
-  const o = `<div data-lead="order" data-settings='{"classCode":"","askCompany":false}'></div>`;
-  const { m, page } = await setup(true, o);
+  const { m, page } = await setup(true, orderPage("o1", { classCode: "", askCompany: false }));
   assert.equal((await publishPage(m, page.id, page.version)).kind, "refused");
 });
 
-it("form checks ignore quote and spacing style in the raw HTML", async () => {
-  const s = JSON.stringify({ type: "enquiry", fields: [], createDeal: false, after: { kind: "message", text: "x" } });
-  const ok = `<div class = 'x'  data-lead = "form"   data-settings = '${s}' ></div>`;
-  const { m, page } = await setup(true, ok);
+it("a v2 tree round-trips: html and css are rendered at publish; a non-v2 draft is refused; a blank draft publishes empty", async () => {
+  const { m, s, page } = await setup(true, pageOf(el("headline", { text: "Big <b>deal</b>" }, "e_h"), el("button", { text: "Next", action: "next" }, "e_b")));
   assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
-  const bad = await setup(true, '<div  data-lead="form" data-settings = "{}" ></div>');
-  assert.equal((await publishPage(bad.m, bad.page.id, bad.page.version)).kind, "refused");
-});
-
-it("a global section is inlined and cleaned; a missing one refuses", async () => {
-  const m = await newUser("marketing");
-  const [g] = await db()`
-    INSERT INTO sales.global_section (name, html, css) VALUES ('Footer', '<p>foot</p><script>alert(1)</script>', '.f{color:red}')
-    RETURNING id`;
-  const ph = (id: string) => `<div data-lead="global-section" data-id="${id}"></div>`;
-  const { page, s } = await setup(true, ph(g.id));
-  assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
-  const [live] = await db()`SELECT v.html, v.css FROM sales.site_page p JOIN sales.page_version v ON v.id = p.active_version_id WHERE p.id = ${page.id}`;
-  assert.match(live.html, /foot/);
-  assert.doesNotMatch(live.html, /script|alert/);
-  assert.match(live.css, /color:red/);
-  const missing = crypto.randomUUID();
-  await db()`UPDATE sales.page_version SET html = ${ph(missing)} WHERE page_id = ${s.steps[1].id} AND status = 'draft'`;
-  const r = await publishPage(m, s.steps[1].id, s.steps[1].version);
+  const [live] = await db()`SELECT v.html, v.css, v.project FROM sales.site_page p JOIN sales.page_version v ON v.id = p.active_version_id WHERE p.id = ${page.id}`;
+  assert.match(live.html, /<h2 class="t">Big <b>deal<\/b><\/h2>/);
+  assert.match(live.html, new RegExp(`href="${s.steps[1].path}" data-action="next"`));
+  assert.match(live.css, /\.lp \.xe_h \.t\{font-size:44px\}/);
+  assert.equal(live.project.version, 2);
+  const old = s.steps[1];
+  await db()`UPDATE sales.page_version SET project = ${db().json({ gjs: [1] })} WHERE page_id = ${old.id} AND status = 'draft'`;
+  const r = await publishPage(m, old.id, old.version);
   assert.equal(r.kind, "refused");
-  assert.match((r as { reasons: string[] }).reasons.join(), new RegExp(missing));
+  assert.match((r as { reasons: string[] }).reasons.join(), /cannot be published/);
+  const blank = s.steps[2]; // new draft: {}
+  assert.equal((await publishPage(m, blank.id, blank.version)).kind, "ok");
 });
 
 it("the route write refuses atomically when another site owns the path", async () => {

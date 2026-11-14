@@ -5,6 +5,7 @@ import { publishPage, setRedirect, unpublishPage } from "../lib/sites/publish.ts
 import { handleRender, pageResponse, renderDocument, resolve } from "../lib/sites/serve.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
+import { formPage, orderPage, paraPage, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 
@@ -24,7 +25,7 @@ async function published() {
   await updateSiteSettings(m, siteId, settings, s.version);
   s = (await getSite(m, siteId))!;
   const page = s.steps[0];
-  await db()`UPDATE sales.page_version SET html = '<p>hello</p>', css = 'p{color:red}' WHERE page_id = ${page.id} AND status = 'draft'`;
+  await setDraftTree(page.id, paraPage("hello"));
   const r = await publishPage(m, page.id, page.version);
   assert.equal(r.kind, "ok");
   return { m, base, page };
@@ -74,7 +75,7 @@ it("a published page returns its html with the cache tag and CSP", async () => {
   assert.match(res.headers.get("Content-Security-Policy")!, /script-src 'self' 'nonce-[^']+' https:\/\/connect\.facebook\.net/);
   const c = res.headers.get("Content-Security-Policy")!;
   for (const d of ["form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'", "connect-src 'self'", "https://px.ads.linkedin.com", "https://*.google-analytics.com", "https://analytics.tiktok.com", "https://www.facebook.com", "https://challenges.cloudflare.com"]) assert.ok(c.includes(d), d);
-  assert.match(await res.text(), /<p>hello<\/p>/);
+  assert.match(await res.text(), />hello<\/p>/);
 });
 
 it("SEO title and Meta pixel id appear, invalid or unset pixels do not", async () => {

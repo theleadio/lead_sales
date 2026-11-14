@@ -5,6 +5,8 @@ import { guard } from "./admin.ts";
 import { cleanPage } from "./clean.ts";
 import { leadFormSettingsSchema, normalizePath, orderFormSettingsSchema, pathSchema, type SiteSettings } from "./model.ts";
 import { purge } from "./purge.ts";
+import { renderDraft } from "./render/html.ts";
+import { toSite } from "./serve.ts";
 import { isRealDate } from "./workshop-name.ts";
 
 export { setPurgeFetch } from "./purge.ts";
@@ -43,7 +45,7 @@ export function components(html: string, kind: "form" | "order" | "global-sectio
 }
 
 const GLOBAL_RE = /<div\b(?=[^>]*data-lead\s*=\s*["']?global-section["']?)[^>]*>\s*<\/div>/gi;
-const dataId = (tag: string) => /data-id\s*=\s*["']?([0-9a-zA-Z-]*)/i.exec(tag)?.[1] ?? "";
+const dataId = (tag: string) => /data-id\s*=\s*["']?([0-9a-zA-Z_-]*)/i.exec(tag)?.[1] ?? "";
 
 // Inlines each known global section; a missing one is left in place and
 // caught by publishCheck after cleaning.
@@ -94,7 +96,7 @@ export async function publishCheck(page: PageInfo, draft: { html: string }, site
 async function load(pageId: string) {
   const sql = db();
   const [p] = await sql`
-    SELECT p.id, p.site_id, p.path, p.version, s.domain, s.settings
+    SELECT p.id, p.site_id, p.path, p.version, s.id AS sid, s.domain, s.language, s.settings
     FROM sales.site_page p JOIN sales.site s ON s.id = p.site_id
     WHERE p.id = ${pageId} FOR UPDATE OF p`;
   if (!p) throw new Error("No such step.");
@@ -104,6 +106,8 @@ async function load(pageId: string) {
   return {
     page: { id: p.id as string, siteId: p.site_id as string, path: p.path as string },
     site: { domain: p.domain as string, settings: p.settings as SiteSettings },
+    siteRow: toSite({ id: p.sid, domain: p.domain, language: p.language, settings: p.settings }),
+    steps: (await sql`SELECT id, path FROM sales.site_page WHERE site_id = ${p.site_id} ORDER BY position`) as unknown as { id: string; path: string }[],
     version: p.version as number,
     draft: (d ?? { project: {}, html: "", css: "" }) as { project: unknown; html: string; css: string },
   };
@@ -133,12 +137,14 @@ async function publishOne(
   restoredFrom?: string,
 ): Promise<PublishResult> {
   const sql = db();
-  const { page, site, version: cur, draft } = await load(pageId);
+  const { page, site, siteRow, steps, version: cur, draft } = await load(pageId);
   if (version !== undefined && version !== cur) return { kind: "conflict" };
   // One writer per (domain, path) at a time: the check and the route write below
   // are then atomic against another site publishing the same path.
   await sql`SELECT pg_advisory_xact_lock(hashtext(${site.domain + page.path}))`;
-  const rendered = await renderGlobals(draft.html, draft.css);
+  const tree = renderDraft(draft.project, { site: siteRow, steps, pageId });
+  if (!tree.ok) return { kind: "refused", reasons: [tree.message] };
+  const rendered = await renderGlobals(tree.html, tree.css);
   const clean = cleanPage(rendered.html, rendered.css);
   const reasons = await publishCheck(page, clean, site);
   if (reasons.length) return { kind: "refused", reasons };

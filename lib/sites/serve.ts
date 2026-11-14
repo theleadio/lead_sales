@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { db } from "../sql.ts";
+import { applyValues, loadValues } from "./custom-values.ts";
 import { FONTS_URL } from "./fonts.ts";
 import { holdingHtml } from "./holding.ts";
 import { isPublicHost, PUBLIC_HOST } from "./host.ts";
@@ -9,7 +10,7 @@ export { PUBLIC_HOST, isPublicHost };
 
 export type SiteRow = { id: string; domain: string; language: "en" | "zh"; settings: SiteSettings };
 export type Resolved =
-  | { kind: "page"; pageId: string; html: string; css: string; site: SiteRow }
+  | { kind: "page"; pageId: string; html: string; css: string; site: SiteRow; values?: Map<string, string> }
   | { kind: "redirect"; to: string }
   | { kind: "holding"; language: "en" | "zh"; status: 200 | 404 };
 
@@ -38,7 +39,7 @@ export async function resolve(_host: string, rawPath: string): Promise<Resolved>
       JOIN sales.page_version v ON v.id = p.active_version_id AND v.status = 'published'
       JOIN sales.site s ON s.id = p.site_id
       WHERE p.id = ${r.page_id}`;
-    if (p) return { kind: "page", pageId: r.page_id, html: p.html, css: p.css, site: toSite(p as never) };
+    if (p) return { kind: "page", pageId: r.page_id, html: p.html, css: p.css, site: toSite(p as never), values: await loadValues() };
   }
   // Unpublished (route kept, no page): holding page. Unknown path: holding + 404.
   const [s] = await sql`
@@ -91,17 +92,19 @@ function pixels(p: SiteSettings["pixels"], nonce: string): string {
 // ponytail: no page-level SEO or linked-language model exists yet, so only
 // site SEO is used and `alternates` is supplied by the caller (none today).
 export function renderDocument(
-  page: { html: string; css: string; pageId?: string },
+  page: { html: string; css: string; pageId?: string; values?: Map<string, string> },
   site: Pick<SiteRow, "language" | "settings">,
   nonce: string,
   opts: { alternates?: { lang: string; url: string }[] } = {},
 ): string {
   const { seo, favicon, pixels: px } = site.settings;
+  // Custom values: {{key}} in body, title and meta text becomes the current (escaped) value.
+  const sub = (t: string) => (page.values ? applyValues(t, page.values) : t);
   const meta = [
     page.pageId && `<meta name="lead-page" content="${esc(page.pageId)}"><meta name="lead-variant" content="A">`,
-    seo.description && `<meta name="description" content="${esc(seo.description)}">`,
-    seo.title && `<meta property="og:title" content="${esc(seo.title)}">`,
-    seo.description && `<meta property="og:description" content="${esc(seo.description)}">`,
+    seo.description && `<meta name="description" content="${sub(esc(seo.description))}">`,
+    seo.title && `<meta property="og:title" content="${sub(esc(seo.title))}">`,
+    seo.description && `<meta property="og:description" content="${sub(esc(seo.description))}">`,
     seo.image && `<meta property="og:image" content="${esc(seo.image)}">`,
     seo.noindex && `<meta name="robots" content="noindex">`,
     favicon && `<link rel="icon" href="${esc(favicon)}">`,
@@ -109,7 +112,7 @@ export function renderDocument(
   ].filter(Boolean);
   const key = process.env.TURNSTILE_SITE_KEY ?? "";
   const turnstile = /^[0-9A-Za-z_-]{10,100}$/.test(key) ? ` data-turnstile="${esc(key)}"` : "";
-  return `<!doctype html><html lang="${site.language}"${turnstile}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(seo.title ?? "")}</title>${meta.join("")}<link rel="stylesheet" href="${FONTS_URL}"><link rel="stylesheet" href="/site/runtime.css"><style>${page.css.replace(/<\/style/gi, "<\\/style")}</style>${pixels(px, nonce)}</head><body>${page.html}<script src="/site/runtime.js" defer></script></body></html>`;
+  return `<!doctype html><html lang="${site.language}"${turnstile}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${sub(esc(seo.title ?? ""))}</title>${meta.join("")}<link rel="stylesheet" href="${FONTS_URL}"><link rel="stylesheet" href="/site/runtime.css"><style>${page.css.replace(/<\/style/gi, "<\\/style")}</style>${pixels(px, nonce)}</head><body>${sub(page.html)}<script src="/site/runtime.js" defer></script></body></html>`;
 }
 
 export function csp(nonce: string): string {

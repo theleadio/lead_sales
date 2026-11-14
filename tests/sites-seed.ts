@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createFunnel, getSite, updateSiteSettings } from "../lib/sites/admin.ts";
 import { publishPage } from "../lib/sites/publish.ts";
 import { db } from "../lib/sql.ts";
+import { formPage, setDraftTree } from "./sites-fixtures.ts";
 import { enrol, newClass, newPerson, newUser, pay } from "./seed.ts";
 
 const settings = { pixels: {}, capi: false, paymentMode: "test" as const, seo: {}, privacyUrl: "https://example.com/privacy" };
@@ -17,7 +18,7 @@ export async function liveFunnel(opts: { formName: string; capi?: boolean }) {
   const form = JSON.stringify({
     type: "interest", formName: opts.formName, fields: [], createDeal: false, after: { kind: "message", text: "ok" },
   });
-  await db()`UPDATE sales.page_version SET html = ${`<div data-lead="form" data-settings='${form}'></div>`} WHERE page_id = ${s.steps[0].id} AND status = 'draft'`;
+  await setDraftTree(s.steps[0].id, formPage("form-1", JSON.parse(form)));
   assert.equal((await publishPage(m, s.steps[0].id, s.steps[0].version)).kind, "ok");
   return { m, siteId, steps: s.steps };
 }

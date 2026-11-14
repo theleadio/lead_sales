@@ -8,10 +8,11 @@ const TAGS = [
   "p", "br", "hr", "a", "button", "img", "iframe",
   "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "pre", "code",
   "strong", "b", "em", "i", "u", "s", "small", "sub", "sup", "mark",
-  "figure", "figcaption", "table", "thead", "tbody", "tfoot", "tr", "th", "td", "label",
+  "details", "summary", "figure", "figcaption", "table", "thead", "tbody", "tfoot", "tr", "th", "td", "label",
 ];
 
-const GLOBAL_ATTRS = ["class", "id", "style", "title", "role", "aria-label", "data-lead", "data-id", "data-settings"];
+const GLOBAL_ATTRS = ["class", "id", "style", "title", "role", "aria-label", "data-lead", "data-id", "data-settings",
+  "hidden", "aria-hidden", "data-anim", "data-action", "data-trigger", "data-delay", "data-button", "data-cd", "data-done", "data-count", "data-autoplay"];
 const TAG_ATTRS: Record<string, string[]> = {
   a: ["href", "target", "rel"],
   button: ["type"],
@@ -99,6 +100,7 @@ export function cleanPage(html: string, css: string): { html: string; css: strin
       ...Object.fromEntries(Object.entries(TAG_ATTRS).map(([t, a]) => [t, a])),
     },
     allowedSchemes: SCHEMES,
+    ...({ allowedEmptyAttributes: ["alt", "hidden"] } as object), // popups are published as <div hidden>; typings lack this option
     allowedSchemesAppliedToAttributes: ["href", "src"],
     allowProtocolRelative: false,
     allowedIframeHostnames: ["www.youtube.com", "www.youtube-nocookie.com", "player.vimeo.com", "www.google.com"],

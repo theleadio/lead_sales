@@ -25,6 +25,7 @@ import {
   saveSettings,
 } from "../lib/sites/admin-actions.ts";
 import { closeDb, db } from "../lib/sql.ts";
+import { paraPage } from "./sites-fixtures.ts";
 import { it, newUser } from "./seed.ts";
 
 after(closeDb);
@@ -77,35 +78,27 @@ it("sales cannot create a funnel and the refusal is audited", async () => {
 
 it("a stale draft save is refused as conflict", async () => {
   const m = await newUser("marketing");
-  const { siteId } = await createFunnel(m, {
-    name: "F",
-    language: "en",
-    basePath: base(),
-  });
+  const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: base() });
   const page = (await getSite(m, siteId))!.steps[0];
-  assert.deepEqual(await saveDraft(m, page.id, { project: { a: 1 }, html: "<p>1</p>", css: "p{}" }, page.version), {
-    kind: "ok",
-    version: page.version + 1,
-  });
-  assert.deepEqual(await saveDraft(m, page.id, { project: { a: 2 }, html: "<p>2</p>", css: "" }, page.version), {
-    kind: "conflict",
-  });
+  const one = paraPage("one");
+  assert.deepEqual(await saveDraft(m, page.id, { project: one }, page.version), { kind: "ok", version: page.version + 1 });
+  assert.deepEqual(await saveDraft(m, page.id, { project: paraPage("two") }, page.version), { kind: "conflict" });
   const d = await getDraft(m, page.id);
-  assert.deepEqual(d.project, { a: 1 });
-  assert.equal(d.html, "<p>1</p>");
-  assert.equal(d.css, "p{}");
+  assert.deepEqual(d.project, one);
+  assert.equal(d.html, "");
+  assert.equal(d.css, "");
 });
 
-it("a draft over 2 MB of html and css is refused and not stored", async () => {
+it("an invalid tree is refused as 'invalid' and nothing is stored; rich text is sanitised on save", async () => {
   const m = await newUser("marketing");
   const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: base() });
   const page = (await getSite(m, siteId))!.steps[0];
-  await assert.rejects(
-    saveDraft(m, page.id, { project: {}, html: "x".repeat(1024 * 1024), css: "y".repeat(1024 * 1024 + 1) }, page.version),
-    /too large/,
-  );
-  assert.equal((await getDraft(m, page.id)).html, "");
+  const r = await saveDraft(m, page.id, { project: { version: 1 } }, page.version);
+  assert.equal(r.kind, "invalid");
+  assert.deepEqual((await getDraft(m, page.id)).project, {});
   assert.equal((await getSite(m, siteId))!.steps[0].version, page.version);
+  assert.equal((await saveDraft(m, page.id, { project: paraPage('a<script>x</script><b>b</b>') }, page.version)).kind, "ok");
+  assert.match(JSON.stringify((await getDraft(m, page.id)).project), /"text":"a<b>b<\/b>"/);
 });
 
 it("a second editor sees the first editor as lock holder until 2 minutes pass", async () => {
@@ -353,22 +346,23 @@ it("after a forced take-over the displaced editor's save is refused and the draf
   const { siteId } = await createFunnel(a, { name: "F", language: "en", basePath: base() });
   const page = (await getSite(a, siteId))!.steps[0];
   assert.equal((await takeEditLock(a, page.id)).holder, null);
-  const first = await saveDraft(a, page.id, { project: { v: "a1" }, html: "<p>a1</p>", css: "" }, page.version);
+  const a1 = paraPage("a1");
+  const first = await saveDraft(a, page.id, { project: a1 }, page.version);
   assert.equal(first.kind, "ok");
   const v = (first as { version: number }).version;
   assert.equal((await takeEditLock(b, page.id, { force: true })).holder, null);
   // a's next autosave, still on the old version: locked.
-  const r = await saveDraft(a, page.id, { project: { v: "a2" }, html: "<p>a2</p>", css: "" }, v);
+  const r = await saveDraft(a, page.id, { project: paraPage("a2") }, v);
   assert.equal(r.kind, "locked");
-  assert.equal(await getDraft(b, page.id).then((d) => d.html), "<p>a1</p>");
+  assert.deepEqual(await getDraft(b, page.id).then((d) => d.project), a1);
   // the take-over bumped the version: even after the lock goes stale, a's old version conflicts.
   await db()`UPDATE sales.site_page SET edit_lock_at = now() - interval '3 minutes' WHERE id = ${page.id}`;
-  assert.deepEqual(await saveDraft(a, page.id, { project: { v: "a3" }, html: "<p>a3</p>", css: "" }, v), { kind: "conflict" });
-  assert.equal(await getDraft(b, page.id).then((d) => d.html), "<p>a1</p>");
+  assert.deepEqual(await saveDraft(a, page.id, { project: paraPage("a3") }, v), { kind: "conflict" });
+  assert.deepEqual(await getDraft(b, page.id).then((d) => d.project), a1);
   // b, on the current version, saves fine.
   const cur = (await getDraft(b, page.id)).version;
   assert.equal(cur, v + 1);
-  assert.equal((await saveDraft(b, page.id, { project: {}, html: "<p>b</p>", css: "" }, cur)).kind, "ok");
+  assert.equal((await saveDraft(b, page.id, { project: paraPage("b") }, cur)).kind, "ok");
 });
 
 it("the three starter templates create funnels with all their steps and html", async () => {
