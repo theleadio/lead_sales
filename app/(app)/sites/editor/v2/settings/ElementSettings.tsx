@@ -6,13 +6,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { Action } from "@/lib/sites/editor-state";
 import { elementPropsSchema, type Element, type Popup } from "@/lib/sites/tree";
-import { fromLines, httpsOnlyError, imageUrlError, toLines, urlError, type Dev } from "@/lib/sites/editor-settings";
-import type { StepInfo } from "../types";
-import { Chips, ColorField, ErrText, Group, ListEditor, RSlider, SelectField, SliderField, SpacingBox, TextField } from "./controls";
+import { fromLines, httpsOnlyError, nameError, toLines, urlError, type Dev } from "@/lib/sites/editor-settings";
+import type { ClassOpt, StepInfo } from "../types";
+import { Chips, ColorField, ErrText, Group, ImageField, ListEditor, RSlider, SelectField, SliderField, SpacingBox, TextField } from "./controls";
 import { LeadFormBlock, OrderFormBlock } from "./FormSettings";
 
 type Set = (patch: Record<string, unknown>) => void;
-type C = { p: any; set: Set; dev: Dev; popups: Popup[]; steps: StepInfo[] };
+type C = { p: any; set: Set; dev: Dev; popups: Popup[]; steps: StepInfo[]; classes: ClassOpt[] };
 
 const ALIGN: ["left" | "center" | "right", string][] = [["left", "Left"], ["center", "Center"], ["right", "Right"]];
 
@@ -85,7 +85,7 @@ function ImageList({ c, title, many }: { c: C; title: string; many: string }) {
         max={30}
         row={(it, i, upd) => (
           <>
-            <TextField label={`${many} ${i + 1} address`} value={it.src} onCommit={(src) => upd({ ...it, src })} validate={imageUrlError} placeholder="https://" />
+            <ImageField label={`${many} ${i + 1} address`} value={it.src} onCommit={(src) => upd({ ...it, src })} />
             <TextField label={`${many} ${i + 1} description`} value={it.alt} onCommit={(alt) => upd({ ...it, alt })} />
           </>
         )}
@@ -114,7 +114,7 @@ function General({ el, c }: { el: Element; c: C }) {
     case "image":
       return (
         <Group title="Image">
-          <TextField label="Image address" value={p.src} onCommit={(src) => set({ src })} validate={imageUrlError} placeholder="https://… or /path" />
+          <ImageField label="Image address" value={p.src} onCommit={(src) => set({ src })} />
           <TextField label="Alt text (for screen readers & SEO)" value={p.alt} onCommit={(alt) => set({ alt })} />
           <TextField label="Link when clicked (optional)" value={p.link} onCommit={(link) => set({ link })} validate={urlError} />
           <Chips label="Alignment" value={p.align} options={ALIGN} onPick={(align) => set({ align })} />
@@ -138,7 +138,7 @@ function General({ el, c }: { el: Element; c: C }) {
     case "order":
       return (
         <>
-          <OrderFormBlock settings={p.settings} onCommit={(settings) => set({ settings })} />
+          <OrderFormBlock classes={c.classes} settings={p.settings} onCommit={(settings) => set({ settings })} />
           <Group title="Button">
             <TextField label="Button text" value={p.button} onCommit={(button) => set({ button })} />
           </Group>
@@ -271,7 +271,7 @@ function General({ el, c }: { el: Element; c: C }) {
   }
 }
 
-export function ElementGeneral({ el, dispatch, dev, popups, steps }: { el: Element; dispatch: (a: Action) => void; dev: Dev; popups: Popup[]; steps: StepInfo[] }) {
+export function ElementGeneral({ el, dispatch, dev, popups, steps, classes }: { el: Element; dispatch: (a: Action) => void; dev: Dev; popups: Popup[]; steps: StepInfo[]; classes: ClassOpt[] }) {
   const latest = useRef<any>(el.props);
   useEffect(() => {
     latest.current = el.props;
@@ -291,9 +291,9 @@ export function ElementGeneral({ el, dispatch, dev, popups, steps }: { el: Eleme
   return (
     <>
       <Group title="Element">
-        <TextField label="Element name" value={el.name} onCommit={(name) => dispatch({ type: "update", id: el.id, patch: { name } })} />
+        <TextField label="Element name" value={el.name} onCommit={(name) => dispatch({ type: "update", id: el.id, patch: { name } })} validate={nameError} />
       </Group>
-      <General el={el} c={{ p: el.props, set, dev, popups, steps }} />
+      <General el={el} c={{ p: el.props, set, dev, popups, steps, classes }} />
       <ErrText msg={err} />
     </>
   );

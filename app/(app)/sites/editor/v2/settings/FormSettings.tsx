@@ -5,7 +5,7 @@
 // committed. Labels are the old editor's.
 import { isRealDate, workshopFormName } from "@/lib/sites/workshop-name";
 import { leadFormSettingsSchema, orderFormSettingsSchema, type LeadFormSettings, type OrderFormSettings } from "@/lib/sites/model";
-import type { StepInfo } from "../types";
+import type { ClassOpt, StepInfo } from "../types";
 import { ErrText, Group, InputField, SelectField, Toggle, useDraft } from "./controls";
 
 const FIELDS: ("company" | "jobTitle" | "message")[] = ["company", "jobTitle", "message"];
@@ -90,15 +90,28 @@ export function LeadFormBlock({ settings, steps, onCommit }: { settings: LeadFor
   );
 }
 
-export function OrderFormBlock({ settings, onCommit }: { settings: OrderFormSettings; onCommit: (s: OrderFormSettings) => void }) {
+export function OrderFormBlock({ settings, classes, onCommit }: { classes: ClassOpt[]; settings: OrderFormSettings; onCommit: (s: OrderFormSettings) => void }) {
   const { draft, set, focus } = useDraft(settings, (s) => {
     if (orderFormSettingsSchema.safeParse(s).success) onCommit(s);
   });
   const res = orderFormSettingsSchema.safeParse(draft);
   return (
     <Group title="Order form">
-      <InputField label="Class code" value={draft.classCode} onChange={(classCode) => set({ ...draft, classCode })} {...focus} />
-      <p className="note">The class this form takes payment for. Payment goes through the CRM&apos;s Stripe checkout.</p>
+      {classes.length > 0 ? (
+        <SelectField
+          label="Class"
+          value={draft.classCode}
+          options={[
+            ...(draft.classCode && !classes.some((c) => c.code === draft.classCode) ? [[draft.classCode, draft.classCode] as [string, string]] : []),
+            ["", "Choose a class"],
+            ...classes.map((c) => [c.code, `${c.courseName} (${c.code}) ${c.startDate}`] as [string, string]),
+          ]}
+          onPick={(classCode) => set({ ...draft, classCode }, true)}
+        />
+      ) : (
+        <InputField label="Class code (the class list could not be loaded)" value={draft.classCode} onChange={(classCode) => set({ ...draft, classCode })} {...focus} />
+      )}
+      <p className="note">Payment goes through the CRM&apos;s Stripe checkout.</p>
       <Toggle label="Ask for company" on={draft.askCompany} onChange={(askCompany) => set({ ...draft, askCompany }, true)} />
       {!res.success && <ErrText msg="Not saved yet: check the settings above." />}
     </Group>

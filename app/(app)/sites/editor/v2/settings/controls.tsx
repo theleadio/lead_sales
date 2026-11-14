@@ -3,14 +3,15 @@
 // Controls for the settings panel. Text/number/colour inputs keep a local
 // draft and commit after ~400 ms of quiet or on blur (one undo step per
 // gesture); chips, selects and toggles commit immediately.
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import type { R } from "@/lib/sites/elements";
-import { clamp, hex6, isSetR, moveItem, readR, resetR, validHex, writeR, type Dev } from "@/lib/sites/editor-settings";
+import { clamp, hex6, imageUrlError, isSetR, makeDebouncer, moveItem, readR, registerFlusher, resetR, validHex, writeR, type Dev } from "@/lib/sites/editor-settings";
 
 export const DEBOUNCE_MS = 400;
 
 /** Local draft + debounced commit. While the control has focus its draft is authoritative. */
-export function useDraft<T>(value: T, commit: (v: T) => void, ms = DEBOUNCE_MS) {
+export function useDraft<T>(value: T, commit: (v: T) => void, ms = DEBOUNCE_MS, scope = "") {
+  const commitCaptured = commit;
   const key = JSON.stringify(value);
   const [draft, setDraft] = useState<T>(value);
   const [prevKey, setPrevKey] = useState(key);
@@ -19,26 +20,14 @@ export function useDraft<T>(value: T, commit: (v: T) => void, ms = DEBOUNCE_MS) 
     setPrevKey(key);
     if (!focused) setDraft(value);
   }
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pending = useRef<{ v: T } | null>(null);
-  const commitRef = useRef(commit);
-  useEffect(() => {
-    commitRef.current = commit;
-  });
-  const flush = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    const p = pending.current;
-    pending.current = null;
-    if (p) commitRef.current(p.v);
-  };
-  useEffect(() => flush, []);
+  const [deb] = useState(() => makeDebouncer<T>(ms));
+  // flush on unmount, and before undo/redo (flushAll)
+  useEffect(() => registerFlusher(deb.flush), [deb]);
+  useEffect(() => deb.flush, [deb]);
+  // the commit captured now (this render's device/node), not at flush time
   const set = (v: T, now = false) => {
     setDraft(v);
-    pending.current = { v };
-    if (timer.current) clearTimeout(timer.current);
-    if (now) flush();
-    else timer.current = setTimeout(flush, ms);
+    deb.set(v, commitCaptured, now, scope);
   };
   return {
     draft,
@@ -47,7 +36,7 @@ export function useDraft<T>(value: T, commit: (v: T) => void, ms = DEBOUNCE_MS) 
       onFocus: () => setFocused(true),
       onBlur: () => {
         setFocused(false);
-        flush();
+        deb.flush();
       },
     },
   };
@@ -178,10 +167,35 @@ export function Toggle({ label, on, onChange }: { label: string; on: boolean; on
   );
 }
 
+/** Number box that lets you clear and retype: the typed text is kept until blur. */
+export function NumInput({ value, min, max, onValue, label, onFocus, onBlur, step = 1 }: {
+  value: number; min: number; max: number; onValue: (n: number) => void; label: string; onFocus?: () => void; onBlur?: () => void; step?: number;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={text ?? String(value)}
+      aria-label={label}
+      onFocus={onFocus}
+      onBlur={() => { setText(null); onBlur?.(); }}
+      onChange={(e) => {
+        setText(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value !== "" && Number.isFinite(n)) onValue(clamp(n, min, max));
+      }}
+    />
+  );
+}
+
 /** Slider + number + unit for a plain number. */
 export function SliderField({
-  label, value, min, max, unit, onCommit, tag, dim, onReset, step = 1,
+  label, value, min, max, unit, onCommit, tag, dim, onReset, step = 1, scope,
 }: {
+  scope?: string;
   label: string;
   value: number;
   min: number;
@@ -193,8 +207,7 @@ export function SliderField({
   onReset?: () => void;
   step?: number;
 }) {
-  const { draft, set, focus } = useDraft(value, onCommit);
-  const [text, setText] = useState<string | null>(null); // while typing in the number box
+  const { draft, set, focus } = useDraft(value, onCommit, DEBOUNCE_MS, scope);
   return (
     <div className={"f" + (dim ? " dim" : "")} role="group" aria-label={label}>
       <span>
@@ -207,23 +220,9 @@ export function SliderField({
         )}
       </span>
       <div className="slider">
-        <input type="range" min={min} max={max} step={step} value={draft} aria-label={label} {...focus} onChange={(e) => { setText(null); set(Number(e.target.value)); }} />
+        <input type="range" min={min} max={max} step={step} value={draft} aria-label={label} {...focus} onChange={(e) => set(Number(e.target.value))} />
         <div className="unit">
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={text ?? String(draft)}
-            aria-label={`${label} value`}
-            onFocus={focus.onFocus}
-            onBlur={() => { setText(null); focus.onBlur(); }}
-            onChange={(e) => {
-              setText(e.target.value);
-              const n = Number(e.target.value);
-              if (e.target.value !== "" && Number.isFinite(n)) set(clamp(n, min, max));
-            }}
-          />
+          <NumInput value={draft} min={min} max={max} step={step} label={`${label} value`} onValue={(n) => set(n)} {...focus} />
           <em>{unit}</em>
         </div>
       </div>
@@ -251,6 +250,7 @@ export function RSlider({
       min={min}
       max={max}
       unit={unit}
+      scope={dev}
       tag={<DevTag dev={dev} />}
       dim={!own}
       onReset={own && dev !== "d" ? () => onChange(resetR(r, dev)) : undefined}
@@ -280,7 +280,7 @@ export function ColorField({
         <span>{label}</span>
       </label>
       <div className="sw">
-        <input type="color" aria-label={`${label} picker`} value={hex6(draft, fallback)} onChange={(e) => set(e.target.value, true)} />
+        <input type="color" aria-label={`${label} picker`} value={hex6(draft, fallback)} onChange={(e) => set(e.target.value)} />
         <input
           id={id}
           className={"inp2" + (bad ? " bad" : "")}
@@ -308,18 +308,7 @@ type Sp = { mt?: number; mb?: number; pt: number; pr: number; pb: number; pl: nu
 export function SpacingBox({ value, margin, onCommit }: { value: Sp; margin: boolean; onCommit: (v: Sp) => void }) {
   const { draft, set, focus } = useDraft(value, onCommit);
   const inp = (k: keyof Sp, aria: string) => (
-    <input
-      type="number"
-      min={0}
-      max={400}
-      value={draft[k] ?? 0}
-      aria-label={aria}
-      {...focus}
-      onChange={(e) => {
-        const n = Number(e.target.value);
-        if (e.target.value !== "" && Number.isFinite(n)) set({ ...draft, [k]: clamp(n, 0, 400) });
-      }}
-    />
+    <NumInput value={draft[k] ?? 0} min={0} max={400} label={aria} onValue={(n) => set({ ...draft, [k]: n })} {...focus} />
   );
   return (
     <div>
@@ -422,6 +411,55 @@ export function InputField({
         onBlur={onBlur}
       />
       <ErrText id={id + "e"} msg={error} />
+    </div>
+  );
+}
+
+/** Image address with an Upload button (POST /api/site/image: same role check and limits as the old editor). */
+export function ImageField({ label, value, onCommit, validate = imageUrlError, placeholder = "https://… or /path" }: {
+  label: string; value: string; onCommit: (v: string) => void; validate?: (v: string) => string | null; placeholder?: string;
+}) {
+  const id = useId();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function upload(file: File) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch("/api/site/image", { method: "POST", body: fd });
+      const body = (await r.json().catch(() => null)) as { url?: string; error?: { message?: string } } | null;
+      if (r.ok && body?.url) onCommit(body.url);
+      else setErr(body?.error?.message ?? "The upload failed. Try again.");
+    } catch {
+      setErr("Could not reach the server. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="f">
+      <TextField label={label} value={value} onCommit={onCommit} validate={validate} placeholder={placeholder} />
+      <label className="btn upl" aria-disabled={busy}>
+        <input
+          type="file"
+          className="sr"
+          accept="image/jpeg,image/png,image/webp,image/svg+xml"
+          aria-label={`Upload ${label.toLowerCase()}`}
+          disabled={busy}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) void upload(f);
+          }}
+        />
+        {busy ? "Uploading…" : "Upload image…"}
+      </label>
+      <span aria-live="polite">
+        <ErrText msg={err} />
+      </span>
+      <span id={id} className="sr">{busy ? "Uploading" : ""}</span>
     </div>
   );
 }

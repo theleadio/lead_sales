@@ -10,12 +10,12 @@ import { ColumnGeneral, ColumnStyles } from "./settings/ColumnSettings";
 import { ElementGeneral, ElementStyles } from "./settings/ElementSettings";
 import { RowGeneral, RowStyles } from "./settings/RowSettings";
 import { SectionGeneral, SectionStyles } from "./settings/SectionSettings";
-import type { Dev, StepInfo } from "./types";
+import type { ClassOpt, Dev, StepInfo } from "./types";
 
 type Tab = "general" | "styles" | "animations";
 const TABS: [Tab, string][] = [["general", "General"], ["styles", "Styles"], ["animations", "Animations"]];
 
-export default function SettingsPanel({ node, page, dispatch, dev, steps, readOnly }: { node: Node; page: Page; dispatch: (a: Action) => void; dev: Dev; steps: StepInfo[]; readOnly: boolean }) {
+export default function SettingsPanel({ node, page, dispatch, dev, steps, classes, readOnly }: { node: Node; page: Page; dispatch: (a: Action) => void; dev: Dev; steps: StepInfo[]; classes: ClassOpt[]; readOnly: boolean }) {
   const [tab, setTab] = useState<Tab>("general");
   let body;
   if (tab === "general") {
@@ -23,7 +23,7 @@ export default function SettingsPanel({ node, page, dispatch, dev, steps, readOn
       node.kind === "sec" ? <SectionGeneral sec={node} dispatch={dispatch} />
       : node.kind === "row" ? <RowGeneral row={node} dispatch={dispatch} dev={dev} />
       : node.kind === "col" ? <ColumnGeneral col={node} dispatch={dispatch} />
-      : <ElementGeneral el={node} dispatch={dispatch} dev={dev} popups={page.popups} steps={steps} />;
+      : <ElementGeneral el={node} dispatch={dispatch} dev={dev} popups={page.popups} steps={steps} classes={classes} />;
   } else if (tab === "styles") {
     body =
       node.kind === "sec" ? <SectionStyles sec={node} dispatch={dispatch} dev={dev} />

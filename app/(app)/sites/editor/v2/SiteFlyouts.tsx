@@ -4,6 +4,8 @@
 // settings (theme, seo, pixels, capi); the root saves them (debounced,
 // version-checked) through saveSiteSettingsAction.
 import { FONTS } from "@/lib/sites/fonts";
+import { httpsOnlyError } from "@/lib/sites/editor-settings";
+import { ImageField } from "./settings/controls";
 import type { SiteSettingsView } from "./types";
 
 type Change = (patch: Partial<SiteSettingsView>) => void;
@@ -80,10 +82,7 @@ export function SeoFlyout({ s, values, domain, path, onChange }: { s: SiteSettin
         <span>Description</span>
         <textarea className="inp2" rows={3} value={seo.description ?? ""} onChange={(e) => set({ description: e.target.value })} />
       </label>
-      <label className="f">
-        <span>Share image address (https)</span>
-        <input className="inp2" type="url" value={seo.image ?? ""} placeholder="https://" onChange={(e) => set({ image: e.target.value })} />
-      </label>
+      <ImageField label="Share image address (https)" value={seo.image ?? ""} onCommit={(image) => set({ image })} validate={httpsOnlyError} placeholder="https://" />
       <label className="sw">
         <span>Hide from search engines</span>
         <input type="checkbox" checked={!!seo.noindex} onChange={(e) => set({ noindex: e.target.checked })} />

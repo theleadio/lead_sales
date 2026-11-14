@@ -9,6 +9,7 @@ import {
   findPath, initState, reduce,
   type Action,
 } from "@/lib/sites/editor-state";
+import { flushAll as flushPanelEdits } from "@/lib/sites/editor-settings";
 import { FONTS_URL } from "@/lib/sites/fonts";
 import type { ElementType, Page, Popup, Preset, Section } from "@/lib/sites/tree";
 import {
@@ -49,6 +50,7 @@ export default function EditorRoot(props: EditorProps) {
   const dispatch = useCallback(
     (a: Action) => {
       if (readOnly && a.type !== "select") return;
+      if (a.type === "undo" || a.type === "redo") flushPanelEdits(); // land pending panel edits before the step is undone
       rawDispatch(a);
     },
     [readOnly],
@@ -613,7 +615,7 @@ export default function EditorRoot(props: EditorProps) {
             chrome={chrome}
           />
         </main>
-        <RightPanel state={state} dispatch={dispatch} dev={dev} steps={steps} readOnly={readOnly} open={panelOpen} onClose={() => setPanelOpen(false)} />
+        <RightPanel state={state} dispatch={dispatch} dev={dev} steps={steps} classes={props.classes} readOnly={readOnly} open={panelOpen} onClose={() => setPanelOpen(false)} />
       </div>
       <Breadcrumb page={state.page} sel={state.sel} popupName={popup?.name ?? null} onSelect={(id) => select(id, true)} />
       {menu && (

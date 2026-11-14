@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getDraft, getSite, takeEditLock } from "@/lib/sites/admin";
+import { crmSchedule } from "@/lib/sites/crm-api";
 import { listCustomValues } from "@/lib/sites/custom-values";
 import { DEFAULT_THEME } from "@/lib/sites/model";
 import { canEditSites, canViewSites } from "@/lib/sites/permissions";
@@ -73,7 +74,7 @@ export default async function EditorPage({ params, searchParams }: PageProps<"/s
       </main>
     );
   }
-  const values = await listCustomValues(v);
+  const [values, schedule] = await Promise.all([listCustomValues(v), crmSchedule()]);
   const st = site.settings ?? {};
 
   return (
@@ -91,6 +92,7 @@ export default async function EditorPage({ params, searchParams }: PageProps<"/s
       readOnly={readOnly}
       steps={site.steps.map((x) => ({ id: x.id, name: x.name, path: x.path, kind: x.kind, livePath: x.livePath }))}
       settings={{ theme: { ...DEFAULT_THEME, ...st.theme }, seo: st.seo ?? {}, pixels: st.pixels ?? {}, capi: !!st.capi }}
+      classes={schedule.kind === "ok" ? schedule.classes.map(({ code, courseName, startDate }) => ({ code, courseName, startDate })) : []}
       values={values.map(({ key, label, value, version }) => ({ key, label, value, version }))}
     />
   );

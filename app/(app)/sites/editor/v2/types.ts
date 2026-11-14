@@ -2,6 +2,7 @@ import type { Theme } from "@/lib/sites/model";
 import type { Page } from "@/lib/sites/tree";
 
 export type StepInfo = { id: string; name: string; path: string; kind: string; livePath: string | null };
+export type ClassOpt = { code: string; courseName: string; startDate: string };
 export type ValueRow = { key: string; label: string; value: string; version: number };
 export type SiteSettingsView = {
   theme: Theme;
@@ -25,6 +26,7 @@ export type EditorProps = {
   steps: StepInfo[];
   settings: SiteSettingsView;
   values: ValueRow[];
+  classes: ClassOpt[];
 };
 
 export type Dev = "d" | "t" | "m";

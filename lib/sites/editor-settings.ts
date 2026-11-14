@@ -62,3 +62,42 @@ export function moveItem<T>(list: T[], from: number, to: number): T[] {
   next.splice(to, 0, x);
   return next;
 }
+
+/** Names are capped at 120 characters by the page schema. */
+export const nameError = (v: string): string | null => (v.length > 120 ? "Name is too long (120 characters at most)" : null);
+
+// Pending debounced edits register here so undo/redo can flush them first.
+const flushers = new Set<() => void>();
+export const registerFlusher = (f: () => void): (() => void) => {
+  flushers.add(f);
+  return () => void flushers.delete(f);
+};
+export const flushAll = (): void => {
+  for (const f of [...flushers]) f();
+};
+
+/**
+ * Debounced committer. The commit function is captured when set() is called
+ * (not when the timer fires), so an edit made on one device or node always
+ * lands there even if the panel has moved on by the time it flushes.
+ */
+export function makeDebouncer<T>(ms: number) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending: { v: T; commit: (v: T) => void; scope: string } | null = null;
+  const flush = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    const p = pending;
+    pending = null;
+    if (p) p.commit(p.v);
+  };
+  const set = (v: T, commit: (v: T) => void, now = false, scope = "") => {
+    if (pending && pending.scope !== scope) flush(); // a different device/target: land the old edit first
+    pending = { v, commit, scope };
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (now) flush();
+    else timer = setTimeout(flush, ms);
+  };
+  return { set, flush };
+}

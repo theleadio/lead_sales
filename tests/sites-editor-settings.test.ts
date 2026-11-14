@@ -42,3 +42,39 @@ test("moveItem", () => {
   assert.deepEqual(moveItem([1, 2, 3], 0, 1), [2, 1, 3]);
   assert.deepEqual(moveItem([1, 2, 3], 0, -1), [1, 2, 3]);
 });
+
+import { mock } from "node:test";
+import { makeDebouncer, nameError, registerFlusher, flushAll } from "../lib/sites/editor-settings.ts";
+
+test("debounce: one commit per gesture, to the target captured at set time", () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  const d = makeDebouncer<number>(400);
+  const tablet: number[] = [];
+  const phone: number[] = [];
+  const toTablet = (v: number) => tablet.push(v);
+  d.set(1, toTablet);
+  mock.timers.tick(200);
+  d.set(2, toTablet);
+  mock.timers.tick(399);
+  assert.deepEqual(tablet, []);
+  mock.timers.tick(1);
+  assert.deepEqual(tablet, [2]);
+  // pending on tablet, then a phone edit: the tablet value still lands on tablet
+  d.set(3, toTablet, false, "t");
+  d.set(4, (v) => phone.push(v), false, "m");
+  assert.deepEqual(tablet, [2, 3]);
+  d.flush();
+  assert.deepEqual(phone, [4]);
+  mock.timers.reset();
+});
+test("flushAll flushes registered pending edits; names are capped", () => {
+  const d = makeDebouncer<string>(10_000);
+  const got: string[] = [];
+  const off = registerFlusher(d.flush);
+  d.set("x", (v) => got.push(v));
+  flushAll();
+  assert.deepEqual(got, ["x"]);
+  off();
+  assert.equal(nameError("a".repeat(121)) !== null, true);
+  assert.equal(nameError("a".repeat(120)), null);
+});

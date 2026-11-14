@@ -1,19 +1,20 @@
 "use client";
 
+import { nameError } from "@/lib/sites/editor-settings";
 import type { Action } from "@/lib/sites/editor-state";
 import type { Dev } from "@/lib/sites/editor-settings";
 import type { Preset, Row } from "@/lib/sites/tree";
 import { Chips, Group, RSlider, SliderField, TextField } from "./controls";
 
 type P = { row: Row; dispatch: (a: Action) => void; dev: Dev };
-const PRESETS: [Preset, string][] = [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["1/3+2/3", "⅓ ⅔"], ["2/3+1/3", "⅔ ⅓"]];
+const PRESETS: [Preset, string][] = [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"], ["6", "6"], ["1/3+2/3", "⅓ ⅔"], ["2/3+1/3", "⅔ ⅓"]];
 
 export function RowGeneral({ row, dispatch, dev }: P) {
   const up = (patch: Record<string, unknown>) => dispatch({ type: "update", id: row.id, patch });
   return (
     <>
       <Group title="Element">
-        <TextField label="Element name" value={row.name} onCommit={(name) => up({ name })} />
+        <TextField label="Element name" value={row.name} onCommit={(name) => up({ name })} validate={nameError} />
       </Group>
       <Group title="Columns">
         <Chips label="Layout" value={row.preset} options={PRESETS} onPick={(preset) => dispatch({ type: "setRowPreset", id: row.id, preset })} />

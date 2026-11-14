@@ -1,5 +1,6 @@
 "use client";
 
+import { nameError } from "@/lib/sites/editor-settings";
 import type { Action } from "@/lib/sites/editor-state";
 import type { Column } from "@/lib/sites/tree";
 import { ColorField, Group, SliderField, SpacingBox, TextField } from "./controls";
@@ -10,7 +11,7 @@ export function ColumnGeneral({ col, dispatch }: P) {
   return (
     <>
       <Group title="Element">
-        <TextField label="Element name" value={col.name} onCommit={(name) => dispatch({ type: "update", id: col.id, patch: { name } })} />
+        <TextField label="Element name" value={col.name} onCommit={(name) => dispatch({ type: "update", id: col.id, patch: { name } })} validate={nameError} />
       </Group>
       <Group title="Column">
         <p className="note">Columns size themselves from the row layout. Change it on the row (blue).</p>

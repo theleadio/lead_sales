@@ -4,7 +4,7 @@
 import { useState } from "react";
 import type { Node } from "@/lib/sites/editor-state";
 import type { Page, Popup } from "@/lib/sites/tree";
-import { useDraft } from "./settings/controls";
+import { NumInput, useDraft } from "./settings/controls";
 import { nodeLabel as label } from "./insert";
 import { KIND_COLOR, type StepInfo } from "./types";
 
@@ -119,18 +119,7 @@ const WHEN: Record<Popup["trigger"], string> = { exit: "when the visitor moves t
 function DelayInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
   const { draft, set, focus } = useDraft(value, onCommit);
   return (
-    <input
-      className="inp2"
-      type="number"
-      min={0}
-      max={600}
-      value={draft}
-      {...focus}
-      onChange={(e) => {
-        const n = Number(e.target.value);
-        if (e.target.value !== "" && Number.isFinite(n)) set(Math.max(0, Math.min(600, n)));
-      }}
-    />
+    <NumInput value={draft} min={0} max={600} label="Delay (seconds)" onValue={set} {...focus} />
   );
 }
 

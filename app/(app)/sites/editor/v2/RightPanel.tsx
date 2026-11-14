@@ -5,19 +5,20 @@ import type { EditorState, Node } from "@/lib/sites/editor-state";
 import { findPath } from "@/lib/sites/editor-state";
 import type { Action } from "@/lib/sites/editor-state";
 import SettingsPanel from "./SettingsPanel";
-import { KIND_COLOR, type Dev, type StepInfo } from "./types";
+import { KIND_COLOR, type Dev, type ClassOpt, type StepInfo } from "./types";
 
 export type RightPanelProps = {
   state: EditorState;
   dispatch: (a: Action) => void;
   dev: Dev;
   steps: StepInfo[];
+  classes: ClassOpt[];
   readOnly: boolean;
   open: boolean;
   onClose: () => void;
 };
 
-export default function RightPanel({ state, dispatch, dev, steps, readOnly, open, onClose }: RightPanelProps) {
+export default function RightPanel({ state, dispatch, dev, steps, classes, readOnly, open, onClose }: RightPanelProps) {
   const node: Node | undefined = state.sel ? findPath(state.page, state.sel)?.node : undefined;
   return (
     <aside className={`side${open ? "" : " closed"}`} aria-label="Settings" style={node ? ({ ["--c" as string]: KIND_COLOR[node.kind] } as React.CSSProperties) : undefined}>
@@ -30,7 +31,7 @@ export default function RightPanel({ state, dispatch, dev, steps, readOnly, open
               ×
             </button>
           </h2>
-          <SettingsPanel key={node.id} node={node} page={state.page} dispatch={dispatch} dev={dev} steps={steps} readOnly={readOnly} />
+          <SettingsPanel key={node.id} node={node} page={state.page} dispatch={dispatch} dev={dev} steps={steps} classes={classes} readOnly={readOnly} />
         </>
       ) : (
         <>
