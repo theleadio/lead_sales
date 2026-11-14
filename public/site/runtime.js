@@ -400,76 +400,6 @@ void submit();
 });
 host.replaceChildren(form);
 }
-function faq(root) {
-for (const item of Array.from(root.children)) {
-const [q, ...a] = Array.from(item.children);
-if (!q || !a.length)
-continue;
-const set = (open) => {
-q.setAttribute("aria-expanded", String(open));
-a.forEach((x) => (x.hidden = !open));
-};
-q.tabIndex = 0;
-q.setAttribute("role", "button");
-q.style.cursor = "pointer";
-set(false);
-q.addEventListener("click", () => set(q.getAttribute("aria-expanded") !== "true"));
-q.addEventListener("keydown", (e) => {
-if (e.key === "Enter" || e.key === " ") {
-e.preventDefault();
-q.click();
-}
-});
-}
-}
-function slider(root) {
-const slides = Array.from(root.children);
-if (slides.length < 2)
-return;
-let i = 0;
-const go = (n) => {
-i = (n + slides.length) % slides.length;
-slides.forEach((s, k) => (s.hidden = k !== i));
-};
-go(0);
-const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-if (!reduce)
-setInterval(() => go(i + 1), 5000);
-root.addEventListener("click", () => go(i + 1));
-}
-function counter(root) {
-var _a, _b;
-let to = NaN;
-try {
-to = Number(JSON.parse((_a = root.dataset.settings) !== null && _a !== void 0 ? _a : "").to);
-}
-catch { }
-if (!isFinite(to))
-to = parseFloat(((_b = root.textContent) !== null && _b !== void 0 ? _b : "").replace(/,/g, ""));
-if (!isFinite(to))
-return;
-const run = () => {
-if (matchMedia("(prefers-reduced-motion: reduce)").matches)
-return void (root.textContent = to.toLocaleString());
-const t0 = performance.now();
-const step = (now) => {
-const p = Math.min(1, (now - t0) / 1500);
-root.textContent = Math.round(to * p).toLocaleString();
-if (p < 1)
-requestAnimationFrame(step);
-};
-requestAnimationFrame(step);
-};
-if (!("IntersectionObserver" in window))
-return;
-const io = new IntersectionObserver((es) => {
-if (es.some((e) => e.isIntersecting)) {
-io.disconnect();
-run();
-}
-});
-io.observe(root);
-}
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function anims() {
 const items = $$("[data-anim]");
@@ -668,9 +598,6 @@ attribution();
 beacon();
 $$('[data-lead="form"]').forEach((e) => mountForm(e, "form"));
 $$('[data-lead="order"]').forEach((e) => mountForm(e, "order"));
-$$('[data-lead="faq"]').forEach(faq);
-$$('[data-lead="slider"]').forEach(slider);
-$$('[data-lead="counter"]').forEach(counter);
 $$("[data-count]").forEach(countUp);
 $$(".e-cd[data-cd]").forEach(countdown);
 $$('.e-sl[data-autoplay="1"]').forEach(autoplay);

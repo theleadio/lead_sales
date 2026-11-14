@@ -28,7 +28,7 @@ const decode = (s: string) =>
 
 // Scans the CLEANED html (sanitize-html serialises attributes uniformly): every
 // <div data-lead="kind">, its data-settings decoded and parsed.
-export function components(html: string, kind: "form" | "order" | "global-section") {
+export function components(html: string, kind: "form" | "order" | "global-section" | "popup") {
   const out: { settings: unknown; id: string }[] = [];
   for (const [tag] of html.matchAll(/<div\b[^>]*>/gi)) {
     if (/data-lead\s*=\s*["']?([a-z-]+)/i.exec(tag)?.[1]?.toLowerCase() !== kind) continue;
@@ -86,6 +86,12 @@ export async function publishCheck(page: PageInfo, draft: { html: string }, site
     const r = orderFormSettingsSchema.safeParse(settings);
     if (!r.success || !r.data.classCode.trim()) reasons.push("An order form has no class chosen.");
   }
+  const popupIds = new Set(components(draft.html, "popup").map((p) => p.id));
+  for (const [, id] of draft.html.matchAll(/data-action\s*=\s*["']popup:([^"']*)["']/gi))
+    if (!popupIds.has(id)) {
+      reasons.push("A button opens a popup that no longer exists. Pick another popup or change the button.");
+      break;
+    }
   const [taken] = await db()`
     SELECT 1 FROM sales.site_route r JOIN sales.site_page p ON p.id = r.page_id
     WHERE r.domain = ${site.domain} AND r.path = ${page.path} AND p.site_id <> ${page.siteId}`;

@@ -179,3 +179,29 @@ test("select leaves history alone; history is capped at 100 and mutation clears 
   assert.equal(s.future.length, 0);
   assert.equal(reduce(initState(empty), { type: "undo" }).past.length, 0);
 });
+
+test("removePopup resets buttons that opened it, in one history step", () => {
+  let s = run(initState(empty), { type: "addPopup", name: "Exit", trigger: "button" });
+  const pid = s.page.popups[0].id;
+  const b = makeElement("button");
+  (b.props as Record<string, unknown>).action = "popup";
+  (b.props as Record<string, unknown>).popupId = pid;
+  const sec = makeSection();
+  const rw = makeRow("1");
+  s = run(s, { type: "insert", kind: "sec", node: sec, at: { parentId: "page", index: 0 } });
+  s = run(s, { type: "insert", kind: "row", node: rw, at: { parentId: sec.id, index: 0 } });
+  s = run(s, { type: "insert", kind: "el", node: b, at: { parentId: rw.cols[0].id, index: 0 } });
+  const before = s.past.length;
+  s = run(s, { type: "removePopup", id: pid });
+  assert.equal(s.past.length, before + 1);
+  const p = (findPath(s.page, b.id)!.node as { props: Record<string, unknown> }).props;
+  assert.equal(p.action, "form");
+  assert.equal(p.popupId, "");
+});
+
+test("node ids must be plain tokens", () => {
+  const bad = (id: string) => pageSchema.safeParse({ version: 2, sections: [{ ...makeSection(), id }], popups: [] }).success;
+  assert.equal(bad(makeSection().id), true);
+  assert.equal(bad("a.b"), false);
+  assert.equal(bad("popup:x"), false);
+});

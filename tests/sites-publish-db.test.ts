@@ -220,3 +220,11 @@ it("saving site settings purges every published page of the site, never fails th
     delete process.env.NETLIFY_SITE_ID;
   }
 });
+
+it("a button pointing at a deleted popup refuses publishing", async () => {
+  const tree = pageOf(el("button", { action: "popup", popupId: "p_gone" }));
+  const { m, page } = await setup(true, tree);
+  const r = await publishPage(m, page.id, page.version);
+  assert.equal(r.kind, "refused");
+  assert.match((r as { reasons: string[] }).reasons.join(), /popup that no longer exists/);
+});

@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // The funnel editor autosaves { project, html, css } through a Server Action;
-  // the draft cap is 2 MB of html + css, plus the project JSON.
+  // The editor autosaves { project } through a Server Action (html/css are rendered
+  // on publish); the project JSON cap is 1.5 MB, so 6mb is generous headroom.
   experimental: { serverActions: { bodySizeLimit: "6mb" } },
 };
 

@@ -30,6 +30,7 @@ async function guarded<T>(fn: () => Promise<T>): Promise<T | { kind: "error"; me
     return await fn();
   } catch (e) {
     if (e instanceof SitesPermissionError) return { kind: "error", message: FORBIDDEN };
+    if (e instanceof z.ZodError) return { kind: "error", message: e.issues[0]?.message ?? BAD };
     // Our own validation errors (e.g. "too large") have plain messages; driver errors don't.
     if (e instanceof Error && !(e as { code?: string }).code) return { kind: "error", message: e.message };
     console.error("editor action failed", e);

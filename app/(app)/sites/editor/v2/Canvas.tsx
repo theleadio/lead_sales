@@ -16,6 +16,7 @@ import { pageCss } from "@/lib/sites/render/css";
 import { PageView } from "@/lib/sites/render/view";
 import { findPath } from "@/lib/sites/editor-state";
 import { RICH_FIELDS, type Element as El, type Page, type Section } from "@/lib/sites/tree";
+import { serialize } from "@/lib/sites/richclient";
 import { CANVAS_CSS } from "./canvas-css";
 import InlineText from "./InlineText";
 import SelectionChrome, { type ChromeActions } from "./SelectionChrome";
@@ -26,7 +27,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 // Canvas-only copy of the page: {{key}} shown as a value chip. The real tree
 // (editor state) keeps the raw tokens; inline editing (Task 6) must read that.
 function withValues(page: Page, vals: Record<string, string>): Page {
-  const tok = (h: string) => h.replace(/\{\{([a-z][a-z0-9_]{1,40})\}\}/g, (m, k: string) => `<span class="mv" title="${m}">${esc(vals[k] ?? m)}</span>`);
+  const clean = (h: string) => serialize(new DOMParser().parseFromString(h, "text/html").body);
+  const tok = (h: string) => clean(h).replace(/\{\{([a-z][a-z0-9_]{1,40})\}\}/g, (m, k: string) => `<span class="mv" title="${m}">${esc(vals[k] ?? m)}</span>`);
   const fixEl = (e: El): El => {
     const kind = RICH_FIELDS[e.type];
     const p = e.props as Record<string, unknown>;

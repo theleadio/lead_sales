@@ -151,69 +151,6 @@ function mountForm(host: HTMLElement, kind: "form" | "order") {
   host.replaceChildren(form);
 }
 
-function faq(root: HTMLElement) {
-  for (const item of Array.from(root.children) as HTMLElement[]) {
-    const [q, ...a] = Array.from(item.children) as HTMLElement[];
-    if (!q || !a.length) continue;
-    const set = (open: boolean) => {
-      q.setAttribute("aria-expanded", String(open));
-      a.forEach((x) => (x.hidden = !open));
-    };
-    q.tabIndex = 0;
-    q.setAttribute("role", "button");
-    q.style.cursor = "pointer";
-    set(false);
-    q.addEventListener("click", () => set(q.getAttribute("aria-expanded") !== "true"));
-    q.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        q.click();
-      }
-    });
-  }
-}
-
-function slider(root: HTMLElement) {
-  const slides = Array.from(root.children) as HTMLElement[];
-  if (slides.length < 2) return;
-  let i = 0;
-  const go = (n: number) => {
-    i = (n + slides.length) % slides.length;
-    slides.forEach((s, k) => (s.hidden = k !== i));
-  };
-  go(0);
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!reduce) setInterval(() => go(i + 1), 5000);
-  root.addEventListener("click", () => go(i + 1));
-}
-
-function counter(root: HTMLElement) {
-  let to = NaN;
-  try {
-    to = Number(JSON.parse(root.dataset.settings ?? "").to);
-  } catch {}
-  if (!isFinite(to)) to = parseFloat((root.textContent ?? "").replace(/,/g, ""));
-  if (!isFinite(to)) return;
-  const run = () => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return void (root.textContent = to.toLocaleString());
-    const t0 = performance.now();
-    const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / 1500);
-      root.textContent = Math.round(to * p).toLocaleString();
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  };
-  if (!("IntersectionObserver" in window)) return;
-  const io = new IntersectionObserver((es) => {
-    if (es.some((e) => e.isIntersecting)) {
-      io.disconnect();
-      run();
-    }
-  });
-  io.observe(root);
-}
-
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function anims() {
@@ -380,9 +317,6 @@ function init() {
   beacon();
   $$('[data-lead="form"]').forEach((e) => mountForm(e, "form"));
   $$('[data-lead="order"]').forEach((e) => mountForm(e, "order"));
-  $$('[data-lead="faq"]').forEach(faq);
-  $$('[data-lead="slider"]').forEach(slider);
-  $$('[data-lead="counter"]').forEach(counter);
   $$("[data-count]").forEach(countUp);
   $$(".e-cd[data-cd]").forEach(countdown);
   $$('.e-sl[data-autoplay="1"]').forEach(autoplay);

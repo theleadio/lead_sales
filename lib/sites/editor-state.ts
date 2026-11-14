@@ -256,7 +256,24 @@ export function reduce(s: EditorState, a: Action): EditorState {
     }
     case "removePopup": {
       if (!s.page.popups.some((p) => p.id === a.id)) return s;
-      const page = { ...s.page, popups: s.page.popups.filter((p) => p.id !== a.id) };
+      const fix = (sec: Section): Section => ({
+        ...sec,
+        rows: sec.rows.map((r) => ({
+          ...r,
+          cols: r.cols.map((c) => ({
+            ...c,
+            els: c.els.map((e) => {
+              const p = e.props as { action?: string; popupId?: string };
+              return e.type === "button" && p.action === "popup" && p.popupId === a.id ? { ...e, props: { ...p, action: "form", popupId: "" } } : e;
+            }),
+          })),
+        })),
+      });
+      const page = {
+        ...s.page,
+        sections: s.page.sections.map(fix),
+        popups: s.page.popups.filter((p) => p.id !== a.id).map((p) => ({ ...p, sections: p.sections.map(fix) })),
+      };
       return commit(s, page, s.sel && !findPath(page, s.sel) ? null : s.sel);
     }
 

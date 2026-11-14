@@ -8,7 +8,7 @@ export { ELEMENT_TYPES, elementPropsSchema, defaultProps, safeUrl, type R, type 
 export const MAX_PROJECT_BYTES = 1_500_000;
 export const MAX_SECTIONS = 200;
 
-const id = z.string().min(1).max(80);
+const id = z.string().regex(/^[A-Za-z0-9_-]{1,80}$/);
 const name = z.string().max(120);
 const color = z.string().max(40);
 const anim = z.enum(["none", "fade", "up", "left", "zoom"]);
