@@ -1,35 +1,65 @@
-// Inserts the v2 starter funnel templates (site-templates-data.ts) and, on this
-// run only, deletes old v1 data: funnel templates with a step whose
-// project.version !== 2, and drafts whose project.version !== 2 (blank `{}`
-// included; a missing draft is read as a blank page). Safe to run again.
+// Installs the v2 starter funnel templates (site-templates-data.ts). Upsert only:
+// safe to run again, and safe in production.
 //
 //   node --env-file-if-exists=.env.local scripts/seed-site-templates.ts
+//   node --env-file-if-exists=.env.local scripts/seed-site-templates.ts --purge-v1
 //
-// Needs DATABASE_URL. Local DB only: never point this at production.
-import { closeDb, db } from "../lib/sql.ts";
+// --purge-v1 additionally deletes old GrapesJS-era data, and refuses unless
+// DATABASE_URL points at localhost / 127.0.0.1 / ::1. It deletes only
+//  - funnel templates with no v2 step and at least one step carrying real v1
+//    content (project.gjs or non-empty html), and
+//  - drafts whose project carries real v1 content (project.gjs or html).
+// Blank `{}` drafts and steps, published/archived versions and v2 data stay.
+import { closeDb, db, withTransaction } from "../lib/sql.ts";
 import { TEMPLATES } from "./site-templates-data.ts";
 
 export async function seedTemplates(log: (m: string) => void = () => {}) {
-  const sql = db();
-  const old = await sql`
-    DELETE FROM sales.site_template
-    WHERE kind = 'funnel' AND EXISTS (
-      SELECT 1 FROM jsonb_array_elements(payload->'steps') s WHERE s->'project'->>'version' IS DISTINCT FROM '2')
-    RETURNING name`;
-  log(`seed-site-templates: ${old.count} v1 template(s) deleted`);
-  const drafts = await sql`
-    DELETE FROM sales.page_version WHERE status = 'draft' AND project->>'version' IS DISTINCT FROM '2'`;
-  log(`seed-site-templates: ${drafts.count} v1 draft(s) deleted`);
-  for (const t of TEMPLATES) {
-    const payload = sql.json({ steps: t.steps } as never);
-    const done = await sql`UPDATE sales.site_template SET payload = ${payload} WHERE kind = 'funnel' AND name = ${t.name}`;
-    if (!done.count) await sql`INSERT INTO sales.site_template (kind, name, payload) VALUES ('funnel', ${t.name}, ${payload})`;
-    log(`seed-site-templates: "${t.name}" ${done.count ? "updated" : "added"}`);
+  await withTransaction(async () => {
+    const sql = db();
+    for (const t of TEMPLATES) {
+      const payload = sql.json({ steps: t.steps } as never);
+      const done = await sql`UPDATE sales.site_template SET payload = ${payload} WHERE kind = 'funnel' AND name = ${t.name}`;
+      if (!done.count) await sql`INSERT INTO sales.site_template (kind, name, payload) VALUES ('funnel', ${t.name}, ${payload})`;
+      log(`seed-site-templates: "${t.name}" ${done.count ? "updated" : "added"}`);
+    }
+  });
+}
+
+export const isLocalUrl = (url: string | undefined): boolean => {
+  try {
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url ?? "").hostname);
+  } catch {
+    return false;
   }
+};
+
+export async function purgeV1(url: string | undefined, log: (m: string) => void = () => {}) {
+  if (!isLocalUrl(url)) throw new Error("--purge-v1 only runs against a local database (localhost, 127.0.0.1 or ::1).");
+  const templates = await withTransaction(async () => {
+    const rows = await db()`
+      DELETE FROM sales.site_template
+      WHERE kind = 'funnel' AND jsonb_typeof(payload->'steps') = 'array'
+        AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(payload->'steps') s WHERE s->'project'->>'version' = '2')
+        AND EXISTS (SELECT 1 FROM jsonb_array_elements(payload->'steps') s
+                    WHERE (jsonb_typeof(s->'project') = 'object' AND (s->'project') ? 'gjs') OR coalesce(s->>'html', '') <> '')
+      RETURNING name`;
+    return rows.map((r) => r.name as string);
+  });
+  log(`seed-site-templates: purged ${templates.length} v1 template(s)${templates.map((n) => ` "${n}"`).join(",")}`);
+  const drafts = await withTransaction(async () => {
+    const rows = await db()`
+      DELETE FROM sales.page_version
+      WHERE status = 'draft' AND project->>'version' IS DISTINCT FROM '2' AND (project ? 'gjs' OR html <> '')
+      RETURNING page_id`;
+    return rows.length;
+  });
+  log(`seed-site-templates: purged ${drafts} v1 draft(s)`);
+  return { templates, drafts };
 }
 
 if ((import.meta as { main?: boolean }).main) { // Node 24: true only when run directly
   try {
+    if (process.argv.includes("--purge-v1")) await purgeV1(process.env.DATABASE_URL, console.log);
     await seedTemplates(console.log);
   } catch (e) {
     console.error(`seed-site-templates: ${e instanceof Error ? e.message : String(e)}`);

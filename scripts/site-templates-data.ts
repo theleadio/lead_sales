@@ -2,7 +2,7 @@
 // lib/sites/admin.ts): v2 pages built from the sections library. Every piece of
 // copy is a visible "[placeholder]"; no real testimonials, stats or prices.
 import { makeElement } from "../lib/sites/editor-state.ts";
-import { libraryEntry } from "../lib/sites/library.ts";
+import { libraryEntry, thankYouSection } from "../lib/sites/library.ts";
 import type { Element, Page, Section } from "../lib/sites/tree.ts";
 
 const P = "[placeholder]";
@@ -34,13 +34,6 @@ const workshop = (name: string) => ({
 // Hero buttons: "form" scrolls to the page's form, "next" goes to the next step.
 const heroes = (s: Section, action: "form" | "next") => edit(s, (e) => (e.type === "button" ? props(e, { action }) : e));
 const withForm = (s: Section, settings: object) => edit(s, (e) => (e.type === "form" ? props(e, { settings }) : e));
-const thanks = (title: string, line: string) =>
-  edit(lib("hero-centered"), (e) => {
-    if (e.type === "button") return null;
-    if (e.type === "headline") return props(e, { text: `${P} ${title}` });
-    if (e.type === "para") return props(e, { text: `${P} ${line}` });
-    return e;
-  });
 
 export const TEMPLATES: { name: string; steps: ReturnType<typeof step>[] }[] = [
   {
@@ -77,7 +70,7 @@ export const TEMPLATES: { name: string; steps: ReturnType<typeof step>[] }[] = [
         }),
         lib("footer"),
       )),
-      step("Thank You", "thank_you", "/thank-you", page(thanks("Thank you for registering", "What happens next"), lib("footer"))),
+      step("Thank You", "thank_you", "/thank-you", page(thankYouSection("Thank you for registering", "What happens next"), lib("footer"))),
     ],
   },
   {
@@ -89,7 +82,7 @@ export const TEMPLATES: { name: string; steps: ReturnType<typeof step>[] }[] = [
         withForm(lib("signup"), interest("Lead magnet")),
         lib("footer"),
       )),
-      step("Thank You", "thank_you", "/thank-you", page(thanks("Your guide is on its way", "What to do next"), lib("footer"))),
+      step("Thank You", "thank_you", "/thank-you", page(thankYouSection("Your guide is on its way", "What to do next"), lib("footer"))),
     ],
   },
 ];

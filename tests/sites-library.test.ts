@@ -7,7 +7,7 @@ import { LIBRARY } from "../lib/sites/library.ts";
 import { publishPage } from "../lib/sites/publish.ts";
 import { pageSchema, type Element, type Page, type Section } from "../lib/sites/tree.ts";
 import { closeDb, db } from "../lib/sql.ts";
-import { seedTemplates } from "../scripts/seed-site-templates.ts";
+import { isLocalUrl, purgeV1, seedTemplates } from "../scripts/seed-site-templates.ts";
 import { TEMPLATES } from "../scripts/site-templates-data.ts";
 import { it, newUser } from "./seed.ts";
 
@@ -80,29 +80,62 @@ it("the starter templates are v2 trees with only marked copy", async () => {
   assert.ok(els(TEMPLATES[1].steps[1].project).some((e) => e.type === "order"));
 });
 
-it("the seed is idempotent and removes only v1 templates and drafts", async () => {
+it("the plain seed only upserts: idempotent, and it leaves v1 and blank data alone", async () => {
   const sql = db();
   const m = await newUser("marketing");
   const v1 = `v1 ${crypto.randomUUID().slice(0, 6)}`;
   await sql`INSERT INTO sales.site_template (kind, name, payload) VALUES ('funnel', ${v1}, ${sql.json({ steps: [{ name: "Home", kind: "page", suffix: "", project: { gjs: [1] } }] } as never)})`;
-  const keep = `v2 keep ${crypto.randomUUID().slice(0, 6)}`;
-  await sql`INSERT INTO sales.site_template (kind, name, payload) VALUES ('funnel', ${keep}, ${sql.json({ steps: [TEMPLATES[0].steps[0]] } as never)})`;
   const { siteId } = await createFunnel(m, { name: "Old", language: "en", basePath: `/s-${crypto.randomUUID().slice(0, 8)}` });
-  const [old, fresh] = (await getSite(m, siteId))!.steps;
+  const [old] = (await getSite(m, siteId))!.steps;
   await sql`UPDATE sales.page_version SET project = ${sql.json({ gjs: [1] })} WHERE page_id = ${old.id} AND status = 'draft'`;
-  const v2 = pageSchema.parse((await getDraft(m, fresh.id)).project);
-
-  await seedTemplates();
   const count = async () => (await sql`SELECT count(*)::int AS n FROM sales.site_template WHERE kind = 'funnel' AND name = ANY(${TEMPLATES.map((t) => t.name)})`)[0].n;
-  assert.equal(await count(), 3);
-  assert.equal((await sql`SELECT 1 FROM sales.site_template WHERE name = ${v1}`).length, 0);
-  assert.equal((await sql`SELECT 1 FROM sales.site_template WHERE name = ${keep}`).length, 1);
-  assert.deepEqual((await getDraft(m, old.id)).project, {}); // v1 draft gone: reads as blank
-  assert.deepEqual((await getDraft(m, fresh.id)).project, v2);
-
+  await seedTemplates();
   await seedTemplates();
   assert.equal(await count(), 3);
-  await sql`DELETE FROM sales.site_template WHERE name = ${keep}`;
+  assert.equal((await sql`SELECT 1 FROM sales.site_template WHERE name = ${v1}`).length, 1);
+  assert.deepEqual((await getDraft(m, old.id)).project, { gjs: [1] });
+});
+
+it("purgeV1 refuses a non-local database url without connecting", async () => {
+  for (const u of ["postgresql://u:p@db.example.com:5432/x", "postgresql://u:p@aws-0.pooler.supabase.com/postgres", "", undefined, "nonsense"]) {
+    await assert.rejects(purgeV1(u), /local database/);
+  }
+  for (const u of ["postgresql://u@localhost/x", "postgresql://u@127.0.0.1:5432/x", "postgresql://u@[::1]/x"]) assert.ok(isLocalUrl(u), u);
+});
+
+it("purgeV1 deletes only real v1 templates and drafts", async () => {
+  const sql = db();
+  const m = await newUser("marketing");
+  const tag = crypto.randomUUID().slice(0, 6);
+  const tpl = (name: string, steps: unknown[]) =>
+    sql`INSERT INTO sales.site_template (kind, name, payload) VALUES ('funnel', ${name}, ${sql.json({ steps } as never)})`;
+  const step = (project?: unknown, html?: string) => ({ name: "Home", kind: "page", suffix: "", ...(project === undefined ? {} : { project }), ...(html ? { html } : {}) });
+  await tpl(`gjs ${tag}`, [step({ gjs: [1] })]);
+  await tpl(`html ${tag}`, [step(undefined, "<p>old</p>")]);
+  await tpl(`v2blank ${tag}`, [step({ version: 2, sections: [], popups: [] }), step({})]);
+  await tpl(`mixed ${tag}`, [step({ gjs: [1] }), step(TEMPLATES[0].steps[0].project)]);
+  await tpl(`noproject ${tag}`, [step()]);
+  await tpl(`empty ${tag}`, [step({})]);
+
+  const { siteId } = await createFunnel(m, { name: "P", language: "en", basePath: `/p-${crypto.randomUUID().slice(0, 8)}` });
+  const [gjs, html, blank] = (await getSite(m, siteId))!.steps;
+  await sql`UPDATE sales.page_version SET project = ${sql.json({ gjs: [1] })} WHERE page_id = ${gjs.id} AND status = 'draft'`;
+  await sql`UPDATE sales.page_version SET project = ${sql.json({})}, html = '<p>old</p>' WHERE page_id = ${html.id} AND status = 'draft'`;
+  await sql`UPDATE sales.page_version SET project = ${sql.json({})} WHERE page_id = ${blank.id} AND status = 'draft'`;
+  // published and archived versions with v1 content are never touched
+  for (const status of ["published", "archived"]) {
+    await sql`INSERT INTO sales.page_version (page_id, project, html, css, status) VALUES (${blank.id}, ${sql.json({ gjs: [1] })}, '<p>x</p>', '', ${status})`;
+  }
+
+  const out = await purgeV1("postgresql://u@localhost/x");
+  assert.ok(out.templates.includes(`gjs ${tag}`) && out.templates.includes(`html ${tag}`));
+  const left = (await sql`SELECT name FROM sales.site_template WHERE name LIKE ${"% " + tag}`).map((r) => r.name);
+  assert.deepEqual(left.sort(), [`empty ${tag}`, `mixed ${tag}`, `noproject ${tag}`, `v2blank ${tag}`]);
+  const status = async (id: string) => (await sql`SELECT status FROM sales.page_version WHERE page_id = ${id} ORDER BY status`).map((r) => r.status);
+  assert.deepEqual(await status(gjs.id), []); // v1 draft gone
+  assert.deepEqual(await status(html.id), []);
+  assert.deepEqual(await status(blank.id), ["archived", "draft", "published"]); // {} draft, published, archived stay
+  assert.deepEqual((await getDraft(m, blank.id)).project, {});
 });
 
 it("a funnel from each starter template publishes (the order form needs its class chosen first)", async () => {

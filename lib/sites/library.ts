@@ -231,8 +231,8 @@ export const LIBRARY: LibraryEntry[] = [
         row("1", [
           col([
             eyebrow("[placeholder] Registration closes in", { align: "center", color: GOLD }),
+            el("sub", { text: "[placeholder] Set the real end date", align: "center", size: r(20), color: "#ffffff" }),
             el("countdown", { to: inThirtyDays(), doneText: "[placeholder] Registration is closed" }),
-            para("[placeholder] The date shown is sample data: set the real one.", { align: "center", size: r(14), color: "#94a3b8" }),
           ]),
         ]),
       ], { width: "medium", pt: 64, pb: 64 }),
@@ -245,7 +245,7 @@ export const LIBRARY: LibraryEntry[] = [
       section("Footer", "#0b1220", [
         row("2", [
           col([para("[placeholder] Company name and address", { color: "#94a3b8", size: r(14) })]),
-          col([el("nav", { items: [{ label: "[placeholder] Privacy policy", href: "/privacy" }], align: "right", color: MUTE })]),
+          col([el("nav", { items: [{ label: "[placeholder] Privacy policy", href: "#" }], align: "right", color: MUTE })]),
         ], { valign: "center" }),
       ], { pt: 40, pb: 40 }),
   },
@@ -257,3 +257,11 @@ export const libraryEntry = (id: string): LibraryEntry => {
   return e;
 };
 export const LIBRARY_CATEGORIES = (): string[] => [...new Set(LIBRARY.map((l) => l.category))];
+
+// Thank-you step body: a headline and one line, no button.
+export const thankYouSection = (title: string, line: string): Section =>
+  section("Thank you", SOFT, [row("1", [col([head(`[placeholder] ${title}`, { align: "center" }), para(`[placeholder] ${line}`, { align: "center" })])])], {
+    width: "medium",
+    pt: 120,
+    pb: 104,
+  });
