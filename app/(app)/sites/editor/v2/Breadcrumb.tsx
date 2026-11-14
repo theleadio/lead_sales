@@ -1,7 +1,7 @@
 "use client";
 
 import type { Page } from "@/lib/sites/tree";
-import { chain } from "./insert";
+import { chain, nodeLabel } from "./insert";
 import { KIND_COLOR } from "./types";
 
 // Page › Section › Row › Column › Element, each clickable.
@@ -19,7 +19,7 @@ export default function Breadcrumb({ page, sel, popupName, onSelect }: { page: P
           </span>
           <button type="button" className={i === path.length - 1 ? "cur" : ""} aria-current={i === path.length - 1 ? "location" : undefined} onClick={() => onSelect(n.id)}>
             <i style={{ background: KIND_COLOR[n.kind] }} />
-            {n.kind === "sec" ? `Section · ${n.name}` : n.name}
+            {nodeLabel(n)}
           </button>
         </span>
       ))}

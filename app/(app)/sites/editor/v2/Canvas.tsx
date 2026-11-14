@@ -55,6 +55,8 @@ type Props = {
   settings: SiteSettingsView;
   values: Record<string, string>;
   readOnly: boolean;
+  empty: boolean;
+  onEmptyAdd: (anchor: HTMLElement) => void;
   scrollTo: { id: string; n: number } | null;
   onSelect: (id: string | null) => void;
   onKey: (e: KeyboardEvent) => void;
@@ -118,12 +120,18 @@ export default function Canvas(p: Props) {
     };
     const ro = new ResizeObserver(fit);
     ro.observe(doc.body);
+    if (frameRef.current) ro.observe(frameRef.current); // a device switch resizes the iframe, not only its body
+    const frame = frameRef.current?.parentElement;
+    frame?.addEventListener("transitionend", fit); // width animation ended: measure again
+    doc.addEventListener("scroll", fit);
     fit();
     const late = doc.defaultView;
     late?.addEventListener("load", fit);
     doc.fonts?.addEventListener?.("loadingdone", fit);
     return () => {
       ro.disconnect();
+      frame?.removeEventListener("transitionend", fit);
+      doc.removeEventListener("scroll", fit);
       late?.removeEventListener("load", fit);
       doc.fonts?.removeEventListener?.("loadingdone", fit);
     };
@@ -142,7 +150,8 @@ export default function Canvas(p: Props) {
   }, [doc, p.scrollTo]);
 
   // A popup or a deleted node must not stay hovered.
-  const hovId = hov && doc?.querySelector(`[data-node-id="${hov}"]`) ? hov : null;
+  const hovId = hov && doc?.querySelector(`[data-node-id="${doc.defaultView?.CSS.escape(hov) ?? hov}"]`) ? hov : null;
+  useEffect(() => () => window.clearTimeout(leave.current), []);
   const keepHover = useCallback(() => window.clearTimeout(leave.current), []);
 
   return (
@@ -173,6 +182,11 @@ export default function Canvas(p: Props) {
           ),
           doc.body,
         )}
+      {doc && p.empty && !p.readOnly && (
+        <button type="button" className="emptyadd" onClick={(e) => p.onEmptyAdd(e.currentTarget)}>
+          + Add section
+        </button>
+      )}
       {doc && (
         <SelectionChrome
           doc={doc}

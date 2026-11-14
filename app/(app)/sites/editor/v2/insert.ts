@@ -5,7 +5,7 @@ import {
   cloneFresh, findPath, makeElement, makeRow, makeSection,
   type DropTarget, type Kind, type Node,
 } from "@/lib/sites/editor-state";
-import { ELEMENT_TYPES, type ElementType, type Page, type Preset, type Section } from "@/lib/sites/tree";
+import { ELEMENT_TYPES, type Element, type ElementType, type Page, type Preset, type Row, type Section } from "@/lib/sites/tree";
 
 export const SECTION_WIDTHS = ["full", "wide", "medium", "small"] as const;
 export const ROW_PRESETS: Preset[] = ["1", "2", "3", "4", "1/3+2/3", "2/3+1/3"];
@@ -41,6 +41,18 @@ export function newRow(p: Preset) {
   return { ...r, name: `${r.cols.length} Column Row` };
 }
 export const newSection = (width: Section["width"] = "wide"): Section => ({ ...makeSection(width), rows: [newRow("1")] });
+/** Default names equal the kind ("Section"): show just that, else "Section · name" for sections. */
+export function nodeLabel(n: Node): string {
+  if (n.kind === "el") return n.name && n.name !== n.type ? n.name : ELEMENT_INFO[n.type].label;
+  if (n.kind === "sec") return n.name === "Section" ? "Section" : `Section · ${n.name}`;
+  return n.name;
+}
+/** One row (one column) holding el; and a section holding that row. Inserted whole = one undo step. */
+export function rowWith(el: Element, preset: Preset = "1") {
+  const r = newRow(preset);
+  return { ...r, cols: r.cols.map((c, i) => (i === 0 ? { ...c, els: [el] } : c)) };
+}
+export const sectionWith = (row: Row, width: Section["width"] = "wide"): Section => ({ ...newSection(width), rows: [row] });
 export const freshCopy = <T extends Node>(n: T): T => cloneFresh(n);
 
 /** Nodes from the root of the page/popup down to `id` (popup ids are not nodes, so they drop out). */
@@ -72,7 +84,7 @@ export function elementTarget(page: Page, popupId: string | null, sel: string | 
   if (c.length === 4) return { parentId: c[2].id, index: (c[2] as { els: Node[] }).els.findIndex((e) => e.id === c[3].id) + 1 };
   if (c.length === 3) return { parentId: c[2].id, index: (c[2] as { els: Node[] }).els.length };
   const row = c.length === 2 ? (c[1] as { cols: { id: string; els: Node[] }[] }) : ((c[0] ?? secsOf(page, popupId).at(-1)) as Section | undefined)?.rows.at(-1);
-  const col = row?.cols[0];
+  const col = row?.cols.at(-1);
   return col ? { parentId: col.id, index: col.els.length } : null;
 }
 

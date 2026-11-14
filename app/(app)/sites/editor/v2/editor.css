@@ -51,7 +51,11 @@
 .ev2 .rail button[aria-pressed="true"]::before{content:"";position:absolute;left:-7px;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--accent)}
 .ev2 .rail svg{width:18px;height:18px}
 .ev2 .rail .sep{width:24px;height:1px;background:var(--line);margin:4px 0}
-.ev2 .fly{width:0;overflow:hidden;background:var(--chrome);border-right:1px solid var(--line);transition:width .18s ease}
+.ev2 .fly{width:0;overflow:hidden;background:var(--chrome);border-right:1px solid var(--line)}
+.ev2 .fly.open .in{animation:flyin .18s ease}
+@keyframes flyin{from{opacity:0}to{opacity:1}}
+.ev2 .emptyadd{position:absolute;left:50%;top:160px;transform:translateX(-50%);pointer-events:auto;border:2px dashed var(--sec);background:#fff;color:var(--sec);border-radius:10px;padding:14px 22px;font-weight:700;font-size:14px}
+.ev2 .emptyadd:hover{background:#f0fdf4}
 .ev2 .fly.open{width:340px}
 .ev2 .fly .in{width:340px;height:100%;display:flex;flex-direction:column}
 .ev2 .fly h2{font-size:14px;margin:0;padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
@@ -105,7 +109,7 @@
 .ev2 .cbox{position:absolute;pointer-events:none;border:1px dashed var(--c)}
 .ev2 .cbox.sel{border:2px solid var(--c)}
 .ev2 .tag{position:absolute;right:-1px;bottom:-1px;transform:translateY(100%);background:var(--c);color:#fff;font:600 10px/1 var(--ui);padding:3px 6px;border-radius:0 0 4px 4px;white-space:nowrap;pointer-events:none}
-.ev2 .tb{position:absolute;top:-1px;transform:translateY(-100%);display:flex;gap:1px;background:var(--c);border-radius:5px 5px 0 0;padding:2px;pointer-events:auto}
+.ev2 .tb{position:absolute;top:-3px;transform:translateY(-100%);display:flex;gap:1px;background:var(--c);border-radius:5px 5px 0 0;padding:2px;pointer-events:auto}
 .ev2 .tb.in{transform:none;top:2px;border-radius:5px}
 .ev2 .tb.l{left:-1px}
 .ev2 .tb.r{right:-1px}
@@ -138,4 +142,4 @@
   .ev2 .hide-s{display:none}
   .ev2 .main{grid-template-columns:52px auto 1fr}
 }
-@media (prefers-reduced-motion:reduce){.ev2 .fly,.ev2 .frame{transition:none}}
+@media (prefers-reduced-motion:reduce){.ev2 .fly .in{animation:none}.ev2 .frame{transition:none}}

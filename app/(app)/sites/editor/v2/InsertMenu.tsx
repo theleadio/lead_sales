@@ -22,7 +22,7 @@ export default function InsertMenu({ menu, onClose, onSection, onLibrary, onRow,
   useEffect(() => {
     ref.current?.querySelector<HTMLButtonElement>("button")?.focus();
     const away = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node) && !(e.target as Element).closest?.(".plus")) onClose();
+      if (!ref.current?.contains(e.target as Node) && !(e.target as Element).closest?.(".plus,.emptyadd")) onClose();
     };
     document.addEventListener("mousedown", away, true);
     return () => document.removeEventListener("mousedown", away, true);

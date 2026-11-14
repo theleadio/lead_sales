@@ -4,9 +4,8 @@
 import { useState } from "react";
 import type { Node } from "@/lib/sites/editor-state";
 import type { Page, Popup } from "@/lib/sites/tree";
+import { nodeLabel as label } from "./insert";
 import { KIND_COLOR, type StepInfo } from "./types";
-
-const label = (n: Node) => (n.kind === "sec" ? `Section · ${n.name}` : n.name);
 
 export function LayersFlyout({ page, popupId, sel, onSelect }: { page: Page; popupId: string | null; sel: string | null; onSelect: (id: string) => void }) {
   const secs = popupId ? page.popups.find((p) => p.id === popupId)?.sections ?? [] : page.sections;

@@ -19,7 +19,7 @@ import Breadcrumb from "./Breadcrumb";
 import Canvas from "./Canvas";
 import Flyout, { type FlyActions } from "./Flyout";
 import {
-  elementTarget, freshCopy, newElement, newRow, newSection, plusTarget, rowTarget, sectionTarget,
+  chain, elementTarget, freshCopy, newElement, newRow, newSection, plusTarget, rowTarget, rowWith, sectionTarget, sectionWith,
 } from "./insert";
 import InsertMenu, { type MenuState } from "./InsertMenu";
 import type { Prebuilt } from "./prebuilt";
@@ -81,6 +81,7 @@ export default function EditorRoot(props: EditorProps) {
   const stoppedRef = useRef(readOnly); // conflict / take-over: no more saves
   const failedRef = useRef<Page | null>(null); // the tree the server refused: do not retry it unchanged
   const inflight = useRef<Promise<boolean> | null>(null);
+  const publishRef = useRef<Promise<unknown> | null>(null); // a publish bumps the page version: saves wait for it
   const timer = useRef(0);
   const toastTimer = useRef(0);
   const insertAfter = useRef<string | null>(null);
@@ -116,6 +117,10 @@ export default function EditorRoot(props: EditorProps) {
     window.clearTimeout(timer.current);
     for (let i = 0; i < 6; i++) {
       if (stoppedRef.current) return pageRef.current === savedRef.current;
+      if (publishRef.current) {
+        await publishRef.current;
+        continue;
+      }
       if (inflight.current) {
         await inflight.current;
         continue;
@@ -166,6 +171,14 @@ export default function EditorRoot(props: EditorProps) {
     flushRef.current = flush;
   }, [flush]);
 
+  // Leaving through any other link: save what is pending.
+  useEffect(
+    () => () => {
+      void flushRef.current?.();
+    },
+    [],
+  );
+
   useEffect(() => {
     if (readOnly || stoppedRef.current || state.page === savedRef.current || state.page === failedRef.current) return;
     timer.current = window.setTimeout(() => void flush(), AUTOSAVE_MS);
@@ -177,15 +190,16 @@ export default function EditorRoot(props: EditorProps) {
     window.clearTimeout(settingsTimer.current);
     settingsQ.current = settingsQ.current.then(async () => {
       const keys = [...settingsKeys.current];
-      settingsKeys.current.clear();
       if (!keys.length || stoppedRef.current) return;
-      const cur = settingsRef.current;
+      const cur = settingsRef.current; // keys stay queued until the save succeeds
       const patch: Record<string, unknown> = {};
       for (const k of keys) patch[k] = k === "seo" || k === "pixels" ? clean(cur[k] as Record<string, unknown>) : cur[k];
       try {
         const r = await saveSiteSettingsAction(siteId, siteVersionRef.current, patch);
-        if (r.kind === "ok") siteVersionRef.current = r.version;
-        else if (r.message.startsWith("Changed by someone else")) stop("Changed by someone else — reload");
+        if (r.kind === "ok") {
+          siteVersionRef.current = r.version;
+          for (const k of keys) if (settingsRef.current[k] === cur[k]) settingsKeys.current.delete(k); // edited meanwhile: keep
+        } else if (r.kind === "conflict") stop("Changed by someone else — reload");
         else setBanner({ kind: "err", text: r.message });
       } catch {
         setBanner({ kind: "err", text: "Could not save the site settings. Try again." });
@@ -321,18 +335,23 @@ export default function EditorRoot(props: EditorProps) {
   const insertRow = useCallback(
     (preset: Preset, at?: ReturnType<typeof rowTarget>) => {
       const target = at ?? rowTarget(pageRef.current, popupId, stateRef.current.sel);
-      if (!target) return toast("Add a section first.");
+      // No section yet: add one holding the row (one undo step).
+      if (!target) return void insertSection(sectionWith(newRow(preset)));
       apply({ type: "insert", kind: "row", node: newRow(preset), at: target });
     },
-    [apply, popupId, toast],
+    [apply, popupId, insertSection],
   );
   const insertElement = useCallback(
     (type: ElementType, at?: ReturnType<typeof elementTarget>) => {
       const target = at ?? elementTarget(pageRef.current, popupId, stateRef.current.sel);
-      if (!target) return toast("Add a section first.");
-      apply({ type: "insert", kind: "el", node: newElement(type), at: target });
+      if (target) return void apply({ type: "insert", kind: "el", node: newElement(type), at: target });
+      // Nowhere to put it: add the missing row (in the selected section) or a whole section, as ONE insert = one undo step.
+      const row = rowWith(newElement(type));
+      const sec = chain(pageRef.current, stateRef.current.sel)[0] as Section | undefined;
+      if (sec) apply({ type: "insert", kind: "row", node: row, at: { parentId: sec.id, index: sec.rows.length } });
+      else insertSection(sectionWith(row));
     },
-    [apply, popupId, toast],
+    [apply, popupId, insertSection],
   );
 
   // ---- navigation (flush the save first) ----
@@ -358,9 +377,15 @@ export default function EditorRoot(props: EditorProps) {
         setBanner((b) => b ?? { kind: "err", text: "Wait for the save to finish, then publish again." });
         return;
       }
-      const r = await publishAction(pageId, versionRef.current);
+      const run = publishAction(pageId, versionRef.current);
+      // Saves wait on this; the new version is stored before they resume.
+      publishRef.current = run.then((x) => {
+        if (x.kind === "ok") versionRef.current = x.version;
+      }, () => undefined);
+      const r = await run;
+      await publishRef.current;
+      publishRef.current = null;
       if (r.kind === "ok") {
-        versionRef.current = r.version;
         setSteps((s) => s.map((x) => (x.id === pageId ? { ...x, livePath: props.path } : x)));
         setBanner({ kind: r.removed.length ? "warn" : "ok", text: r.removed.length ? "Published. These were removed from the live page:" : "Published.", list: r.removed });
       } else if (r.kind === "refused") setBanner({ kind: "err", text: "Not published:", list: r.reasons });
@@ -431,7 +456,10 @@ export default function EditorRoot(props: EditorProps) {
     insertElement: (t) => insertElement(t),
     switchStep: (id) => void go(`/sites/editor/${id}`),
     addStep: async (input) => {
-      const r = await addStepAction(siteId, siteVersionRef.current, input);
+      // Same queue as the settings saves: both use (and bump) the site version.
+      const run = settingsQ.current.then(() => addStepAction(siteId, siteVersionRef.current, input));
+      settingsQ.current = run.then(() => undefined, () => undefined);
+      const r = await run;
       if (r.kind === "ok") {
         siteVersionRef.current = r.version;
         setSteps(r.steps);
@@ -567,6 +595,11 @@ export default function EditorRoot(props: EditorProps) {
             settings={settings}
             values={valueMap}
             readOnly={readOnly}
+            empty={(popup ? popup.sections : state.page.sections).length === 0}
+            onEmptyAdd={(a) => {
+              const r = a.getBoundingClientRect();
+              setMenu({ id: "", kind: "sec", x: r.left + r.width / 2, y: r.bottom });
+            }}
             scrollTo={scrollTo}
             onSelect={(id) => select(id)}
             onKey={onKey}

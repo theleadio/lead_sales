@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { SitesPermissionError, addStep, getDraft, getSite, saveDraft, takeEditLock } from "@/lib/sites/admin";
-import { saveSettings } from "@/lib/sites/admin-actions";
+import { CONFLICT_MESSAGE, saveSettings } from "@/lib/sites/admin-actions";
 import { listCustomValues, saveCustomValue } from "@/lib/sites/custom-values";
 import { themeSchema } from "@/lib/sites/model";
 import { crmSchedule } from "@/lib/sites/crm-api";
@@ -114,6 +114,7 @@ export async function saveSiteSettingsAction(siteId: string, version: number, pa
   if (!uuid.safeParse(siteId).success || !Number.isInteger(version) || !p.success) return { kind: "error" as const, message: BAD };
   const r = await guarded(async () => {
     const res = await saveSettings(v, siteId, version, p.data);
+    if (res.error === CONFLICT_MESSAGE) return { kind: "conflict" as const };
     if (res.error) return { kind: "error" as const, message: res.error, fields: res.fields };
     const site = await getSite(v, siteId);
     return { kind: "ok" as const, version: site?.version ?? version };
@@ -125,7 +126,7 @@ export async function saveSiteSettingsAction(siteId: string, version: number, pa
 
 export async function addStepAction(siteId: string, version: number, input: { name: string; path: string; kind: "page" | "checkout" | "thank_you" }) {
   const v = await viewer();
-  const i = z.object({ name: z.string(), path: z.string(), kind: z.enum(["page", "checkout", "thank_you"]) }).safeParse(input);
+  const i = z.object({ name: z.string().max(120), path: z.string().max(200), kind: z.enum(["page", "checkout", "thank_you"]) }).safeParse(input);
   if (!uuid.safeParse(siteId).success || !Number.isInteger(version) || !i.success) return { kind: "error" as const, message: BAD };
   return guarded(async () => {
     const r = await addStep(v, siteId, version, i.data);

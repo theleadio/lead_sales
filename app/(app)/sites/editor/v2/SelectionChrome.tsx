@@ -8,7 +8,7 @@
 import { useLayoutEffect, useState } from "react";
 import { findPath } from "@/lib/sites/editor-state";
 import type { Page } from "@/lib/sites/tree";
-import { ELEMENT_INFO } from "./insert";
+import { nodeLabel } from "./insert";
 import { KIND_COLOR } from "./types";
 
 export type ChromeActions = {
@@ -60,8 +60,7 @@ export default function SelectionChrome({ doc, page, sel, hov, tick, layoutKey, 
     const f = id ? findPath(page, id) : null;
     if (!id || !box || !f) return null;
     const n = f.node;
-    const label =
-      n.kind === "el" ? (n.name && n.name !== n.type ? n.name : ELEMENT_INFO[n.type].label) : n.kind === "sec" ? `Section · ${n.name}` : n.name;
+    const label = nodeLabel(n);
     const c = KIND_COLOR[n.kind];
     const inside = box.y < 30; // no room above the page top: toolbars sit inside the box
     const col = n.kind === "col"; // columns come from the row layout: no move, copy or delete
