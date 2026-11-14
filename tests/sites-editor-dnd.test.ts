@@ -43,7 +43,7 @@ test("moving onto its own position is null; elsewhere counts the index before re
 
 test("rows go into the section under the pointer; elements into a column", () => {
   assert.deepEqual(dropTarget(page, null, "row", null, e1.id, 200, rectOf)?.target, { parentId: s1.id, index: 1 });
-  assert.equal(dropTarget(page, null, "row", null, s2.id, 400, rectOf)?.target.parentId, s2.id); // empty-ish section (one default row? no rects -> end)
+  assert.deepEqual(dropTarget(page, null, "row", null, s2.id, 400, rectOf)?.target, { parentId: s2.id, index: s2.rows.length });
   assert.deepEqual(dropTarget(page, null, "el", null, e2.id, 10, rectOf)?.target, { parentId: row.cols[0].id, index: 0 });
   assert.equal(dropTarget(page, null, "el", e1.id, e2.id, 100, rectOf)?.target.index, 2); // e1 moved after e2 is a real move
 });
@@ -52,7 +52,7 @@ test("elements need a column; sections and rows are not elements", () => {
   assert.equal(dropTarget(page, null, "el", null, s1.id, 10, rectOf), null);
   assert.equal(dropTarget(page, null, "el", null, row.id, 10, rectOf), null);
   assert.equal(dropTarget(page, null, "col", null, e1.id, 10, rectOf), null);
-  assert.equal(dropTarget(page, null, "sec", null, null, 10, rectOf), null);
+  assert.equal(dropTarget(page, null, "el", null, null, 10, rectOf), null);
 });
 
 test("an empty column accepts an element", () => {
@@ -61,6 +61,24 @@ test("an empty column accepts an element", () => {
   const d = dropTarget(page, null, "el", null, c.id, 70, rectOf);
   assert.deepEqual(d?.target, { parentId: c.id, index: 0 });
   assert.equal(d?.line.y, 75);
+});
+
+test("a section dropped on an empty page or popup lands at index 0, with no hovered node", () => {
+  const empty: Page = { version: 2, sections: [], popups: [{ id: "p2", name: "P", trigger: "button", delaySec: 0, sections: [] } as never] };
+  const a = dropTarget(empty, null, "sec", null, null, 50, rectOf, 800);
+  assert.deepEqual(a?.target, { parentId: "page", index: 0 });
+  assert.deepEqual(a?.line, { x: 0, y: 0, w: 800 });
+  assert.deepEqual(dropTarget(empty, "p2", "sec", null, null, 50, rectOf, 600)?.target, { parentId: "popup:p2", index: 0 });
+  // below the last section / in body padding (no hovered node)
+  assert.deepEqual(dropTarget(page, null, "sec", null, null, 900, rectOf)?.target, { parentId: "page", index: 2 });
+  assert.equal(dropTarget(empty, null, "row", null, null, 50, rectOf), null);
+});
+
+test("a section over its own descendants, and a row over its own columns", () => {
+  assert.deepEqual(dropTarget(page, null, "sec", s1.id, e1.id, 450, rectOf)?.target, { parentId: "page", index: 2 });
+  assert.equal(dropTarget(page, null, "sec", s1.id, e1.id, 10, rectOf), null); // own position
+  assert.equal(dropTarget(page, null, "row", row.id, row.cols[0].id, 10, rectOf), null);
+  assert.deepEqual(dropTarget(page, null, "row", row.id, row.cols[0].id, 290, rectOf)?.target, { parentId: s1.id, index: 2 });
 });
 
 test("popup sections use popup:<id>", () => {
@@ -102,6 +120,11 @@ test("text is escaped; chips serialise back to {{key}}; tokens in text survive",
   assert.equal(ser("a < b & {{k_1}}", { tag: "span", attrs: { "data-key": "price" }, kids: ["RM99"] }), "a &lt; b &amp; {{k_1}}{{price}}");
   assert.equal(ser({ tag: "span", attrs: { "data-key": "Bad Key" }, kids: ["x"] }), "");
 });
+test("obfuscated hrefs never survive", () => {
+  for (const h of ["java	script:alert(1)", "&#106;avascript:alert(1)", "JaVaScRiPt:alert(1)", " javascript:x", "vbscript:x"])
+    assert.equal(ser({ tag: "a", attrs: { href: h }, kids: ["t"] }), "t", h);
+});
+
 test("toEditable chips round trip", () => {
   const html = "Pay {{price}} <b>now</b> {{gone}}";
   const shown = toEditable(html, { price: "RM<1>" });

@@ -17,3 +17,13 @@
 
 ## Verification
 - tests/sites-editor-dnd.test.ts: 12 pass. Full `npm test`: 382 tests, 380 pass; failures = known stripe-webhook-db cancelled enrolment and flaky "publish and unpublish are audited". tsc clean, eslint on editor folder + new lib files clean (pre-existing `any` errors in lib/sites/runtime-dom.ts are untouched), `npm run build` passes.
+
+## Fix round 1
+1. Sections no longer need a hovered node: empty page/popup, below the last section and body padding give index end (0 when empty); empty-page line at the top of the body (iframe width passed in). Tests added.
+2. `onText` runs `elementPropsSchema(type).safeParse` before dispatch; empty/over-long text keeps the old text and toasts.
+3. `focusout` on the editable ends and commits (ignored when the window itself loses focus, e.g. the link prompt).
+4. No spurious update: compared against `serialize(host)` snapshotted at edit start.
+5. `beginDrag` returns a cancel fn (called on EditorRoot unmount); events filtered by pointerId; lostpointercapture and window blur cancel; iframe document listens too when capture fails.
+6. Tiles/thumbs `draggable={false}`, `-webkit-user-drag:none`, pointerdown preventDefault on tiles.
+7. Tests pinned: section over own descendants, row over own columns, obfuscated hrefs (`java\tscript:`, `&#106;avascript:`, mixed case; entity form is dropped because the attribute never starts with an allowed scheme), full DropTarget for the empty-ish section.
+Font role stays omitted (ruling). Verification: dnd tests 15 pass; full npm test 385, 384 pass, 1 known stripe failure; typecheck, eslint (editor folder), build clean.

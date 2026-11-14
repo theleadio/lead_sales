@@ -11,7 +11,7 @@ import {
 } from "@/lib/sites/editor-state";
 import { flushAll as flushPanelEdits } from "@/lib/sites/editor-settings";
 import { FONTS_URL } from "@/lib/sites/fonts";
-import type { ElementType, Page, Popup, Preset, Section } from "@/lib/sites/tree";
+import { elementPropsSchema, type ElementType, type Page, Popup, Preset, Section } from "@/lib/sites/tree";
 import {
   addStepAction, heartbeatAction, publishAction, saveDraftAction, saveSiteSettingsAction, saveValueAction,
 } from "../actions";
@@ -99,6 +99,8 @@ export default function EditorRoot(props: EditorProps) {
   const valueQ = useRef<Promise<void>>(Promise.resolve());
   const stateRef = useRef(state);
   const popupIdRef = useRef<string | null>(null);
+  const cancelDrag = useRef<(() => void) | undefined>(undefined);
+  useEffect(() => () => cancelDrag.current?.(), []);
   const flushRef = useRef<(() => Promise<boolean>) | null>(null);
   useLayoutEffect(() => {
     pageRef.current = state.page;
@@ -473,7 +475,7 @@ export default function EditorRoot(props: EditorProps) {
         const f = findPath(pageRef.current, id);
         if (!f || f.kind === "col") return;
         e.preventDefault(); // no text selection, no focus shuffle
-        beginDrag({ mode: "move", kind: f.kind, id, label: "Move: " + nodeLabel(f.node) }, e.nativeEvent, dragEnv, e.currentTarget);
+        cancelDrag.current = beginDrag({ mode: "move", kind: f.kind, id, label: "Move: " + nodeLabel(f.node) }, e.nativeEvent, dragEnv, e.currentTarget);
       },
     }),
     [dispatch, readOnly, dragEnv],
@@ -504,9 +506,11 @@ export default function EditorRoot(props: EditorProps) {
   }, []);
   const onTileDown = (e: React.PointerEvent) => {
     if (readOnly || e.button !== 0) return;
+    // a native image/link drag must not hijack the pointer drag
+    if ((e.target as Element).closest("[data-addel],[data-addrow],[data-addsec],[data-lib]")) e.preventDefault();
     const tile = (e.target as Element).closest("[data-addel],[data-addrow],[data-addsec],[data-lib]");
     const src = tile && tileSource(tile);
-    if (src) beginDrag(src, e.nativeEvent, dragEnv, tile);
+    if (src) cancelDrag.current = beginDrag(src, e.nativeEvent, dragEnv, tile);
   };
 
   const flyActions: FlyActions = {
@@ -658,7 +662,12 @@ export default function EditorRoot(props: EditorProps) {
             valueList={values}
             onText={(id, text) => {
               const f = findPath(pageRef.current, id);
-              if (f?.node.kind === "el") dispatch({ type: "update", id, patch: { props: { ...(f.node.props as Record<string, unknown>), text } } });
+              if (f?.node.kind !== "el") return;
+              // Same schema as the server: an empty or over-long text is refused here, the old text stays.
+              const props = { ...(f.node.props as Record<string, unknown>), text };
+              const r = elementPropsSchema(f.node.type)?.safeParse(props);
+              if (!r?.success) return toast(text.trim() === "" ? "This text can't be empty, so it was kept as it was." : `Text not saved: ${r?.error.issues[0]?.message ?? "invalid"}`);
+              dispatch({ type: "update", id, patch: { props } });
             }}
             note={toast}
             readOnly={readOnly}

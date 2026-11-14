@@ -15,14 +15,14 @@ const LABEL: Partial<Record<Kind, string>> = { sec: "Drop section here", row: "D
 const GAP: Partial<Record<Kind, number>> = { sec: 0, row: 6, el: 4 };
 
 /** The container (a list of siblings) a `kind` would be dropped into, given the hovered node. */
-function container(page: Page, popupId: string | null, kind: Kind, hoveredId: string): Lists | null {
-  const hit = findPath(page, hoveredId);
-  if (!hit) return null;
+function container(page: Page, popupId: string | null, kind: Kind, hoveredId: string | null): Lists | null {
   if (kind === "sec") {
     const pop = popupId ? page.popups.find((p) => p.id === popupId) : null;
     if (popupId && !pop) return null;
     return { parentId: pop ? `popup:${pop.id}` : "page", items: pop ? pop.sections : page.sections, name: "" };
   }
+  const hit = hoveredId ? findPath(page, hoveredId) : null;
+  if (!hit) return null;
   const want: Kind = kind === "row" ? "sec" : "col";
   const holder = hit.path.map((i) => findPath(page, i)?.node).find((n) => n?.kind === want);
   if (!holder) return null;
@@ -37,9 +37,9 @@ function container(page: Page, popupId: string | null, kind: Kind, hoveredId: st
  */
 export function dropTarget(
   page: Page, popupId: string | null, kind: Kind, fromId: string | null,
-  hoveredId: string | null, y: number, rectOf: (id: string) => Rect | null,
+  hoveredId: string | null, y: number, rectOf: (id: string) => Rect | null, bodyWidth = 0,
 ): Drop | null {
-  if (!hoveredId || kind === "col") return null;
+  if (kind === "col") return null; // sections need no hovered node: anywhere in the page counts
   const c = container(page, popupId, kind, hoveredId);
   if (!c) return null;
   const others = c.items.filter((n) => n.id !== fromId);
@@ -60,7 +60,9 @@ export function dropTarget(
 
   const gap = GAP[kind] ?? 0;
   const ref = others[Math.min(at, others.length - 1)];
-  const r = (ref && rectOf(ref.id)) || rectOf(c.parentId.startsWith("popup:") || c.parentId === "page" ? hoveredId : c.parentId);
+  const top = c.parentId === "page" || c.parentId.startsWith("popup:");
+  // An empty page or popup has no rect to align to: draw at the top of the body.
+  const r = (ref && rectOf(ref.id)) || (top ? { left: 0, top: 0, width: bodyWidth, height: 0 } : rectOf(c.parentId));
   if (!r) return null;
   const ly = !ref ? r.top + r.height / 2 : at >= others.length ? r.top + r.height + gap : r.top - gap;
   return { target, line: { x: r.left, y: ly, w: Math.max(40, r.width) }, label: LABEL[kind] ?? "Drop here" };

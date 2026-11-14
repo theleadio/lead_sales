@@ -23,15 +23,19 @@ const THRESHOLD = 5;
 const EDGE = 60;
 const SPEED = 12;
 
-export function beginDrag(src: DragSource, e: PointerEvent, env: DragEnv, capture: Element | null) {
+/** Returns a cancel function (for unmount); undefined if the canvas is not there. */
+export function beginDrag(src: DragSource, e: PointerEvent, env: DragEnv, capture: Element | null): (() => void) | undefined {
   const root = document.querySelector<HTMLElement>(".ev2");
   const stage = document.getElementById("stage");
   const iframe = document.querySelector<HTMLIFrameElement>(".ev2 .frame iframe");
   if (!root || !stage || !iframe) return;
+  const pid = e.pointerId;
+  let captured = false;
   try {
-    capture?.setPointerCapture(e.pointerId); // moves keep arriving while the pointer is over the iframe
+    capture?.setPointerCapture(pid); // moves keep arriving while the pointer is over the iframe
+    captured = !!capture;
   } catch {
-    /* not capturable: window listeners still get the events */
+    /* not capturable: listen on the iframe document too (below) */
   }
   const x0 = e.clientX;
   const y0 = e.clientY;
@@ -56,7 +60,7 @@ export function beginDrag(src: DragSource, e: PointerEvent, env: DragEnv, captur
       const n = doc.querySelector(`[data-node-id="${doc.defaultView?.CSS.escape(nid) ?? nid}"]`);
       return n ? n.getBoundingClientRect() : null;
     };
-    return dropTarget(page, popupId, src.kind, src.mode === "move" ? src.id : null, id, y, rectOf);
+    return dropTarget(page, popupId, src.kind, src.mode === "move" ? src.id : null, id, y, rectOf, r.width);
   };
   const show = () => {
     if (!line) return;
@@ -101,6 +105,7 @@ export function beginDrag(src: DragSource, e: PointerEvent, env: DragEnv, captur
     }
   };
   const move = (ev: PointerEvent) => {
+    if (ev.pointerId !== pid) return;
     px = ev.clientX;
     py = ev.clientY;
     if (!live) {
@@ -117,6 +122,10 @@ export function beginDrag(src: DragSource, e: PointerEvent, env: DragEnv, captur
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     window.removeEventListener("pointercancel", cancel);
+    window.removeEventListener("blur", cancel);
+    capture?.removeEventListener("lostpointercapture", cancel);
+    iframe.contentDocument?.removeEventListener("pointermove", move);
+    iframe.contentDocument?.removeEventListener("pointerup", up);
     window.removeEventListener("keydown", key, true);
     iframe.contentDocument?.removeEventListener("keydown", key, true);
     window.clearInterval(scroller);
@@ -139,8 +148,12 @@ export function beginDrag(src: DragSource, e: PointerEvent, env: DragEnv, captur
     window.setTimeout(() => window.removeEventListener("click", swallow, true), 0);
     if (commit && drop) env.drop(src, drop.target);
   };
-  const up = () => finish(true);
-  const cancel = () => finish(false);
+  const up = (ev: PointerEvent) => {
+    if (ev.pointerId === pid) finish(true);
+  };
+  const cancel = (ev?: Event) => {
+    if (!(ev instanceof PointerEvent) || ev.pointerId === pid) finish(false);
+  };
   const key = (ev: KeyboardEvent) => {
     if (ev.key !== "Escape") return;
     ev.stopImmediatePropagation(); // the editor's own Esc (deselect) must not also run
@@ -150,6 +163,14 @@ export function beginDrag(src: DragSource, e: PointerEvent, env: DragEnv, captur
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up);
   window.addEventListener("pointercancel", cancel);
+  window.addEventListener("blur", cancel);
+  if (captured) capture?.addEventListener("lostpointercapture", cancel);
+  else {
+    // No capture: the iframe document sees the moves while the pointer is over it.
+    iframe.contentDocument?.addEventListener("pointermove", move);
+    iframe.contentDocument?.addEventListener("pointerup", up);
+  }
   window.addEventListener("keydown", key, true);
   iframe.contentDocument?.addEventListener("keydown", key, true);
+  return () => finish(false);
 }

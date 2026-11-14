@@ -48,7 +48,7 @@ export default function AddFlyout(p: Props) {
     <>
       <div className="tiles two">
         {ELEMENT_LIST.map((e) => (
-          <button key={e.type} className="tile" type="button" data-addel={e.type} onClick={() => p.onElement(e.type)}>
+          <button key={e.type} className="tile" draggable={false} type="button" data-addel={e.type} onClick={() => p.onElement(e.type)}>
             <span className="glyph" aria-hidden="true">{e.glyph}</span>
             {e.label}
           </button>
@@ -72,7 +72,7 @@ export default function AddFlyout(p: Props) {
           <>
             <div className="widths">
               {SECTION_WIDTHS.map((w, i) => (
-                <button key={w} className="tile" type="button" data-addsec={w} onClick={() => p.onSection(w)}>
+                <button key={w} className="tile" draggable={false} type="button" data-addsec={w} onClick={() => p.onSection(w)}>
                   <span className="wbar">
                     <i style={{ width: `${[100, 80, 56, 36][i]}%` }} />
                   </span>
@@ -86,7 +86,7 @@ export default function AddFlyout(p: Props) {
         {p.cat === "Rows" && (
           <div className="tiles two">
             {ROW_PRESETS.map((r) => (
-              <button key={r} className="tile" type="button" data-addrow={r} onClick={() => p.onRow(r)}>
+              <button key={r} className="tile" draggable={false} type="button" data-addrow={r} onClick={() => p.onRow(r)}>
                 <span className="glyph" aria-hidden="true">{presetGlyph(r)}</span>
                 {presetLabel(r)}
               </button>
@@ -105,7 +105,7 @@ export default function AddFlyout(p: Props) {
             </div>
             <div className="tiles">
               {PREBUILT.filter((x) => x.category === g).map((x) => (
-                <button key={x.name} className="thumb" type="button" data-lib={x.category} data-name={x.name} onClick={() => p.onPrebuilt(x)}>
+                <button key={x.name} className="thumb" draggable={false} type="button" data-lib={x.category} data-name={x.name} onClick={() => p.onPrebuilt(x)}>
                   <Thumb p={x} />
                   <div className="cap">{x.name} · click to add</div>
                 </button>

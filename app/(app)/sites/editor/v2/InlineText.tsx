@@ -44,6 +44,7 @@ export default function InlineText(p: Props) {
     host.innerHTML = toEditable(raw, latest.current.vals);
     host.setAttribute("contenteditable", "true");
     host.focus();
+    const start = serialize(host); // normalised start: an untouched edit must not count as a change
     const sel0 = doc.getSelection();
     if (sel0) {
       const r = doc.createRange();
@@ -62,10 +63,11 @@ export default function InlineText(p: Props) {
       host.removeEventListener("keydown", key);
       host.removeEventListener("paste", paste);
       host.removeEventListener("drop", noDrop);
+      host.removeEventListener("focusout", blur);
       const html = serialize(host);
       host.removeAttribute("contenteditable");
       host.innerHTML = saved;
-      if (save && html !== raw) latest.current.onCommit(id, html);
+      if (save && html !== start) latest.current.onCommit(id, html);
       if (notify) latest.current.onEnd();
     };
     finishRef.current = finish;
@@ -97,6 +99,11 @@ export default function InlineText(p: Props) {
     const inside = (e: Event) => {
       if (!host.contains(e.target as Node)) finish(true, true);
     };
+    // Tab or focus moving elsewhere ends the edit. (The window losing focus, e.g. the link prompt, does not.)
+    const blur = (e: FocusEvent) => {
+      if (doc.hasFocus() && !host.contains(e.relatedTarget as Node | null)) finish(true, true);
+    };
+    host.addEventListener("focusout", blur);
     host.addEventListener("keydown", key);
     host.addEventListener("paste", paste);
     host.addEventListener("drop", noDrop);
