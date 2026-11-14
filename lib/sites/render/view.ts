@@ -88,7 +88,7 @@ function body(e: Element, page: Page, ctx: ViewCtx): React.ReactNode {
     case "form":
     case "order":
       return h("div", {
-        "data-lead": e.type, "data-id": e.id, "data-settings": JSON.stringify(p.settings), "data-button": p.button,
+        id: e.id, "data-lead": e.type, "data-id": e.id, "data-settings": JSON.stringify(p.settings), "data-button": p.button,
       }, ctx.forEditor ? mockForm(p.button) : null);
     case "faq":
       return h("div", { className: "e-faq" }, p.items.map(([q, a]: [string, string], k: number) =>

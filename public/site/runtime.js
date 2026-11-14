@@ -507,7 +507,15 @@ tick();
 function autoplay(root) {
 if (reduced())
 return;
+let paused = false;
+const set = (v) => () => (paused = v);
+for (const [a, b] of [["mouseenter", "mouseleave"], ["focusin", "focusout"]]) {
+root.addEventListener(a, set(true));
+root.addEventListener(b, set(false));
+}
 setInterval(() => {
+if (paused || document.hidden)
+return;
 const end = root.scrollLeft + root.clientWidth >= root.scrollWidth - 4;
 root.scrollTo({ left: end ? 0 : root.scrollLeft + root.clientWidth, behavior: "smooth" });
 }, 5000);
@@ -550,6 +558,30 @@ sessionStorage.setItem("lead_popup_" + id, "1");
 catch { }
 };
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])';
+let openPopup = () => { };
+let popupIds = [];
+function actions() {
+document.addEventListener("click", (e) => {
+var _a, _b, _c, _d, _e;
+const a = (_b = (_a = e.target).closest) === null || _b === void 0 ? void 0 : _b.call(_a, "[data-action]");
+if (!a)
+return;
+const act = (_c = a.dataset.action) !== null && _c !== void 0 ? _c : "";
+const tg = buttonTarget(act, { popupIds });
+if (act.startsWith("popup:")) {
+e.preventDefault();
+if (tg.kind === "popup")
+openPopup((_d = tg.value) !== null && _d !== void 0 ? _d : "", a);
+}
+else if (tg.kind === "scroll") {
+const dest = document.querySelector((_e = tg.value) !== null && _e !== void 0 ? _e : "");
+if (!dest)
+return;
+e.preventDefault();
+dest.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "center" });
+}
+});
+}
 function popups() {
 const all = $$('[data-lead="popup"]');
 if (!all.length)
@@ -602,30 +634,24 @@ document.addEventListener("keydown", onKey, true);
 document.body.append(back);
 dialog.focus();
 };
-const ids = all.map((p) => { var _a; return (_a = p.dataset.id) !== null && _a !== void 0 ? _a : ""; });
-document.addEventListener("click", (e) => {
-var _a, _b;
-const a = (_b = (_a = e.target).closest) === null || _b === void 0 ? void 0 : _b.call(_a, "[data-action]");
-if (!a)
-return;
-const tg = buttonTarget(a.dataset.action, { popupIds: ids });
-if (tg.kind !== "popup")
-return;
-e.preventDefault();
-const box = all.find((p) => p.dataset.id === tg.value);
+popupIds = all.map((p) => { var _a; return (_a = p.dataset.id) !== null && _a !== void 0 ? _a : ""; });
+openPopup = (id, opener) => {
+const box = all.find((p) => p.dataset.id === id);
 if (box)
-open(box, a);
-});
+open(box, opener);
+};
 const t0 = Date.now();
-const tryOpen = (box, exitIntent) => {
+const tryOpen = (box, exitIntent, timerFired = false) => {
 var _a, _b;
-const st = { touch, elapsedSec: (Date.now() - t0) / 1000, exitIntent, seen: wasSeen((_a = box.dataset.id) !== null && _a !== void 0 ? _a : ""), delaySec: Number(box.dataset.delay) || 0 };
+const delaySec = Number(box.dataset.delay) || 0;
+const elapsedSec = timerFired ? Math.max(delaySec, (Date.now() - t0) / 1000) : (Date.now() - t0) / 1000;
+const st = { touch, elapsedSec, exitIntent, seen: wasSeen((_a = box.dataset.id) !== null && _a !== void 0 ? _a : ""), delaySec };
 if (popupShouldOpen((_b = box.dataset.trigger) !== null && _b !== void 0 ? _b : "", st))
 open(box, document.activeElement);
 };
 for (const box of all) {
 if (box.dataset.trigger === "timer")
-setTimeout(() => tryOpen(box, false), (Number(box.dataset.delay) || 0) * 1000);
+setTimeout(() => tryOpen(box, false, true), (Number(box.dataset.delay) || 0) * 1000);
 }
 if (!touch) {
 document.addEventListener("mouseout", (e) => {
@@ -648,6 +674,7 @@ $$('[data-lead="counter"]').forEach(counter);
 $$("[data-count]").forEach(countUp);
 $$(".e-cd[data-cd]").forEach(countdown);
 $$('.e-sl[data-autoplay="1"]').forEach(autoplay);
+actions();
 popups();
 anims();
 }

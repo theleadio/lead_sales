@@ -28,6 +28,12 @@ test("text elements: rich text rendered as HTML, other strings escaped", () => {
   assert.match(one("button", { text: "<b>x</b>", sub: "" }), /&lt;b&gt;x&lt;\/b&gt;/);
 });
 
+test("form button's no-JS anchor points at an existing id", () => {
+  const html = render(pageOf(el("button", { text: "Go", action: "form" }, "e_b"), el("form", undefined, "e_form")));
+  const m = /<a class="btn t" href="#([^"]*)"/.exec(html)!;
+  assert.ok(html.includes(`id="${m[1]}"`));
+});
+
 test("buttons are real links with data-action", () => {
   const link = (props: Record<string, unknown>, c = ctx) => {
     const html = render(pageOf(el("button", { text: "Go", ...props }, "e_b"), el("form", undefined, "e_form")), c);
@@ -42,7 +48,7 @@ test("buttons are real links with data-action", () => {
 
 test("form and order render as the runtime placeholders; settings parse with their schemas", () => {
   const html = render(pageOf(el("form", undefined, "e_f"), el("order", { settings: { classCode: "AI-1", askCompany: true } }, "e_o")));
-  const tags = [...html.matchAll(/<div data-lead="(form|order)" data-id="([^"]+)" data-settings="([^"]*)"/g)];
+  const tags = [...html.matchAll(/<div id="[^"]+" data-lead="(form|order)" data-id="([^"]+)" data-settings="([^"]*)"/g)];
   assert.deepEqual(tags.map((t) => [t[1], t[2]]), [["form", "e_f"], ["order", "e_o"]]);
   const dec = (s: string) => JSON.parse(s.replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
   assert.ok(leadFormSettingsSchema.safeParse(dec(tags[0][3])).success);
