@@ -8,12 +8,11 @@ import { publishPage } from "../lib/sites/publish.ts";
 import type { CrmLeadInput } from "../lib/sites/crm-api.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
-import { formPage, orderPage, paraPage, setDraftTree } from "./sites-fixtures.ts";
+import { formPage, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 
 const FORM_ID = "form-1";
-const esc = (o: unknown) => JSON.stringify(o).replace(/"/g, "&quot;");
 
 async function funnel(opts: { form: unknown; capi?: boolean; whatsapp?: string; publish?: boolean }) {
   const m = await newUser("marketing");

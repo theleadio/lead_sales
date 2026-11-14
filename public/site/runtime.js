@@ -197,7 +197,7 @@ function checkoutSuccess(lang, body) {
 const b = obj(body);
 if (typeof b.redirect === "string" && b.redirect.startsWith(STRIPE))
 return { kind: "go", url: b.redirect };
-if (RESULTS.includes(b.result)) {
+if (typeof b.result === "string" && RESULTS.includes(b.result)) {
 return { kind: "text", ok: b.result === "already_enrolled" || b.result === "hrdc_contact", text: t(lang, b.result) };
 }
 return failure(lang, 502, {});

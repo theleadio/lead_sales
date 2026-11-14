@@ -8,6 +8,8 @@ import { COPY } from "../lib/sites/runtime-copy.ts";
 const NOW = new Date("2026-11-13T00:00:00Z");
 const H = "https://ai.thelead.io/x?utm_source=fb&utm_campaign=c";
 
+type Loose = { text?: string; whatsapp?: string; fields: Record<string, string> };
+
 test("no cookies without UTM or click id", () => {
   assert.deepEqual(cookiesToWrite(null, "https://ai.thelead.io/x?ref=1", null, NOW), []);
 });
@@ -68,16 +70,16 @@ test("payload carries only the fields the settings allow", () => {
 });
 
 test("error and success outcomes map to copy", () => {
-  assert.equal((failure("en", 429, {}) as any).text, "Too many tries — please try again in a few minutes");
-  const u = failure("en", 502, { error: "unavailable", whatsapp: "https://wa.me/6012" }) as any;
+  assert.equal((failure("en", 429, {}) as Loose).text, "Too many tries — please try again in a few minutes");
+  const u = failure("en", 502, { error: "unavailable", whatsapp: "https://wa.me/6012" }) as Loose;
   assert.equal(u.text, "Something went wrong — please WhatsApp us");
   assert.equal(u.whatsapp, "https://wa.me/6012");
-  assert.equal((failure("en", 502, { whatsapp: "javascript:alert(1)" }) as any).whatsapp, undefined);
-  const inv = failure("zh", 400, { error: "invalid", fields: { email: "invalid" } }) as any;
+  assert.equal((failure("en", 502, { whatsapp: "javascript:alert(1)" }) as Loose).whatsapp, undefined);
+  const inv = failure("zh", 400, { error: "invalid", fields: { email: "invalid" } }) as Loose;
   assert.deepEqual(Object.keys(inv.fields), ["email"]);
   assert.equal(inv.fields.email, COPY.zh.invalid);
-  assert.equal((failure("en", 400, { error: "captcha" }) as any).text, COPY.en.captcha);
-  assert.equal((failure("en", 0, {}) as any).text, COPY.en.unavailable);
+  assert.equal((failure("en", 400, { error: "captcha" }) as Loose).text, COPY.en.captcha);
+  assert.equal((failure("en", 0, {}) as Loose).text, COPY.en.unavailable);
   assert.equal(t("en", "full"), "This class is full");
   assert.equal(t("en", "already_enrolled"), "You're already registered for this class.");
   assert.equal(t("en", "hrdc_contact"), "Thanks — our team will contact your company about HRDC.");
@@ -87,8 +89,8 @@ test("error and success outcomes map to copy", () => {
 test("form success: message, https url, step falls back to thank-you", () => {
   assert.deepEqual(formSuccess("en", { after: { kind: "message", text: "Hi" } }), { kind: "text", ok: true, text: "Hi" });
   assert.deepEqual(formSuccess("en", { after: { kind: "url", url: "https://x.co/a" } }), { kind: "go", url: "https://x.co/a" });
-  assert.equal((formSuccess("en", { after: { kind: "url", url: "javascript:1" } }) as any).text, "Thank you! We'll be in touch.");
-  assert.equal((formSuccess("en", { after: { kind: "step", pageId: "z" } }) as any).text, "Thank you! We'll be in touch.");
+  assert.equal((formSuccess("en", { after: { kind: "url", url: "javascript:1" } }) as Loose).text, "Thank you! We'll be in touch.");
+  assert.equal((formSuccess("en", { after: { kind: "step", pageId: "z" } }) as Loose).text, "Thank you! We'll be in touch.");
   assert.deepEqual(formSuccess("en", { after: { kind: "step", path: "/f/thank-you" } }), { kind: "go", url: "/f/thank-you" });
   for (const path of ["//evil.com", "https://evil.com", "/\\evil.com", "/\t/evil.com", "/a\nb", "/a b", "x"]) {
     assert.equal(formSuccess("en", { after: { kind: "step", path } }).kind, "text");
@@ -100,8 +102,8 @@ test("checkout redirects only to checkout.stripe.com", () => {
   for (const bad of ["https://checkout.stripe.com.evil.co/x", "http://checkout.stripe.com/x", "https://evil.co/"]) {
     assert.equal(checkoutSuccess("en", { redirect: bad }).kind, "text");
   }
-  assert.equal((checkoutSuccess("en", { result: "full" }) as any).text, "This class is full");
-  assert.equal((checkoutSuccess("zh", { result: "already_enrolled" }) as any).text, COPY.zh.already_enrolled);
+  assert.equal((checkoutSuccess("en", { result: "full" }) as Loose).text, "This class is full");
+  assert.equal((checkoutSuccess("zh", { result: "already_enrolled" }) as Loose).text, COPY.zh.already_enrolled);
 });
 
 import { animEnabled, buttonTarget, countdownParts, popupShouldOpen } from "../lib/sites/runtime-core.ts";

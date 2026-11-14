@@ -31,7 +31,6 @@ function normalise(raw: string): string | null {
   } catch {
     return null;
   }
-  // eslint-disable-next-line no-control-regex
   if (/[\\\u0000-\u001f\u007f]/.test(p) || p.split("/").includes("..")) return null;
   return p.replace(/\/+/g, "/");
 }

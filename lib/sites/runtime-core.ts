@@ -94,7 +94,7 @@ export type FormSettings = { fields: string[]; askCompany: boolean; classCode: s
 const OPTIONAL = ["company", "jobTitle", "message"];
 
 export function parseSettings(raw: string | null | undefined, kind: "form" | "order"): FormSettings | null {
-  let o: any;
+  let o: Record<string, unknown>;
   try {
     o = JSON.parse(raw ?? "");
   } catch {
@@ -139,7 +139,7 @@ export type Outcome =
 const STRIPE = "https://checkout.stripe.com/";
 const RESULTS = ["full", "closed", "already_enrolled", "hrdc_contact"];
 const WA = /^https:\/\/wa\.me\/\d+$/;
-const obj = (b: unknown): any => (b && typeof b === "object" ? b : {});
+const obj = (b: unknown): Record<string, unknown> => (b && typeof b === "object" ? (b as Record<string, unknown>) : {});
 
 // 200 from /api/site/form. A step target arrives as a same-origin path.
 export function formSuccess(lang: Lang, body: unknown): Outcome {
@@ -154,7 +154,7 @@ export function formSuccess(lang: Lang, body: unknown): Outcome {
 export function checkoutSuccess(lang: Lang, body: unknown): Outcome {
   const b = obj(body);
   if (typeof b.redirect === "string" && b.redirect.startsWith(STRIPE)) return { kind: "go", url: b.redirect };
-  if (RESULTS.includes(b.result)) {
+  if (typeof b.result === "string" && RESULTS.includes(b.result)) {
     return { kind: "text", ok: b.result === "already_enrolled" || b.result === "hrdc_contact", text: t(lang, b.result) };
   }
   return failure(lang, 502, {});

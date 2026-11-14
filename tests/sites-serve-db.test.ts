@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { createFunnel, getSite, updateSiteSettings } from "../lib/sites/admin.ts";
 import { publishPage, setRedirect, unpublishPage } from "../lib/sites/publish.ts";
 import { handleRender, pageResponse, renderDocument, resolve } from "../lib/sites/serve.ts";
-import { closeDb, db } from "../lib/sql.ts";
+import { closeDb } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
-import { formPage, orderPage, paraPage, setDraftTree } from "./sites-fixtures.ts";
+import { paraPage, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 

@@ -88,7 +88,7 @@ function mountForm(host: HTMLElement, kind: "form" | "order") {
   if (siteKey) {
     const box = el("div");
     form.append(box);
-    loadTurnstile().then(() => (window as any).turnstile?.render(box, { sitekey: siteKey, callback: (x: string) => (token = x) }));
+    loadTurnstile().then(() => (window as unknown as { turnstile?: { render: (el: HTMLElement, o: object) => void; reset: () => void } }).turnstile?.render(box, { sitekey: siteKey, callback: (x: string) => (token = x) }));
   }
 
   const btn = el("button", { type: "submit" }, host.dataset.button || t(lang, kind === "order" ? "pay" : "submit"));
@@ -133,7 +133,7 @@ function mountForm(host: HTMLElement, kind: "form" | "order") {
     if (!(out.kind === "go" || (out.kind === "text" && out.ok && kind === "form"))) btn.disabled = false;
     if (out.kind === "text" && !out.ok && siteKey) {
       token = "";
-      (window as any).turnstile?.reset();
+      (window as unknown as { turnstile?: { render: (el: HTMLElement, o: object) => void; reset: () => void } }).turnstile?.reset();
     }
   };
   form.addEventListener("keydown", (e) => {

@@ -251,7 +251,9 @@ export function reduce(s: EditorState, a: Action): EditorState {
     }
     case "updatePopup": {
       if (!s.page.popups.some((p) => p.id === a.id)) return s;
-      const { id: _i, sections: _s, ...patch } = a.patch as Record<string, unknown>;
+      const patch = { ...(a.patch as Record<string, unknown>) };
+      delete patch.id;
+      delete patch.sections;
       return commit(s, { ...s.page, popups: s.page.popups.map((p) => (p.id === a.id ? { ...p, ...patch } : p)) });
     }
     case "removePopup": {

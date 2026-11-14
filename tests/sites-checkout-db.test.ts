@@ -7,12 +7,11 @@ import { publishPage } from "../lib/sites/publish.ts";
 import type { CrmRegisterInput, CrmRegisterResult } from "../lib/sites/crm-api.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
-import { formPage, orderPage, paraPage, setDraftTree } from "./sites-fixtures.ts";
+import { orderPage, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 
 const ORDER_ID = "order-1";
-const esc = (o: unknown) => JSON.stringify(o).replace(/"/g, "&quot;");
 
 async function funnel(order: unknown = { classCode: "AI-2026-12", askCompany: true }) {
   const m = await newUser("marketing");

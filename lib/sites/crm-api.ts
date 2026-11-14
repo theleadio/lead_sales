@@ -60,7 +60,7 @@ export function setCrmFetch(f: typeof fetch) {
   crmFetch = f;
 }
 
-type Raw = { status: number; body: any } | null;
+type Raw = { status: number; body: { error?: { code?: string; fields?: Record<string, string> }; personId?: unknown; dealId?: unknown; next?: unknown; checkoutUrl?: unknown } | null } | null;
 
 async function post(path: string, input: unknown, ctx: Ctx): Promise<Raw> {
   const base = process.env.CRM_BASE_URL;
@@ -92,7 +92,7 @@ function failure(path: string, r: Raw): Common {
   if (!r) return { kind: "error" };
   const code = r.body?.error?.code;
   if (r.status === 400 && code === "validation_failed") {
-    const f = r.body.error.fields;
+    const f = r.body?.error?.fields;
     return { kind: "invalid", fields: f && typeof f === "object" ? f : {} };
   }
   if (r.status === 429) return { kind: "limited" };
