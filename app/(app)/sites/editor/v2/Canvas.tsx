@@ -14,10 +14,12 @@ import { createPortal } from "react-dom";
 import { FONTS_URL } from "@/lib/sites/fonts";
 import { pageCss } from "@/lib/sites/render/css";
 import { PageView } from "@/lib/sites/render/view";
+import { findPath } from "@/lib/sites/editor-state";
 import { RICH_FIELDS, type Element as El, type Page, type Section } from "@/lib/sites/tree";
 import { CANVAS_CSS } from "./canvas-css";
+import InlineText from "./InlineText";
 import SelectionChrome, { type ChromeActions } from "./SelectionChrome";
-import { DEV_W, type Dev, type SiteSettingsView, type StepInfo } from "./types";
+import { DEV_W, type Dev, type SiteSettingsView, type StepInfo, type ValueRow } from "./types";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -54,7 +56,10 @@ type Props = {
   steps: StepInfo[];
   settings: SiteSettingsView;
   values: Record<string, string>;
+  valueList: ValueRow[];
   readOnly: boolean;
+  onText: (id: string, html: string) => void;
+  note: (m: string) => void;
   empty: boolean;
   onEmptyAdd: (anchor: HTMLElement) => void;
   scrollTo: { id: string; n: number } | null;
@@ -68,6 +73,7 @@ export default function Canvas(p: Props) {
   const [doc, setDoc] = useState<Document | null>(null);
   const [hov, setHov] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [editing, setEditing] = useState<string | null>(null);
   const leave = useRef<number>(0);
   const latest = useRef(p);
   useLayoutEffect(() => {
@@ -99,6 +105,16 @@ export default function Canvas(p: Props) {
       latest.current.onSelect(idOf(e.target));
     };
     const key = (e: KeyboardEvent) => latest.current.onKey(e);
+    // Double-click a rich text element to type on the page.
+    const dbl = (e: MouseEvent) => {
+      const id = idOf(e.target);
+      const f = id ? findPath(latest.current.page, id) : null;
+      if (!id || !f || f.node.kind !== "el" || latest.current.readOnly) return;
+      if (!["headline", "sub", "para", "icon-text"].includes(f.node.type)) return;
+      latest.current.onSelect(id);
+      setEditing(id);
+    };
+    doc.addEventListener("dblclick", dbl);
     doc.addEventListener("mouseover", over);
     doc.documentElement.addEventListener("mouseleave", out);
     doc.addEventListener("click", click);
@@ -108,6 +124,7 @@ export default function Canvas(p: Props) {
       doc.documentElement.removeEventListener("mouseleave", out);
       doc.removeEventListener("click", click);
       doc.removeEventListener("keydown", key);
+      doc.removeEventListener("dblclick", dbl);
     };
   }, [doc]);
 
@@ -150,7 +167,9 @@ export default function Canvas(p: Props) {
   }, [doc, p.scrollTo]);
 
   // A popup or a deleted node must not stay hovered.
-  const hovId = hov && doc?.querySelector(`[data-node-id="${doc.defaultView?.CSS.escape(hov) ?? hov}"]`) ? hov : null;
+  const editNode = editing ? findPath(p.page, editing)?.node : null;
+  const editId = editNode && editNode.kind === "el" ? editNode.id : null;
+  const hovId = editId ? null : hov && doc?.querySelector(`[data-node-id="${doc.defaultView?.CSS.escape(hov) ?? hov}"]`) ? hov : null;
   useEffect(() => () => window.clearTimeout(leave.current), []);
   const keepHover = useCallback(() => window.clearTimeout(leave.current), []);
 
@@ -187,11 +206,25 @@ export default function Canvas(p: Props) {
           + Add section
         </button>
       )}
+      {doc && editId && editNode && editNode.kind === "el" && (
+        <InlineText
+          key={editId}
+          doc={doc}
+          id={editId}
+          raw={String((editNode.props as Record<string, unknown>).text ?? "")}
+          vals={p.values}
+          list={p.valueList}
+          tick={tick}
+          onCommit={p.onText}
+          onEnd={() => setEditing(null)}
+          note={p.note}
+        />
+      )}
       {doc && (
         <SelectionChrome
           doc={doc}
           page={p.page}
-          sel={p.sel}
+          sel={editId ? null : p.sel}
           hov={hovId}
           tick={tick}
           layoutKey={`${p.dev}|${p.popupId ?? ""}`}

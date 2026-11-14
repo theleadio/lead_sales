@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   findPath, initState, reduce,
-  type Action,
+  type Action, type Kind,
 } from "@/lib/sites/editor-state";
 import { flushAll as flushPanelEdits } from "@/lib/sites/editor-settings";
 import { FONTS_URL } from "@/lib/sites/fonts";
@@ -20,10 +20,12 @@ import Breadcrumb from "./Breadcrumb";
 import Canvas from "./Canvas";
 import Flyout, { type FlyActions } from "./Flyout";
 import {
-  chain, elementTarget, freshCopy, newElement, newRow, newSection, plusTarget, rowTarget, rowWith, sectionTarget, sectionWith,
+  chain, elementTarget, freshCopy, newElement, newRow, newSection, nodeLabel, plusTarget, presetLabel, rowTarget, rowWith, sectionTarget, sectionWith,
+  ELEMENT_INFO,
 } from "./insert";
+import { beginDrag, type DragSource } from "./DragDrop";
 import InsertMenu, { type MenuState } from "./InsertMenu";
-import type { Prebuilt } from "./prebuilt";
+import { PREBUILT, type Prebuilt } from "./prebuilt";
 import Rail from "./Rail";
 import RightPanel from "./RightPanel";
 import TopBar from "./TopBar";
@@ -96,10 +98,12 @@ export default function EditorRoot(props: EditorProps) {
   const valueTimers = useRef(new Map<string, number>());
   const valueQ = useRef<Promise<void>>(Promise.resolve());
   const stateRef = useRef(state);
+  const popupIdRef = useRef<string | null>(null);
   const flushRef = useRef<(() => Promise<boolean>) | null>(null);
   useLayoutEffect(() => {
     pageRef.current = state.page;
     stateRef.current = state;
+    popupIdRef.current = popupId;
   });
 
   const toast = useCallback((m: string) => {
@@ -326,6 +330,18 @@ export default function EditorRoot(props: EditorProps) {
     },
     [dispatch, toast],
   );
+  const dragEnv = useMemo(
+    () => ({
+      ctx: () => ({ page: pageRef.current, popupId: popupIdRef.current }),
+      drop: (src: DragSource, at: { parentId: string; index: number }) => {
+        // One insert or move = one undo step. The target was already validated; apply() still guards caps.
+        if (src.mode === "move") apply({ type: "move", id: src.id, at });
+        else apply({ type: "insert", kind: src.kind as Kind, node: src.make(), at });
+      },
+      onStart: () => setMenu(null),
+    }),
+    [apply],
+  );
   const insertSection = useCallback(
     (node: Section, afterId?: string | null) => {
       const ok = apply({ type: "insert", kind: "sec", node, at: sectionTarget(pageRef.current, popupId, stateRef.current.sel, afterId ?? insertAfter.current) });
@@ -452,10 +468,46 @@ export default function EditorRoot(props: EditorProps) {
         const r = anchor.getBoundingClientRect();
         setMenu((m) => (m?.id === id ? null : { id, kind, x: r.left + r.width / 2, y: r.bottom }));
       },
-      // Task 6: dragStart(id, event) plugs in here (see the report).
+      dragStart: (id, e) => {
+        if (readOnly || e.button !== 0) return;
+        const f = findPath(pageRef.current, id);
+        if (!f || f.kind === "col") return;
+        e.preventDefault(); // no text selection, no focus shuffle
+        beginDrag({ mode: "move", kind: f.kind, id, label: "Move: " + nodeLabel(f.node) }, e.nativeEvent, dragEnv, e.currentTarget);
+      },
     }),
-    [dispatch],
+    [dispatch, readOnly, dragEnv],
   );
+
+  // ---- drag and drop: the Add flyout tiles start a new node ----
+  const tileSource = useCallback((t: Element): DragSource | null => {
+    const q = (a: string) => t.closest<HTMLElement>(`[${a}]`);
+    const el = q("data-addel");
+    if (el) {
+      const type = el.dataset.addel as ElementType;
+      return { mode: "new", kind: "el", make: () => newElement(type), label: ELEMENT_INFO[type]?.label ?? type };
+    }
+    const row = q("data-addrow");
+    if (row) {
+      const p = row.dataset.addrow as Preset;
+      return { mode: "new", kind: "row", make: () => newRow(p), label: presetLabel(p) + " row" };
+    }
+    const sec = q("data-addsec");
+    if (sec) {
+      const w = sec.dataset.addsec as Section["width"];
+      return { mode: "new", kind: "sec", make: () => newSection(w), label: w + " section" };
+    }
+    const lib = q("data-lib");
+    const pb = lib && PREBUILT.find((x) => x.category === lib.dataset.lib && x.name === lib.dataset.name);
+    if (pb) return { mode: "new", kind: "sec", make: () => freshCopy(pb.build()), label: pb.name };
+    return null;
+  }, []);
+  const onTileDown = (e: React.PointerEvent) => {
+    if (readOnly || e.button !== 0) return;
+    const tile = (e.target as Element).closest("[data-addel],[data-addrow],[data-addsec],[data-lib]");
+    const src = tile && tileSource(tile);
+    if (src) beginDrag(src, e.nativeEvent, dragEnv, tile);
+  };
 
   const flyActions: FlyActions = {
     selectNode: (id) => select(id, true),
@@ -570,7 +622,7 @@ export default function EditorRoot(props: EditorProps) {
           </div>
         )}
       </div>
-      <div className="main">
+      <div className="main" onPointerDown={onTileDown}>
         <Rail fly={fly} onFly={setFly} />
         <Flyout
           fly={fly}
@@ -603,6 +655,12 @@ export default function EditorRoot(props: EditorProps) {
             steps={steps}
             settings={settings}
             values={valueMap}
+            valueList={values}
+            onText={(id, text) => {
+              const f = findPath(pageRef.current, id);
+              if (f?.node.kind === "el") dispatch({ type: "update", id, patch: { props: { ...(f.node.props as Record<string, unknown>), text } } });
+            }}
+            note={toast}
             readOnly={readOnly}
             empty={(popup ? popup.sections : state.page.sections).length === 0}
             onEmptyAdd={(a) => {
