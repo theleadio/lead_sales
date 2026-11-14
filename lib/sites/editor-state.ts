@@ -147,7 +147,7 @@ const capOf = (page: Page, pid: string): number => {
   return pk ? CAP[pk] : 0;
 };
 
-function cloneFresh<T extends Node>(n: T): T {
+export function cloneFresh<T extends Node>(n: T): T {
   const c = structuredClone(n) as Node;
   const walk = (x: Node) => {
     x.id = newId(x.kind === "sec" ? "s" : x.kind === "row" ? "r" : x.kind === "col" ? "c" : "e");

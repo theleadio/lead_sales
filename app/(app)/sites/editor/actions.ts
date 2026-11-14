@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { SitesPermissionError, saveDraft, takeEditLock } from "@/lib/sites/admin";
+import { SitesPermissionError, addStep, getDraft, getSite, saveDraft, takeEditLock } from "@/lib/sites/admin";
+import { saveSettings } from "@/lib/sites/admin-actions";
+import { listCustomValues, saveCustomValue } from "@/lib/sites/custom-values";
+import { themeSchema } from "@/lib/sites/model";
 import { crmSchedule } from "@/lib/sites/crm-api";
 import { canViewSites } from "@/lib/sites/permissions";
 import { publishPage } from "@/lib/sites/publish";
@@ -44,7 +47,11 @@ export async function saveDraftAction(pageId: string, draft: unknown, version: n
 export async function publishAction(pageId: string, version: number) {
   const v = await viewer();
   if (!uuid.safeParse(pageId).success || !Number.isInteger(version)) return { kind: "error" as const, message: BAD };
-  return guarded(() => publishPage(v, pageId, version));
+  // A successful publish bumps the page version; hand the new one back so the editor's next save is not a conflict.
+  return guarded(async () => {
+    const r = await publishPage(v, pageId, version);
+    return r.kind === "ok" ? { ...r, version: (await getDraft(v, pageId)).version } : r;
+  });
 }
 
 // Called every minute: keeps the lock fresh and says who took over, if anyone.
@@ -68,4 +75,66 @@ export async function listClassesAction() {
   if (!canViewSites(u.role)) return [];
   const r = await crmSchedule();
   return r.kind === "ok" ? r.classes : [];
+}
+
+// ---- custom values (flyout) ----
+
+export type ValueRow = { key: string; label: string; value: string; version: number };
+
+export async function listValuesAction(): Promise<ValueRow[]> {
+  const v = await viewer();
+  const r = await guarded(() => listCustomValues(v));
+  return Array.isArray(r) ? r.map(({ key, label, value, version }) => ({ key, label, value, version })) : [];
+}
+
+export async function saveValueAction(input: { key: string; label: string; value: string }, version: number | null) {
+  const v = await viewer();
+  const i = z.object({ key: z.string().max(60), label: z.string().max(200), value: z.string().max(2000) }).safeParse(input);
+  if (!i.success || (version !== null && !Number.isInteger(version))) return { kind: "error" as const, message: BAD };
+  return guarded(() => saveCustomValue(v, i.data, version));
+}
+
+// ---- site settings (Typography, Background, SEO, Tracking flyouts) ----
+
+const settingsPatch = z
+  .object({
+    theme: themeSchema,
+    seo: z.object({ title: z.string().optional(), description: z.string().optional(), image: z.string().optional(), noindex: z.boolean().optional() }),
+    pixels: z.object({ meta: z.string().optional(), google: z.string().optional(), linkedin: z.string().optional(), tiktok: z.string().optional() }),
+    capi: z.boolean(),
+  })
+  .partial()
+  .strict();
+
+// Reuses the funnel settings save (version-checked, audited, purges live pages).
+// A patch replaces whole top-level keys. Returns the site's new version.
+export async function saveSiteSettingsAction(siteId: string, version: number, patch: unknown) {
+  const v = await viewer();
+  const p = settingsPatch.safeParse(patch);
+  if (!uuid.safeParse(siteId).success || !Number.isInteger(version) || !p.success) return { kind: "error" as const, message: BAD };
+  const r = await guarded(async () => {
+    const res = await saveSettings(v, siteId, version, p.data);
+    if (res.error) return { kind: "error" as const, message: res.error, fields: res.fields };
+    const site = await getSite(v, siteId);
+    return { kind: "ok" as const, version: site?.version ?? version };
+  });
+  return r;
+}
+
+// ---- steps (Pages flyout) ----
+
+export async function addStepAction(siteId: string, version: number, input: { name: string; path: string; kind: "page" | "checkout" | "thank_you" }) {
+  const v = await viewer();
+  const i = z.object({ name: z.string(), path: z.string(), kind: z.enum(["page", "checkout", "thank_you"]) }).safeParse(input);
+  if (!uuid.safeParse(siteId).success || !Number.isInteger(version) || !i.success) return { kind: "error" as const, message: BAD };
+  return guarded(async () => {
+    const r = await addStep(v, siteId, version, i.data);
+    if (r.kind === "conflict") return { kind: "conflict" as const };
+    const site = await getSite(v, siteId);
+    return {
+      kind: "ok" as const,
+      version: r.version,
+      steps: (site?.steps ?? []).map((s) => ({ id: s.id, name: s.name, path: s.path, kind: s.kind, livePath: s.livePath })),
+    };
+  });
 }

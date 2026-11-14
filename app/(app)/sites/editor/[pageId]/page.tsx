@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { getDraft, getSite, listGlobalSections, listSectionTemplates, takeEditLock } from "@/lib/sites/admin";
-import { crmSchedule } from "@/lib/sites/crm-api";
+import { getDraft, getSite, takeEditLock } from "@/lib/sites/admin";
+import { listCustomValues } from "@/lib/sites/custom-values";
+import { DEFAULT_THEME } from "@/lib/sites/model";
 import { canEditSites, canViewSites } from "@/lib/sites/permissions";
+import { parsePage } from "@/lib/sites/tree-server";
 import { takeOverAction } from "../actions";
 import EditorLoader from "../editor-loader";
 
 // The editor: permission, the draft and the edit lock are settled here; the
-// canvas itself is a client component (editor-loader.tsx, ssr: false).
+// editor itself is a client component (editor-loader.tsx, ssr: false: the
+// canvas iframe only exists in the browser).
 export default async function EditorPage({ params, searchParams }: PageProps<"/sites/editor/[pageId]">) {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
@@ -54,28 +57,41 @@ export default async function EditorPage({ params, searchParams }: PageProps<"/s
   }
   const site = await getSite(v, draft.siteId);
   if (!site) notFound();
-  const [sections, templates, classes] = await Promise.all([
-    listGlobalSections(v),
-    listSectionTemplates(v),
-    crmSchedule().then((r) => (r.kind === "ok" ? r.classes : [])),
-  ]);
+
+  // A new step has an empty project; anything else must be a v2 page tree
+  // (old editor data is not openable here).
+  const empty = !draft.project || (typeof draft.project === "object" && Object.keys(draft.project).length === 0);
+  const parsed = empty ? { ok: true as const, page: { version: 2 as const, sections: [], popups: [] } } : parsePage(draft.project);
+  if (!parsed.ok) {
+    return (
+      <main className="mx-auto max-w-md p-10">
+        <h1 className="text-lg font-semibold">This step can&apos;t be opened</h1>
+        <p className="text-ink-muted mt-2 text-sm">Its saved content is not in the current format ({parsed.message}).</p>
+        <Link href={`/sites/funnel/${site.id}`} className="border-line mt-6 inline-block rounded-lg border px-4 py-2 text-sm">
+          Back to the funnel
+        </Link>
+      </main>
+    );
+  }
+  const values = await listCustomValues(v);
+  const st = site.settings ?? {};
 
   return (
     <EditorLoader
       pageId={pageId}
       siteId={site.id}
       siteName={site.name}
+      domain={site.domain}
+      basePath={site.basePath}
       pageName={draft.name}
       path={draft.path}
       version={draft.version}
-      project={draft.project}
-      html={draft.html}
-      css={draft.css}
+      siteVersion={site.version}
+      page={parsed.page}
       readOnly={readOnly}
-      steps={site.steps.map((s) => ({ id: s.id, name: s.name, path: s.path, kind: s.kind }))}
-      sections={sections.map((s) => ({ id: s.id, name: s.name, html: s.html, css: s.css }))}
-      templates={templates}
-      classes={classes}
+      steps={site.steps.map((x) => ({ id: x.id, name: x.name, path: x.path, kind: x.kind, livePath: x.livePath }))}
+      settings={{ theme: { ...DEFAULT_THEME, ...st.theme }, seo: st.seo ?? {}, pixels: st.pixels ?? {}, capi: !!st.capi }}
+      values={values.map(({ key, label, value, version }) => ({ key, label, value, version }))}
     />
   );
 }

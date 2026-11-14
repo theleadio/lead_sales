@@ -1,4 +1,4 @@
-import { BASE_CSS } from "../app/(app)/sites/editor/components/base-css.ts";
+import { BASE_CSS } from "./site-templates-base-css.ts";
 
 // The three starter funnel templates (payload shape of templateSchema in
 // lib/sites/admin.ts). Laid out like LEAD's live course pages (hero, what you
