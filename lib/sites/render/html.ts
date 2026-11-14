@@ -48,5 +48,5 @@ export function renderDraft(
   const isEmpty = project == null || (typeof project === "object" && Object.keys(project).length === 0);
   const r = isEmpty ? { ok: true as const, page: { version: 2 as const, sections: [], popups: [] } } : parsePage(project);
   if (!r.ok) return { ok: false, message: `This page cannot be published: ${r.message}` };
-  return { ok: true, html: renderPageHtml(r.page, ctx), css: pageCss(r.page) };
+  return { ok: true, html: renderPageHtml(r.page, ctx), css: pageCss(r.page, ctx.site) };
 }

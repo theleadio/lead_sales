@@ -2,6 +2,8 @@
 // (max-width:991px) and phone (max-width:575px) overrides from responsive R
 // values. A phone value falls back to tablet, then desktop, by cascade alone:
 // the tablet rule also applies at phone width unless a phone rule overrides it.
+import { FONTS } from "../fonts.ts";
+import { DEFAULT_THEME, type Theme } from "../model.ts";
 import type { Page, Section, R } from "../tree.ts";
 
 export const TABLET_MAX = 991;
@@ -59,7 +61,18 @@ const STATIC = `.lp{--hf:Inter,system-ui,sans-serif;--cf:Inter,system-ui,sans-se
 @media (min-width:${PHONE_MAX + 1}px) and (max-width:${TABLET_MAX}px){.lp .hide-t{display:none!important}}
 @media (max-width:${PHONE_MAX}px){.lp .hide-m{display:none!important}}`;
 
-export function pageCss(page: Page, _site?: unknown): string {
+// Site theme -> CSS variables, text/link colours and the page background.
+// Anything not a known font or #rrggbb colour falls back to the default.
+export function themeCss(site?: unknown): string {
+  const raw = ((site as { settings?: { theme?: Partial<Theme> } } | null | undefined)?.settings?.theme ?? {}) as Partial<Theme>;
+  const font = (v: unknown, d: string) => ((FONTS as readonly string[]).includes(v as string) ? (v as string) : d);
+  const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
+  const stack = (f: string) => `"${f}",system-ui,sans-serif`;
+  const t = DEFAULT_THEME;
+  return `.lp{--hf:${stack(font(raw.headFont, t.headFont))};--cf:${stack(font(raw.bodyFont, t.bodyFont))};--tc:${hex(raw.text, t.text)};--lc:${hex(raw.link, t.link)};background-color:${hex(raw.bg, t.bg)}}`;
+}
+
+export function pageCss(page: Page, site?: unknown): string {
   const d: string[] = [];
   const t: string[] = [];
   const m: string[] = [];
@@ -184,5 +197,5 @@ export function pageCss(page: Page, _site?: unknown): string {
 
   page.sections.forEach(section);
   for (const p of page.popups) p.sections.forEach(section);
-  return [STATIC, ...d, `@media (max-width:${TABLET_MAX}px){${t.join("")}}`, `@media (max-width:${PHONE_MAX}px){${m.join("")}}`].join("\n");
+  return [STATIC, themeCss(site), ...d, `@media (max-width:${TABLET_MAX}px){${t.join("")}}`, `@media (max-width:${PHONE_MAX}px){${m.join("")}}`].join("\n");
 }

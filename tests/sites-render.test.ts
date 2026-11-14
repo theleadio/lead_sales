@@ -179,3 +179,13 @@ test("serialiser escapes hostile plain text and attributes exactly like react-do
   // every raw "<" starts a real tag we emit, never user text
   assert.ok([...ours.matchAll(/<(?![a-z/])/g)].length === 0);
 });
+
+test("pageCss: site theme sets fonts, colours and background; bad values fall back", () => {
+  const p = parsePage(pageOf(el("para", { text: "x" })));
+  assert.ok(p.ok);
+  const themed = pageCss(p.page, { settings: { theme: { headFont: "Poppins", bodyFont: "Noto Serif SC", text: "#222222", link: "#ff0000", bg: "#fafafa" } } });
+  assert.match(themed, /\.lp\{--hf:"Poppins",system-ui,sans-serif;--cf:"Noto Serif SC",system-ui,sans-serif;--tc:#222222;--lc:#ff0000;background-color:#fafafa\}/);
+  const bad = pageCss(p.page, { settings: { theme: { headFont: "Evil;}", text: "red;}body{x", bg: "url(x)" } } });
+  assert.match(bad, /--hf:"Inter".*--tc:#111827;--lc:#2563eb;background-color:#ffffff/);
+  assert.match(pageCss(p.page), /--tc:#111827/); // no site: defaults
+});

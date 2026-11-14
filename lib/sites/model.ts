@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FONTS } from "./fonts.ts";
 import { isRealDate, workshopFormName } from "./workshop-name.ts";
 
 export { workshopFormName };
@@ -28,7 +29,21 @@ const httpsUrl = z
 // not a URL; the widget builds the wa.me link itself.
 const whatsappNumber = z.string().regex(/^\+?\d{8,15}$/, "must be a phone number");
 
+// Site-wide look (editor Typography / Background flyouts). Optional in stored
+// settings; pageCss falls back to DEFAULT_THEME.
+const hex = z.string().regex(/^#[0-9a-f]{6}$/i, "must be a #rrggbb colour");
+export const themeSchema = z.object({
+  headFont: z.enum(FONTS),
+  bodyFont: z.enum(FONTS),
+  text: hex,
+  link: hex,
+  bg: hex,
+});
+export type Theme = z.infer<typeof themeSchema>;
+export const DEFAULT_THEME: Theme = { headFont: "Inter", bodyFont: "Inter", text: "#111827", link: "#2563eb", bg: "#ffffff" };
+
 export const siteSettingsSchema = z.object({
+  theme: themeSchema.optional(),
   favicon: httpsUrl.optional(),
   pixels: z.object({
     meta: z.string().optional(),
