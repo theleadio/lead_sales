@@ -114,11 +114,12 @@ const templateSchema = z.object({
 });
 
 type StepSeed = { name: string; kind: string; suffix: string; project: unknown; html: string; css: string };
+const BLANK = { version: 2, sections: [], popups: [] };
 const DEFAULT_STEPS: StepSeed[] = [
   { name: "Home", kind: "page", suffix: "" },
   { name: "Payment Form", kind: "checkout", suffix: "/payment" },
   { name: "Thank You", kind: "thank_you", suffix: "/thank-you" },
-].map((s) => ({ ...s, project: {}, html: "", css: "" }));
+].map((s) => ({ ...s, project: BLANK, html: "", css: "" }));
 
 export async function createFunnel(
   viewer: Viewer,

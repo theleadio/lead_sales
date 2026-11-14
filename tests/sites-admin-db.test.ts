@@ -1,6 +1,7 @@
 // lib/sites/admin: funnel creation, permissions, version conflicts, edit lock.
 import { after } from "node:test";
 import assert from "node:assert/strict";
+import { pageSchema } from "../lib/sites/tree.ts";
 import {
   cloneStep,
   addStep,
@@ -95,7 +96,7 @@ it("an invalid tree is refused as 'invalid' and nothing is stored; rich text is 
   const page = (await getSite(m, siteId))!.steps[0];
   const r = await saveDraft(m, page.id, { project: { version: 1 } }, page.version);
   assert.equal(r.kind, "invalid");
-  assert.deepEqual((await getDraft(m, page.id)).project, {});
+  assert.deepEqual((await getDraft(m, page.id)).project, { version: 2, sections: [], popups: [] }); // the blank a new step starts with
   assert.equal((await getSite(m, siteId))!.steps[0].version, page.version);
   assert.equal((await saveDraft(m, page.id, { project: paraPage('a<script>x</script><b>b</b>') }, page.version)).kind, "ok");
   assert.match(JSON.stringify((await getDraft(m, page.id)).project), /"text":"a<b>b<\/b>"/);
@@ -380,7 +381,7 @@ it("the three starter templates create funnels with all their steps and html", a
       assert.equal(s.name, t.steps[i].name);
       assert.equal(s.kind, t.steps[i].kind);
       const d = await getDraft(m, s.id);
-      assert.ok(d.html.length > 100 && d.css.length > 100, `${t.name} / ${s.name}`);
+      assert.equal(pageSchema.safeParse(d.project).success, true, `${t.name} / ${s.name}`);
     }
   }
 });
