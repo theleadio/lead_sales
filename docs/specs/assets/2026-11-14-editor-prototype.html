@@ -1,0 +1,769 @@
+<title>LEAD Funnel Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: SalesProcess-style editor — top bar, icon rail + flyout on the left, canvas in the middle, settings panel on the right, breadcrumb at the bottom. */
+:root{
+  --chrome:#ffffff; --chrome-2:#f4f6f9; --line:#e3e7ee; --fg:#1d2433; --muted:#6a7385; --accent:#2563eb; --accent-ink:#ffffff;
+  --sec:#16a34a; --row:#2563eb; --col:#9333ea; --el:#ea580c;
+  --ground:#e9edf3; --shadow:0 6px 24px rgba(20,30,50,.12);
+  --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --chrome:#171b24; --chrome-2:#1f2430; --line:#2c3342; --fg:#e6e9f0; --muted:#9aa3b5; --accent:#4f8bff; --accent-ink:#0b1020; --ground:#0f131a; --shadow:0 6px 24px rgba(0,0,0,.45); color-scheme:dark}}
+:root[data-theme="dark"]{--chrome:#171b24; --chrome-2:#1f2430; --line:#2c3342; --fg:#e6e9f0; --muted:#9aa3b5; --accent:#4f8bff; --accent-ink:#0b1020; --ground:#0f131a; --shadow:0 6px 24px rgba(0,0,0,.45); color-scheme:dark}
+html,body{height:100%}
+body{background:var(--ground);color:var(--fg);font-family:var(--ui);font-size:13px;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-rows:auto auto 1fr auto;height:100%}
+/* top bar */
+.top{display:flex;align-items:center;gap:10px;background:var(--chrome);border-bottom:1px solid var(--line);padding:8px max(12px,env(safe-area-inset-right,0px)) 8px max(12px,env(safe-area-inset-left,0px));min-width:0}
+.top .grow{flex:1}
+.btn{border:1px solid var(--line);background:var(--chrome);border-radius:7px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--chrome-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.icon{padding:6px 8px}
+.btn[disabled]{opacity:.4;cursor:default}
+.saved{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:none;padding:6px 9px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--chrome-2);color:var(--fg)}
+.stepsel{border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:var(--chrome)}
+/* url bar */
+.urlbar{background:var(--chrome);border-bottom:1px solid var(--line);display:flex;justify-content:center;align-items:center;gap:8px;padding:5px 12px;font-size:12px;color:var(--muted)}
+.live{background:#dcfce7;color:#166534;border-radius:999px;padding:1px 8px;font-weight:600}
+/* main */
+.main{display:grid;grid-template-columns:52px auto 1fr auto;min-height:0}
+.rail{background:var(--chrome);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0}
+.rail button{width:38px;height:38px;border:0;border-radius:9px;background:none;color:var(--muted);display:grid;place-items:center;position:relative}
+.rail button:hover,.rail button[aria-pressed="true"]{background:var(--chrome-2);color:var(--fg)}
+.rail button[aria-pressed="true"]::before{content:"";position:absolute;left:-7px;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--accent)}
+.rail svg{width:18px;height:18px}
+.rail .sep{width:24px;height:1px;background:var(--line);margin:4px 0}
+.fly{width:0;overflow:hidden;background:var(--chrome);border-right:1px solid var(--line);transition:width .18s ease}
+.fly.open{width:340px}
+.fly .in{width:340px;height:100%;display:flex;flex-direction:column}
+.fly h2{font-size:14px;margin:0;padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.fly .body{overflow:auto;flex:1;min-height:0}
+.x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1}
+.addgrid{display:grid;grid-template-columns:118px 1fr;height:100%;min-height:0}
+.cats{border-right:1px solid var(--line);overflow:auto;padding:6px}
+.cats button{display:block;width:100%;text-align:left;border:0;background:none;border-radius:7px;padding:8px 9px;color:var(--fg)}
+.cats button[aria-pressed="true"],.cats button:hover{background:var(--chrome-2)}
+.cats .hint{font-size:11px;color:var(--muted);padding:8px 9px}
+.tiles{overflow:auto;padding:10px;display:grid;gap:10px;align-content:start}
+.tiles.two{grid-template-columns:1fr 1fr}
+.tile{border:1px solid var(--line);border-radius:9px;background:var(--chrome);padding:10px 8px;text-align:center;color:var(--fg);display:flex;flex-direction:column;gap:6px;align-items:center}
+.tile:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.tile .glyph{font-size:18px;color:var(--muted);height:22px;display:grid;place-items:center}
+.thumb{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff;cursor:pointer;text-align:left;padding:0;display:block;width:100%}
+.thumb:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.thumb .shot{height:120px;overflow:hidden;position:relative;pointer-events:none}
+.thumb .shot>div{transform:scale(.24);transform-origin:top left;width:416.6%;}
+.thumb .cap{padding:7px 9px;font-size:12px;color:#1d2433;border-top:1px solid #e3e7ee;background:#fff}
+.widths{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px}
+.wbar{height:16px;display:flex;justify-content:center;align-items:center}
+.wbar i{display:block;height:8px;background:#cfd6e2;border-radius:3px}
+/* canvas */
+.stage{overflow:auto;min-width:0;position:relative;padding:18px}
+.frame{margin:0 auto;background:#fff;box-shadow:var(--shadow);transition:width .2s ease;min-height:100%;position:relative}
+.pg{--hf:"Inter",sans-serif;--cf:"Inter",sans-serif;--tc:#111827;--lc:#2563eb;color:var(--tc);font-family:var(--cf);font-size:16px;line-height:1.5;color-scheme:light}
+.pg h1,.pg h2,.pg h3{font-family:var(--hf);margin:0;line-height:1.15;text-wrap:balance}
+.pg p{margin:0}
+.pg a{color:var(--lc)}
+.n{position:relative}
+.n.sec{padding:56px 24px}
+.n.sec .wrap{margin:0 auto}
+.n.row{display:grid;gap:24px}
+.n.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.n.el{min-width:0}
+/* hover + select outlines */
+.n.hov::after,.n.sel::after{content:"";position:absolute;inset:0;pointer-events:none;border:1px dashed var(--c);z-index:5}
+.n.sel::after{border:2px solid var(--c)}
+.n.sec{--c:var(--sec)} .n.row{--c:var(--row)} .n.col{--c:var(--col)} .n.el{--c:var(--el)}
+.tag{position:absolute;right:0;bottom:-1px;transform:translateY(100%);background:var(--c);color:#fff;font:600 10px/1 var(--ui);padding:3px 6px;border-radius:0 0 4px 4px;z-index:7;pointer-events:none}
+.tb{position:absolute;top:-1px;transform:translateY(-100%);display:flex;gap:1px;background:var(--c);border-radius:5px 5px 0 0;padding:2px;z-index:8}
+.tb.l{left:0} .tb.r{right:0}
+.tb button{border:0;background:none;color:#fff;width:24px;height:22px;border-radius:4px;display:grid;place-items:center;font:600 12px/1 var(--ui)}
+.tb button:hover{background:rgba(255,255,255,.2)}
+.plus{position:absolute;left:50%;bottom:0;transform:translate(-50%,50%);width:22px;height:22px;border-radius:50%;border:0;background:var(--c);color:#fff;font:700 15px/1 var(--ui);z-index:9;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.plus:hover{transform:translate(-50%,50%) scale(1.12)}
+[contenteditable="true"]{outline:none;cursor:text}
+/* page elements */
+.e-btn{display:inline-flex;flex-direction:column;align-items:center;border:0;border-radius:10px;padding:14px 28px;font-weight:700;font-family:var(--hf);cursor:default}
+.e-btn small{font-weight:500;font-size:12px;opacity:.85}
+.e-img{width:100%;border-radius:12px;aspect-ratio:16/10;display:grid;place-items:center;font:600 13px var(--ui);color:#fff}
+.e-list{margin:0;padding-left:0;list-style:none;display:grid;gap:8px}
+.e-list li{display:flex;gap:10px;align-items:flex-start}
+.e-list li::before{content:"✓";flex:none;width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-size:12px;display:grid;place-items:center;margin-top:2px}
+.e-form{display:grid;gap:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:20px}
+.e-form label{display:grid;gap:4px;font-size:14px;font-weight:600}
+.e-form .inp{height:44px;border:1px solid #d1d5db;border-radius:8px;background:#fff}
+.e-form .chk{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:400}
+.e-form .chk i{width:16px;height:16px;border:1px solid #9ca3af;border-radius:4px;display:inline-block}
+.e-form .sub{height:48px;border-radius:10px;background:#111827;color:#fff;display:grid;place-items:center;font-weight:700}
+.e-faq{display:grid;gap:8px}
+.e-faq details{border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fff}
+.e-faq summary{font-weight:700;cursor:pointer}
+.e-cd{display:flex;gap:10px;justify-content:center}
+.e-cd div{min-width:64px;background:#111827;color:#fff;border-radius:10px;padding:10px;text-align:center;font-variant-numeric:tabular-nums}
+.e-cd b{display:block;font:800 26px var(--hf)}
+.e-cd span{font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
+.e-div{height:1px;background:#e5e7eb;width:100%}
+.e-vid{aspect-ratio:16/9;border-radius:12px;background:#0f172a;color:#cbd5e1;display:grid;place-items:center;font:600 14px var(--ui)}
+.mv{color:#9333ea;background:#f3e8ff;border-radius:4px;padding:0 3px;font-weight:600}
+@keyframes a-fade{from{opacity:0}to{opacity:1}}
+@keyframes a-up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes a-zoom{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+@keyframes a-left{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pg *{animation:none!important}}
+/* popup in canvas */
+.pop-back{position:absolute;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;padding-top:80px;z-index:20}
+.pop{background:#fff;border-radius:16px;width:min(520px,90%);position:relative;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.pop .pclose{position:absolute;right:10px;top:8px;border:0;background:none;font-size:20px;color:#6b7280;z-index:12}
+/* right panel */
+.side{width:300px;background:var(--chrome);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.side.closed{display:none}
+.side h2{margin:0;font-size:14px;padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.side h2 .dot{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.side h2 .grow{flex:1}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;border:0;background:none;padding:9px 0;color:var(--muted);border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--accent);border-color:var(--accent);font-weight:600}
+.sbody{overflow:auto;flex:1;min-height:0}
+.grp{border-bottom:1px solid var(--line)}
+.grp>summary{list-style:none;padding:11px 14px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between}
+.grp>summary::after{content:"▾";color:var(--muted)}
+.grp:not([open])>summary::after{content:"▸"}
+.grp .gb{padding:2px 14px 14px;display:grid;gap:12px}
+.f{display:grid;gap:5px}
+.f>span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dev{border:1px solid var(--line);border-radius:5px;font-size:10px;padding:1px 5px;color:var(--muted)}
+.inp2{border:1px solid var(--line);border-radius:7px;padding:7px 9px;background:var(--chrome);width:100%;box-sizing:border-box}
+.slider{display:grid;grid-template-columns:1fr 64px;gap:8px;align-items:center}
+.slider input[type=range]{width:100%;accent-color:var(--accent)}
+.unit{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.unit input{border:0;width:100%;padding:6px 6px;background:var(--chrome);font-variant-numeric:tabular-nums}
+.unit em{font-style:normal;color:var(--muted);padding:6px 6px;background:var(--chrome-2);font-size:11px}
+.sw{display:flex;justify-content:space-between;align-items:center}
+.sw input[type=color]{width:34px;height:26px;border:1px solid var(--line);border-radius:6px;padding:0;background:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--chrome);border-radius:7px;padding:6px 9px}
+.chips button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.box{border:1px dashed var(--line);border-radius:8px;padding:10px;display:grid;grid-template-columns:44px 1fr 44px;grid-template-rows:auto 1fr auto;gap:6px;align-items:center;text-align:center;font-size:11px;color:var(--muted)}
+.box .lbl{grid-column:1/-1;text-align:left;font-size:10px;letter-spacing:.06em}
+.box .inner{border:1px dashed var(--line);border-radius:6px;padding:8px;display:grid;grid-template-columns:40px 1fr 40px;gap:4px;align-items:center}
+.box input{width:100%;text-align:center;border:1px solid var(--line);border-radius:5px;padding:3px 0;background:var(--chrome);font-size:11px;font-variant-numeric:tabular-nums}
+.box .core{height:20px;border:1px solid var(--line);border-radius:4px;background:var(--chrome-2)}
+.note{font-size:12px;color:var(--muted);line-height:1.45}
+.empty{padding:28px 18px;color:var(--muted);text-align:center;line-height:1.5}
+.list{display:grid;gap:6px;padding:12px}
+.li{border:1px solid var(--line);border-radius:8px;padding:9px 10px;display:flex;align-items:center;gap:8px;background:var(--chrome)}
+.li .grow{flex:1;min-width:0}
+.li code{font-size:11px;color:#9333ea}
+.tree{padding:8px 10px;font-size:12px}
+.tree button{display:flex;gap:6px;align-items:center;width:100%;text-align:left;border:0;background:none;border-radius:5px;padding:4px 6px}
+.tree button:hover,.tree button[aria-current="true"]{background:var(--chrome-2)}
+.tree i{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
+/* inline text toolbar */
+.rte{position:fixed;z-index:50;background:var(--chrome);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:9px;display:flex;align-items:center;gap:2px;padding:4px}
+.rte button,.rte select{border:0;background:none;height:28px;min-width:28px;border-radius:6px;padding:0 6px}
+.rte button:hover{background:var(--chrome-2)}
+.rte .s{width:1px;height:18px;background:var(--line);margin:0 3px}
+.menu{position:fixed;z-index:60;background:var(--chrome);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:10px;padding:6px;width:220px;max-height:340px;overflow:auto}
+.menu h3{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 8px}
+.menu button{display:flex;gap:8px;align-items:center;width:100%;border:0;background:none;text-align:left;padding:7px 8px;border-radius:6px}
+.menu button:hover{background:var(--chrome-2)}
+/* breadcrumb */
+.crumb{background:var(--chrome);border-top:1px solid var(--line);display:flex;align-items:center;gap:4px;padding:5px max(12px,env(safe-area-inset-left,0px));font-size:12px;overflow-x:auto;white-space:nowrap}
+.crumb button{border:0;background:none;border-radius:5px;padding:3px 6px;color:var(--muted);display:inline-flex;gap:5px;align-items:center}
+.crumb button:hover{background:var(--chrome-2);color:var(--fg)}
+.crumb button.cur{color:var(--fg);font-weight:600;background:var(--chrome-2)}
+.crumb .sepc{color:var(--muted)}
+.crumb i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.ghost{position:fixed;z-index:90;pointer-events:none;background:var(--chrome);border:1px solid var(--accent);color:var(--fg);border-radius:8px;padding:7px 11px;font-weight:600;box-shadow:var(--shadow);transform:translate(12px,12px);white-space:nowrap}
+.dropline{position:fixed;z-index:85;pointer-events:none;height:4px;border-radius:4px;background:var(--dl,#2563eb);box-shadow:0 0 0 3px rgba(37,99,235,.2)}
+.dropline::before{content:attr(data-label);position:absolute;left:50%;top:-22px;transform:translateX(-50%);background:var(--dl,#2563eb);color:#fff;font:600 10px/1 var(--ui);padding:4px 7px;border-radius:4px;white-space:nowrap}
+.dragging,.dragging *{user-select:none;cursor:grabbing!important}
+.dragging .n.col:empty,.dragging .n.col{outline:1px dashed rgba(147,51,234,.35);outline-offset:-1px}
+.n.ghosted{opacity:.35}
+.tb button[data-drag]{cursor:grab}
+[data-addel],[data-addrow],[data-addsec],[data-lib]{touch-action:none;cursor:grab}
+.toast{position:fixed;left:50%;bottom:48px;transform:translateX(-50%);background:#111827;color:#fff;padding:9px 14px;border-radius:9px;font-size:13px;z-index:80;opacity:0;transition:opacity .2s}
+.toast.on{opacity:1}
+.proto{position:fixed;right:12px;bottom:44px;z-index:70;background:#fef3c7;color:#78350f;border:1px solid #fcd34d;border-radius:8px;padding:6px 10px;font-size:12px;max-width:260px}
+@media (max-width:900px){
+  .side{position:fixed;right:0;top:0;bottom:0;z-index:40;box-shadow:var(--shadow);width:min(300px,92vw)}
+  .fly.open{width:min(340px,86vw)} .fly .in{width:min(340px,86vw)}
+  .hide-s{display:none}
+  .main{grid-template-columns:52px auto 1fr}
+}
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <button class="btn" id="back" type="button">← Back</button>
+    <span class="saved" id="saved">Saved</span>
+    <span class="grow"></span>
+    <select class="stepsel" id="stepSel" aria-label="Funnel step"></select>
+    <div class="seg hide-s" role="group" aria-label="Device">
+      <button type="button" data-dev="d" aria-pressed="true" title="Desktop">🖥 Desktop</button>
+      <button type="button" data-dev="t" aria-pressed="false" title="Tablet">Tablet</button>
+      <button type="button" data-dev="m" aria-pressed="false" title="Phone">Phone</button>
+    </div>
+    <span class="grow"></span>
+    <button class="btn icon" id="undo" type="button" title="Undo (Ctrl+Z)">↶</button>
+    <button class="btn icon" id="redo" type="button" title="Redo (Ctrl+Y)">↷</button>
+    <button class="btn" id="preview" type="button">Preview</button>
+    <button class="btn primary" id="publish" type="button">Publish</button>
+  </header>
+  <div class="urlbar"><span id="url">ai.thelead.io/claude-ai-mastery</span><span class="live">Live</span></div>
+  <div class="main">
+    <nav class="rail" aria-label="Builder tools">
+      <button type="button" data-fly="add" title="Add elements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button type="button" data-fly="layers" title="Layers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg></button>
+      <button type="button" data-fly="pages" title="Pages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg></button>
+      <span class="sep"></span>
+      <button type="button" data-fly="type" title="Typography &amp; colours"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6h14M12 6v13M9 19h6"/></svg></button>
+      <button type="button" data-fly="bg" title="Background"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg></button>
+      <button type="button" data-fly="popups" title="Popups"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="8" rx="1"/></svg></button>
+      <button type="button" data-fly="values" title="Custom values"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4c-2 0-3 1-3 3v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 2-1 3-3 3"/></svg></button>
+      <button type="button" data-fly="seo" title="SEO"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+      <button type="button" data-fly="track" title="Tracking pixels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></button>
+    </nav>
+    <aside class="fly" id="fly" aria-label="Tool panel"><div class="in" id="flyIn"></div></aside>
+    <main class="stage" id="stage"><div class="frame" id="frame"><div class="pg" id="pg"></div></div></main>
+    <aside class="side" id="side" aria-label="Settings"></aside>
+  </div>
+  <footer class="crumb" id="crumb"></footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<div class="proto">Prototype for review: nothing here is saved or published.</div>
+
+<script>
+"use strict";
+// ---------- data ----------
+let uid = 1; const id = p => p + (uid++);
+const FONTS = ["Inter","Poppins","Montserrat"];
+const DEV_W = {d:1200, t:768, m:390};
+const ANIMS = {none:"None", fade:"Fade in", up:"Slide up", left:"Slide in from left", zoom:"Zoom in"};
+const values = [
+  {key:"course_name", label:"Course name", val:"Claude AI Mastery"},
+  {key:"class_dates", label:"Class dates", val:"14–15 Nov 2026"},
+  {key:"venue", label:"Venue", val:"AI365 Hub, Oval Damansara"},
+  {key:"price", label:"Price", val:"RM 3,200"}
+];
+const site = {hf:"Montserrat", cf:"Inter", tc:"#111827", lc:"#2563eb", bg:"#ffffff"};
+const R = (n,d) => ({d:n, t:d?.t ?? null, m:d?.m ?? null}); // responsive value
+
+function el(type, props={}){ return {id:id("e"), kind:"el", type, name:ELS[type].label, anim:"none", style:{mt:0,mb:0,pt:0,pb:0,pl:0,pr:0,radius:0,bg:""}, props:{...ELS[type].def(), ...props}}; }
+function col(els, w){ return {id:id("c"), kind:"col", name:"Column", w:w||null, style:{pt:0,pb:0,pl:0,pr:0,bg:"",radius:0}, els}; }
+function row(cols, preset){ return {id:id("r"), kind:"row", name: cols.length+" Column Row", preset: preset||String(cols.length), gap:24, style:{mt:0,mb:0,valign:"start"}, cols}; }
+function sec(name, rows, o={}){ return {id:id("s"), kind:"sec", name, width:o.width||"wide", bg:o.bg||"#ffffff", textOnDark:!!o.dark, style:{pt:o.pt??64, pb:o.pb??64}, anim:"none", hideOn:{d:false,t:false,m:false}, rows}; }
+
+const ELS = {
+  headline:{label:"Headline", glyph:"H", def:()=>({text:"Your headline", size:R(44,{m:30}), weight:800, align:"left", color:"", font:"hf"})},
+  sub:{label:"Sub-headline", glyph:"T", def:()=>({text:"Sub-headline", size:R(22,{m:18}), weight:600, align:"left", color:"", font:"hf"})},
+  para:{label:"Paragraph", glyph:"¶", def:()=>({text:"Write something useful here.", size:R(17,{m:16}), weight:400, align:"left", color:"", font:"cf"})},
+  list:{label:"Bullet list", glyph:"☰", def:()=>({items:["First point","Second point","Third point"], size:R(17), color:""})},
+  button:{label:"Button", glyph:"▭", def:()=>({text:"Sign up now", sub:"", action:"form", url:"", bg:"#facc15", fg:"#111827", size:R(18), align:"left", full:false})},
+  image:{label:"Image", glyph:"▧", def:()=>({alt:"Image", tone:"#6d28d9", caption:"Image"})},
+  video:{label:"Video", glyph:"▶", def:()=>({url:"https://youtube.com/…"})},
+  form:{label:"LEAD form", glyph:"✉", def:()=>({kind:"workshop", title:"Claude AI Masterclass", date:"2026-11-28", lang:"en", button:"Save my seat"})},
+  order:{label:"Order form", glyph:"🛒", def:()=>({classCode:"claude-ai-mastery-2026-11-28-zh", button:"Pay now"})},
+  faq:{label:"FAQ", glyph:"?", def:()=>({items:[["Do I need coding experience?","[Placeholder answer]"],["Is HRDC claimable?","[Placeholder answer]"]]})},
+  countdown:{label:"Countdown", glyph:"⏱", def:()=>({to:"2026-11-28T09:00"})},
+  divider:{label:"Divider", glyph:"―", def:()=>({})}
+};
+
+function pageHome(){ return [
+  sec("Hero", [row([col([
+      el("sub",{text:"2-DAY WORKSHOP · {{class_dates}}", size:R(14), weight:700, color:"#fde68a"}),
+      el("headline",{text:"{{course_name}}: build real AI workflows in 2 days", color:"#ffffff", size:R(48,{m:30})}),
+      el("para",{text:"Hands-on with Claude, from prompts to agents. Leave with working automations for your own business.", color:"#e9d5ff"}),
+      el("button",{text:"Save my seat", sub:"Limited seats", bg:"#facc15"})
+    ]), col([el("image",{caption:"Trainer photo", tone:"#7c3aed"})])],"2")],
+    {bg:"#3b0764", dark:true, pt:72, pb:72}),
+  sec("Course details", [row([col([
+      el("headline",{text:"When and where", size:R(32,{m:24}), align:"center"}),
+      el("para",{text:"📅 {{class_dates}} · 9:00 AM – 5:00 PM<br>📍 {{venue}}", align:"center"}),
+      el("countdown"),
+    ])])], {bg:"#ffffff"}),
+  sec("For who", [row([col([el("image",{caption:"Illustration", tone:"#0ea5e9"})]), col([
+      el("headline",{text:"Who should attend?", size:R(30,{m:24})}),
+      el("list",{items:["Founders who want to ship without a dev team","Managers automating reports and follow-ups","Marketers producing content with AI"]})
+    ])],"2")], {bg:"#f8fafc"}),
+  sec("Sign up", [row([col([
+      el("headline",{text:"Reserve your seat", size:R(30,{m:24}), align:"center"}),
+      el("form")
+    ])])], {bg:"#ffffff", width:"medium"}),
+  sec("FAQ", [row([col([el("headline",{text:"Questions", size:R(30), align:"center"}), el("faq")])])], {bg:"#f8fafc", width:"medium"})
+];}
+function pagePayment(){ return [ sec("Checkout", [row([col([
+  el("headline",{text:"Complete your registration", size:R(34,{m:26}), align:"center"}),
+  el("para",{text:"{{course_name}} · {{class_dates}} · {{price}}", align:"center"}),
+  el("order")])])], {width:"medium", bg:"#f8fafc"})];}
+function pageThanks(){ return [ sec("Thank you", [row([col([
+  el("headline",{text:"You're in! 🎉", size:R(40), align:"center"}),
+  el("para",{text:"Check WhatsApp for your joining details for {{course_name}}.", align:"center"}),
+  el("button",{text:"Join the WhatsApp group", bg:"#16a34a", fg:"#ffffff", align:"center", action:"url"})])])], {width:"medium"})];}
+
+const steps = [
+  {id:"home", name:"Home", path:"/claude-ai-mastery", sections:pageHome()},
+  {id:"pay", name:"Payment Form", path:"/claude-ai-mastery/payment", sections:pagePayment()},
+  {id:"thanks", name:"Thank You", path:"/claude-ai-mastery/thank-you", sections:pageThanks()}
+];
+const popups = [{id:"p1", name:"Exit offer", trigger:"exit", show:false, sections:[sec("Popup",[row([col([
+  el("headline",{text:"Wait! Get the free syllabus", size:R(26), align:"center"}),
+  el("para",{text:"We'll WhatsApp you the full {{course_name}} outline.", align:"center"}),
+  el("form",{kind:"interest", button:"Send me the syllabus"})])])],{pt:36,pb:36})]}];
+
+// prebuilt sections library (all copy marked as placeholder)
+const LIB = {
+  "Hero":[()=>sec("Hero",[row([col([el("headline",{text:"[Course title] in 2 days",color:"#fff"}),el("para",{text:"[One line on who it is for]",color:"#e2e8f0"}),el("button",{text:"Save my seat"})]),col([el("image",{tone:"#334155",caption:"Hero image"})])],"2")],{bg:"#0f172a",dark:true}),
+          ()=>sec("Hero centered",[row([col([el("headline",{text:"[Workshop title]",align:"center"}),el("para",{text:"[Date · venue]",align:"center"}),el("button",{text:"Register",align:"center"})])])],{bg:"#fef9c3"})],
+  "Call to action":[()=>sec("CTA",[row([col([el("headline",{text:"[Seats are limited]",align:"center",color:"#fff"}),el("button",{text:"Save my seat",align:"center"})])])],{bg:"#1d4ed8",dark:true})],
+  "For who":[()=>sec("For who",[row([col([el("headline",{text:"Who is this for?",align:"center"})])]),row([col([el("sub",{text:"[Audience 1]"}),el("para",{text:"[Why it helps them]"})]),col([el("sub",{text:"[Audience 2]"}),el("para",{text:"[Why it helps them]"})]),col([el("sub",{text:"[Audience 3]"}),el("para",{text:"[Why it helps them]"})])],"3")],{bg:"#f8fafc"})],
+  "Course details":[()=>sec("Details",[row([col([el("headline",{text:"What you'll learn"}),el("list",{items:["[Outcome 1]","[Outcome 2]","[Outcome 3]"]})]),col([el("headline",{text:"Schedule"}),el("para",{text:"[Day 1 · topics]<br>[Day 2 · topics]"})])],"2")])],
+  "Trainer":[()=>sec("Trainer",[row([col([el("image",{tone:"#7c3aed",caption:"Trainer photo"})],"33"),col([el("sub",{text:"YOUR TRAINER"}),el("headline",{text:"[Trainer name]"}),el("para",{text:"[Short bio — real credentials only]"})],"67")],"1/3+2/3")])],
+  "Testimonials":[()=>sec("Testimonials",[row([col([el("headline",{text:"What students say",align:"center"}),el("para",{text:"[Paste a real student quote — no made-up reviews]",align:"center"})])])],{bg:"#f8fafc"})],
+  "Pricing":[()=>sec("Pricing",[row([col([el("headline",{text:"[Price]",align:"center"}),el("list",{items:["[What's included]","[What's included]"]}),el("button",{text:"Enrol now",align:"center"})])])],{width:"small"})],
+  "FAQs":[()=>sec("FAQ",[row([col([el("headline",{text:"FAQs",align:"center"}),el("faq")])])],{width:"medium"})],
+  "Sign-up form":[()=>sec("Form",[row([col([el("headline",{text:"Register",align:"center"}),el("form")])])],{width:"small",bg:"#f8fafc"})],
+  "Countdown":[()=>sec("Countdown",[row([col([el("sub",{text:"Doors close in",align:"center"}),el("countdown")])])],{bg:"#fff7ed"})],
+  "Footer":[()=>sec("Footer",[row([col([el("para",{text:"© LEAD · [Company no.] · <a href='#'>Privacy policy</a>",size:R(13),color:"#cbd5e1",align:"center"})])])],{bg:"#0f172a",dark:true,pt:28,pb:28})]
+};
+
+// ---------- state ----------
+const st = {step:0, dev:"d", sel:null, hov:null, fly:null, tab:"general", popup:null, editing:null};
+let hist = [], fut = [];
+const cur = () => st.popup ? popups.find(p=>p.id===st.popup).sections : steps[st.step].sections;
+
+function snap(){ return JSON.stringify({steps, popups, site, values}); }
+function restore(s){ const o = JSON.parse(s); steps.splice(0,steps.length,...o.steps); popups.splice(0,popups.length,...o.popups); Object.assign(site,o.site); values.splice(0,values.length,...o.values); }
+function commit(){ hist.push(lastSnap); if(hist.length>80) hist.shift(); fut = []; lastSnap = snap(); markDirty(); syncUndo(); }
+let lastSnap;
+
+// ---------- lookup ----------
+function walk(fn){ for(const s of cur()){ fn(s,null); for(const r of s.rows){ fn(r,s); for(const c of r.cols){ fn(c,r); for(const e of c.els) fn(e,c);} } } }
+function find(nid){ let hit=null; walk((n,p)=>{ if(n.id===nid) hit={n,p}; }); return hit; }
+function path(nid){ const out=[]; for(const s of cur()) for(const r of s.rows) for(const c of r.cols){
+  if(s.id===nid) return [s]; if(r.id===nid) return [s,r]; if(c.id===nid) return [s,r,c];
+  for(const e of c.els) if(e.id===nid) return [s,r,c,e]; } return out; }
+const listOf = (n,p) => n.kind==="sec" ? cur() : n.kind==="row" ? p.rows : n.kind==="col" ? p.cols : p.els;
+const resp = v => (typeof v==="object" && v) ? (st.dev==="m" ? (v.m ?? v.t ?? v.d) : st.dev==="t" ? (v.t ?? v.d) : v.d) : v;
+
+// ---------- render page ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function mv(text){ // render merge values as chips (text is trusted demo copy with <br>/<a>)
+  return text.replace(/\{\{(\w+)\}\}/g,(m,k)=>{ const v = values.find(x=>x.key===k); return `<span class="mv" contenteditable="false" title="Custom value {{${k}}}">${esc(v?v.val:m)}</span>`; });
+}
+const WIDTH = {full:"100%", wide:"1140px", medium:"820px", small:"560px"};
+const colsFor = (r) => { const n=r.cols.length; if(st.dev==="m") return "1fr";
+  if(r.preset==="1/3+2/3") return "1fr 2fr"; if(r.preset==="2/3+1/3") return "2fr 1fr"; return `repeat(${n},minmax(0,1fr))`; };
+const pad = s => `${s.pt||0}px ${s.pr||0}px ${s.pb||0}px ${s.pl||0}px`;
+
+function rEl(e){
+  const p = e.props, size = resp(p.size), anim = e.anim!=="none" ? `animation:a-${e.anim} .7s ease both;` : "";
+  const box = `margin:${e.style.mt}px 0 ${e.style.mb}px;padding:${pad(e.style)};${e.style.bg?`background:${e.style.bg};`:""}${e.style.radius?`border-radius:${e.style.radius}px;`:""}${anim}`;
+  const color = p.color ? `color:${p.color};` : "";
+  let inner = "";
+  switch(e.type){
+    case "headline": inner = `<h2 data-text style="font-family:var(--${p.font});font-size:${size}px;font-weight:${p.weight};text-align:${p.align};${color}">${mv(p.text)}</h2>`; break;
+    case "sub": inner = `<h3 data-text style="font-family:var(--${p.font});font-size:${size}px;font-weight:${p.weight};text-align:${p.align};${color}">${mv(p.text)}</h3>`; break;
+    case "para": inner = `<p data-text style="font-family:var(--${p.font});font-size:${size}px;font-weight:${p.weight};text-align:${p.align};${color}">${mv(p.text)}</p>`; break;
+    case "list": inner = `<ul class="e-list" style="font-size:${size}px;${color}">${p.items.map(i=>`<li>${mv(esc(i))}</li>`).join("")}</ul>`; break;
+    case "button": inner = `<div style="text-align:${p.align}"><span class="e-btn" style="background:${p.bg};color:${p.fg};font-size:${size}px;${p.full?"width:100%;box-sizing:border-box;":""}">${esc(p.text)}${p.sub?`<small>${esc(p.sub)}</small>`:""}</span></div>`; break;
+    case "image": inner = `<div class="e-img" role="img" aria-label="${esc(p.alt)}" style="background:linear-gradient(135deg,${p.tone},#111827)">${esc(p.caption)}</div>`; break;
+    case "video": inner = `<div class="e-vid">▶ Video · ${esc(p.url)}</div>`; break;
+    case "form": inner = `<div class="e-form"><label>Full name<span class="inp"></span></label><label>Email<span class="inp"></span></label><label>Phone (WhatsApp)<span class="inp"></span></label><span class="chk"><i></i>I agree to receive marketing messages from LEAD.</span><span class="sub">${esc(p.button)}</span></div>`; break;
+    case "order": inner = `<div class="e-form"><div style="display:flex;justify-content:space-between;font-weight:700"><span>${mv("{{course_name}}")}</span><span>${mv("{{price}}")}</span></div><label>Full name<span class="inp"></span></label><label>Email<span class="inp"></span></label><label>Phone<span class="inp"></span></label><span class="chk"><i></i>I agree to receive marketing messages from LEAD.</span><span class="sub" style="background:#16a34a">${esc(p.button)} · Stripe</span></div>`; break;
+    case "faq": inner = `<div class="e-faq">${p.items.map(([q,a])=>`<details><summary>${esc(q)}</summary><p style="margin-top:6px">${esc(a)}</p></details>`).join("")}</div>`; break;
+    case "countdown": inner = `<div class="e-cd" data-cd="${esc(p.to)}"></div>`; break;
+    case "divider": inner = `<div class="e-div"></div>`; break;
+  }
+  return `<div class="n el" data-id="${e.id}" style="${box}">${inner}</div>`;
+}
+function rCol(c){ return `<div class="n col" data-id="${c.id}" style="padding:${pad(c.style)};${c.style.bg?`background:${c.style.bg};`:""}${c.style.radius?`border-radius:${c.style.radius}px;`:""}">${c.els.map(rEl).join("")||`<div class="note" style="text-align:center;padding:18px;border:1px dashed #cbd5e1;border-radius:8px;color:#64748b">Empty column — click ＋ to add an element</div>`}</div>`; }
+function rRow(r){ return `<div class="n row" data-id="${r.id}" style="grid-template-columns:${colsFor(r)};gap:${r.gap}px;margin:${r.style.mt}px 0 ${r.style.mb}px;align-items:${r.style.valign}">${r.cols.map(rCol).join("")}</div>`; }
+function rSec(s){
+  if(s.hideOn[st.dev]) return `<div class="n sec" data-id="${s.id}" style="padding:10px;background:repeating-linear-gradient(45deg,#f1f5f9 0 8px,#e2e8f0 8px 16px);text-align:center;color:#475569;font:600 12px var(--ui)">${esc(s.name)} · hidden on this device</div>`;
+  const anim = s.anim!=="none" ? `animation:a-${s.anim} .8s ease both;` : "";
+  return `<section class="n sec" data-id="${s.id}" style="background:${s.bg};padding:${s.style.pt}px 24px ${s.style.pb}px;${anim}"><div class="wrap" style="max-width:${WIDTH[s.width]};display:grid;gap:20px">${s.rows.map(rRow).join("")}</div></section>`;
+}
+function renderPage(){
+  const pg = document.getElementById("pg");
+  pg.style.setProperty("--hf", `"${site.hf}",sans-serif`); pg.style.setProperty("--cf", `"${site.cf}",sans-serif`);
+  pg.style.setProperty("--tc", site.tc); pg.style.setProperty("--lc", site.lc); pg.style.background = site.bg;
+  document.getElementById("frame").style.width = Math.min(DEV_W[st.dev], document.getElementById("stage").clientWidth-36) + "px";
+  if(st.popup){
+    const p = popups.find(x=>x.id===st.popup);
+    pg.innerHTML = steps[st.step].sections.map(rSec).join("") + `<div class="pop-back"><div class="pop"><button class="pclose" type="button" data-closepop aria-label="Close popup editing">×</button>${p.sections.map(rSec).join("")}</div></div>`;
+    pg.querySelectorAll(":scope > .n").forEach(n=>{n.style.pointerEvents="none"; n.style.filter="blur(1px)"});
+  } else pg.innerHTML = cur().map(rSec).join("");
+  tickCountdowns(); decorate(); renderCrumb(); renderSide(); renderFly(true);
+  document.getElementById("url").textContent = "ai.thelead.io" + steps[st.step].path + (st.popup ? "  ·  editing popup: "+popups.find(x=>x.id===st.popup).name : "");
+}
+function tickCountdowns(){ document.querySelectorAll("[data-cd]").forEach(d=>{ const ms = Math.max(0, new Date(d.dataset.cd) - new Date()); const D=Math.floor(ms/864e5), H=Math.floor(ms/36e5)%24, M=Math.floor(ms/6e4)%60, S=Math.floor(ms/1e3)%60;
+  d.innerHTML = [[D,"days"],[H,"hrs"],[M,"min"],[S,"sec"]].map(([v,l])=>`<div><b>${String(v).padStart(2,"0")}</b><span>${l}</span></div>`).join(""); }); }
+setInterval(tickCountdowns, 1000);
+
+// ---------- selection chrome ----------
+const KIND = {sec:"Section", row:"Row", col:"Column", el:"Element"};
+function decorate(){
+  document.querySelectorAll(".n").forEach(n=>{ n.classList.toggle("sel", n.dataset.id===st.sel); n.classList.toggle("hov", n.dataset.id===st.hov && n.dataset.id!==st.sel); });
+  document.querySelectorAll(".tb,.tag,.plus").forEach(x=>x.remove());
+  const show = (nid, selected) => {
+    const node = document.querySelector(`.n[data-id="${nid}"]`); const hit = nid && find(nid); if(!node||!hit) return;
+    const n = hit.n, label = n.kind==="el" ? n.name : n.kind==="sec" ? "Section · "+n.name : n.name;
+    node.insertAdjacentHTML("beforeend", `<span class="tag">${esc(label)}</span>`);
+    node.insertAdjacentHTML("beforeend", `<button class="plus" type="button" data-plus="${nid}" title="Add ${n.kind==="sec"?"a section":n.kind==="row"?"a row":n.kind==="col"?"an element":"an element"} below">＋</button>`);
+    if(!selected) return;
+    node.insertAdjacentHTML("beforeend", `<div class="tb l"><button type="button" data-drag="${nid}" title="Drag to move" style="touch-action:none">⠿</button><button type="button" data-act="up" title="Move up">↑</button><button type="button" data-act="down" title="Move down">↓</button><button type="button" data-act="settings" title="Settings">⚙</button></div>
+      <div class="tb r"><button type="button" data-act="dup" title="Duplicate">⧉</button><button type="button" data-act="del" title="Delete">🗑</button></div>`);
+  };
+  if(st.hov && st.hov!==st.sel) show(st.hov,false);
+  if(st.sel) show(st.sel,true);
+}
+const pgEl = () => document.getElementById("pg");
+document.getElementById("stage").addEventListener("mouseover", ev=>{
+  if(st.editing) return; const n = ev.target.closest(".n"); const nid = n?.dataset.id || null;
+  if(nid!==st.hov){ st.hov = nid; decorate(); }
+});
+document.getElementById("stage").addEventListener("mouseleave", ()=>{ st.hov=null; decorate(); });
+document.getElementById("stage").addEventListener("click", ev=>{
+  if(ev.target.closest("[data-closepop]")){ st.popup=null; st.sel=null; renderPage(); return; }
+  const plus = ev.target.closest("[data-plus]"); if(plus){ ev.stopPropagation(); openInsert(plus.dataset.plus, plus); return; }
+  const act = ev.target.closest("[data-act]"); if(act){ ev.stopPropagation(); doAct(act.dataset.act); return; }
+  if(st.editing && ev.target.closest("[contenteditable=true]")) return;
+  const n = ev.target.closest(".n"); if(ev.target.closest("summary")) ev.preventDefault();
+  if(!n){ select(null); return; }
+  select(n.dataset.id);
+});
+document.getElementById("stage").addEventListener("dblclick", ev=>{
+  const t = ev.target.closest("[data-text]"); const n = ev.target.closest(".n.el"); if(!t||!n) return;
+  startEdit(n.dataset.id, t);
+});
+function select(nid){ if(st.editing) stopEdit(); st.sel = nid; if(nid) st.tab = st.tab || "general"; decorate(); renderCrumb(); renderSide(); renderFly(true); }
+
+function doAct(a){
+  const hit = find(st.sel); if(!hit) return; const list = listOf(hit.n, hit.p); const i = list.indexOf(hit.n);
+  if(a==="settings"){ document.getElementById("side").classList.remove("closed"); return; }
+  if(a==="up" && i>0){ [list[i-1],list[i]]=[list[i],list[i-1]]; }
+  else if(a==="down" && i<list.length-1){ [list[i+1],list[i]]=[list[i],list[i+1]]; }
+  else if(a==="dup"){ const c = clone(hit.n); list.splice(i+1,0,c); st.sel=c.id; }
+  else if(a==="del"){ if(hit.n.kind!=="el" && list.length===1){ toast("A "+KIND[hit.n.kind].toLowerCase()+" needs at least one sibling to delete — delete its parent instead."); return; } list.splice(i,1); st.sel=null; }
+  else return;
+  commit(); renderPage();
+}
+function clone(n){ const c = JSON.parse(JSON.stringify(n)); const re = x => { x.id = id(x.kind[0]); (x.rows||x.cols||x.els||[]).forEach(re); }; re(c); return c; }
+
+// ---------- inline text editing ----------
+let rteBar = null;
+function startEdit(nid, node){
+  stopEdit(); st.sel = nid; st.editing = {nid, node}; decorate();
+  node.setAttribute("contenteditable","true"); node.focus();
+  const r = node.getBoundingClientRect();
+  rteBar = document.createElement("div"); rteBar.className="rte"; rteBar.setAttribute("role","toolbar"); rteBar.setAttribute("aria-label","Text formatting");
+  rteBar.innerHTML = `<select aria-label="Font"><option value="hf">${site.hf} (headline font)</option><option value="cf">${site.cf} (content font)</option></select><span class="s"></span>
+    <button type="button" data-cmd="bold" title="Bold"><b>B</b></button><button type="button" data-cmd="italic" title="Italic"><i>I</i></button><button type="button" data-cmd="underline" title="Underline"><u>U</u></button><button type="button" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button><span class="s"></span>
+    <button type="button" data-cmd="link" title="Link">🔗</button><button type="button" data-cmd="mv" title="Insert custom value">{ }</button><span class="s"></span><button type="button" data-cmd="done" title="Done">Done</button>`;
+  document.body.appendChild(rteBar);
+  rteBar.style.left = Math.max(8, Math.min(innerWidth-440, r.left)) + "px"; rteBar.style.top = Math.max(8, r.top - 46) + "px";
+  rteBar.querySelector("select").value = find(nid).n.props.font || "cf";
+  rteBar.querySelector("select").addEventListener("change", e=>{ find(nid).n.props.font = e.target.value; node.style.fontFamily = `var(--${e.target.value})`; });
+  rteBar.addEventListener("mousedown", e=>{ if(e.target.closest("button")) e.preventDefault(); });
+  rteBar.addEventListener("click", e=>{ const b = e.target.closest("button"); if(!b) return; const c = b.dataset.cmd;
+    if(c==="done") return stopEdit();
+    if(c==="link"){ const u = "https://"; document.execCommand("createLink", false, u); return; }
+    if(c==="mv") return valueMenu(b, k=>{ document.execCommand("insertText", false, `{{${k}}}`); });
+    document.execCommand(c); });
+}
+function stopEdit(){
+  if(!st.editing) return; const {nid,node} = st.editing; st.editing=null;
+  // turn chips back into {{keys}}
+  node.querySelectorAll(".mv").forEach(ch=>{ const k = ch.title.match(/\{\{(\w+)\}\}/)[1]; ch.replaceWith(`{{${k}}}`); });
+  const hit = find(nid); const html = node.innerHTML.replace(/&nbsp;/g," ");
+  rteBar?.remove(); rteBar=null; node.removeAttribute("contenteditable");
+  if(hit && hit.n.props.text !== html){ hit.n.props.text = html; commit(); }
+  renderPage();
+}
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape" && st.editing) stopEdit();
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="z" && !st.editing){ e.preventDefault(); undo(); }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="y" && !st.editing){ e.preventDefault(); redo(); }
+  if(e.key==="Delete" && st.sel && !st.editing && document.activeElement===document.body) doAct("del");
+});
+
+// ---------- insert menus ----------
+let menuEl = null;
+function closeMenu(){ menuEl?.remove(); menuEl=null; }
+document.addEventListener("click", e=>{ if(menuEl && !menuEl.contains(e.target) && !e.target.closest("[data-plus],[data-cmd=mv]")) closeMenu(); }, true);
+function placeMenu(anchor){ const r = anchor.getBoundingClientRect(); document.body.appendChild(menuEl);
+  menuEl.style.left = Math.max(8, Math.min(innerWidth-230, r.left-100))+"px"; menuEl.style.top = Math.min(innerHeight-350, r.bottom+6)+"px"; }
+function openInsert(nid, anchor){
+  closeMenu(); const hit = find(nid); const n = hit.n;
+  menuEl = document.createElement("div"); menuEl.className="menu"; menuEl.setAttribute("role","menu");
+  if(n.kind==="sec"){
+    menuEl.innerHTML = `<h3>Add a section below</h3>` + ["full","wide","medium","small"].map(w=>`<button type="button" data-w="${w}">▭ ${w[0].toUpperCase()+w.slice(1)} width (empty)</button>`).join("") + `<h3>Or</h3><button type="button" data-lib>Browse prebuilt sections…</button>`;
+    menuEl.addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return;
+      if(b.hasAttribute("data-lib")){ closeMenu(); st.insertAfter = nid; openFly("add","Prebuilt sections"); return; }
+      const s = sec("New section",[row([col([])])],{width:b.dataset.w}); const list = cur(); list.splice(list.indexOf(n)+1,0,s); st.sel=s.id; closeMenu(); commit(); renderPage(); });
+  } else if(n.kind==="row"){
+    menuEl.innerHTML = `<h3>Add a row below</h3>` + ["1","2","3","4","1/3+2/3","2/3+1/3"].map(p=>`<button type="button" data-p="${p}">▤ ${p.includes("/")?p:p+" column"+(p==="1"?"":"s")}</button>`).join("");
+    menuEl.addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; const p=b.dataset.p; const k = p.includes("/")?2:+p;
+      const r = row(Array.from({length:k},()=>col([])), p); hit.p.rows.splice(hit.p.rows.indexOf(n)+1,0,r); st.sel=r.id; closeMenu(); commit(); renderPage(); });
+  } else {
+    const target = n.kind==="col" ? n : hit.p; const at = n.kind==="col" ? n.els.length : target.els.indexOf(n)+1;
+    menuEl.innerHTML = `<h3>Add an element</h3>` + Object.entries(ELS).map(([k,v])=>`<button type="button" data-t="${k}"><span style="width:18px;text-align:center">${v.glyph}</span>${v.label}</button>`).join("");
+    menuEl.addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; const x = el(b.dataset.t); target.els.splice(at,0,x); st.sel=x.id; closeMenu(); commit(); renderPage(); });
+  }
+  placeMenu(anchor);
+}
+function valueMenu(anchor, pick){
+  closeMenu(); menuEl = document.createElement("div"); menuEl.className="menu";
+  menuEl.innerHTML = `<h3>Insert custom value</h3>` + values.map(v=>`<button type="button" data-k="${v.key}"><code style="color:#9333ea">{{${v.key}}}</code> ${esc(v.val)}</button>`).join("");
+  menuEl.addEventListener("mousedown", e=>e.preventDefault());
+  menuEl.addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; pick(b.dataset.k); closeMenu(); });
+  placeMenu(anchor);
+}
+
+// ---------- right settings panel ----------
+const C = {sec:"var(--sec)", row:"var(--row)", col:"var(--col)", el:"var(--el)"};
+function devTag(){ return `<span class="dev" title="This value is for ${({d:"desktop",t:"tablet",m:"phone"})[st.dev]}">${({d:"🖥",t:"Tablet",m:"📱"})[st.dev]}</span>`; }
+function slider(label, key, val, min, max, unit, responsive){
+  return `<label class="f"><span>${label}${responsive?devTag():""}</span><div class="slider"><input type="range" min="${min}" max="${max}" value="${val}" data-k="${key}" aria-label="${label}"><div class="unit"><input type="number" min="${min}" max="${max}" value="${val}" data-k="${key}" aria-label="${label} value"><em>${unit}</em></div></div></label>`;
+}
+function swatch(label,key,val){ return `<label class="sw"><span>${label}</span><input type="color" value="${val||"#111827"}" data-k="${key}"></label>`; }
+function chips(label,key,opts,val){ return `<div class="f"><span>${label}</span><div class="chips">${Object.entries(opts).map(([k,v])=>`<button type="button" data-chip="${key}" data-v="${k}" aria-pressed="${String(val)===k}">${v}</button>`).join("")}</div></div>`; }
+function select_(label,key,opts,val){ return `<label class="f"><span>${label}</span><select class="inp2" data-k="${key}">${Object.entries(opts).map(([k,v])=>`<option value="${k}" ${String(val)===k?"selected":""}>${v}</option>`).join("")}</select></label>`; }
+function text_(label,key,val,hint){ return `<label class="f"><span>${label}</span><input class="inp2" data-k="${key}" value="${esc(val??"")}">${hint?`<span class="note">${hint}</span>`:""}</label>`; }
+function spacing(o, keys){ const v = k => o[k]??0;
+  return `<div class="box"><span class="lbl">MARGIN</span><span></span><input data-k="style.${keys[0]}" value="${v(keys[0])}" aria-label="Margin top"><span></span>
+    <span>—</span><div class="inner"><span></span><input data-k="style.pt" value="${v("pt")}" aria-label="Padding top"><span></span><input data-k="style.pl" value="${v("pl")}" aria-label="Padding left"><div class="core"></div><input data-k="style.pr" value="${v("pr")}" aria-label="Padding right"><span></span><input data-k="style.pb" value="${v("pb")}" aria-label="Padding bottom"><span></span></div><span>—</span>
+    <span></span><input data-k="style.${keys[1]}" value="${v(keys[1])}" aria-label="Margin bottom"><span></span></div><span class="note">Inner box is padding, outer is margin (px).</span>`; }
+const grp = (title, body, open=true) => `<details class="grp" ${open?"open":""}><summary>${title}</summary><div class="gb">${body}</div></details>`;
+
+function renderSide(){
+  const side = document.getElementById("side"); const hit = st.sel && find(st.sel);
+  if(!hit){ side.innerHTML = `<h2><span class="grow">Settings</span></h2><div class="empty"><b>Nothing selected</b><br>Click any section, row, column or element on the page. Its settings appear here.<br><br><span style="display:inline-flex;gap:10px;flex-wrap:wrap;justify-content:center"><span style="color:var(--sec)">■ Section</span><span style="color:var(--row)">■ Row</span><span style="color:var(--col)">■ Column</span><span style="color:var(--el)">■ Element</span></span><br><br>Double-click text to type on the page.</div>`; return; }
+  const n = hit.n; side.style.setProperty("--c", C[n.kind]);
+  const head = `<h2><span class="dot"></span><span class="grow">${esc(n.kind==="sec"?"Section":n.name)}</span><button class="x" type="button" data-closeside aria-label="Close settings">×</button></h2>
+   <div class="tabs" role="tablist">${["general","styles","animations"].map(t=>`<button type="button" role="tab" data-tab="${t}" aria-selected="${st.tab===t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join("")}</div>`;
+  let body = "";
+  if(st.tab==="general"){
+    body += grp("Element", text_("Element name","name", n.name));
+    if(n.kind==="sec") body += grp("Layout", chips("Section width","width",{full:"Full",wide:"Wide",medium:"Medium",small:"Small"},n.width) + `<div class="f"><span>Hide on</span><div class="chips">${["d","t","m"].map(d=>`<button type="button" data-hide="${d}" aria-pressed="${n.hideOn[d]}">${({d:"Desktop",t:"Tablet",m:"Phone"})[d]}</button>`).join("")}</div></div>`);
+    if(n.kind==="row") body += grp("Columns", chips("Layout","preset",{"1":"1","2":"2","3":"3","4":"4","1/3+2/3":"⅓ ⅔","2/3+1/3":"⅔ ⅓"},n.preset) + slider("Gap between columns","gap",n.gap,0,80,"px") + chips("Vertical align","style.valign",{start:"Top",center:"Middle",end:"Bottom"},n.style.valign));
+    if(n.kind==="col") body += grp("Column", `<p class="note">Columns size themselves from the row layout. Change it on the row (blue).</p>`);
+    if(n.kind==="el"){ const p=n.props, t=n.type;
+      if(["headline","sub","para"].includes(t)) body += grp("Typography", select_("Typography type","props.font",{hf:`Headline font (${site.hf})`,cf:`Content font (${site.cf})`},p.font) + slider("Font size","props.size",resp(p.size),10,96,"px",true) + select_("Font weight","props.weight",{400:"400 - Regular",600:"600 - Semi-Bold",700:"700 - Bold",800:"800 - Extra-Bold"},p.weight) + chips("Alignment","props.align",{left:"Left",center:"Center",right:"Right"},p.align)) + grp("Colour", swatch("Text colour","props.color",p.color||site.tc) + `<p class="note">Double-click the text on the page to edit it. Use <b>{ }</b> in the text toolbar to insert a custom value.</p>`);
+      if(t==="list") body += grp("Items", `<label class="f"><span>One item per line</span><textarea class="inp2" rows="5" data-k="props.items">${esc(p.items.join("\n"))}</textarea></label>` + slider("Font size","props.size",resp(p.size),12,28,"px",true));
+      if(t==="button") body += grp("Button", text_("Text","props.text",p.text) + text_("Sub-text","props.sub",p.sub,"Small line under the main text, e.g. “Limited seats”.") + select_("When clicked","props.action",{form:"Scroll to this page's form",next:"Go to next funnel step",popup:"Open popup: Exit offer",url:"Open a website"},p.action) + (p.action==="url"?text_("Website address","props.url",p.url||"https://"):"")) + grp("Look", swatch("Background","props.bg",p.bg) + swatch("Text","props.fg",p.fg) + slider("Font size","props.size",resp(p.size),12,32,"px",true) + chips("Alignment","props.align",{left:"Left",center:"Center",right:"Right"},p.align) + chips("Width","props.full",{false:"Fit text",true:"Full width"},p.full));
+      if(t==="image") body += grp("Image", `<button class="btn" type="button" style="justify-content:center">Upload image…</button>` + text_("Alt text (for screen readers & SEO)","props.alt",p.alt) + text_("Caption (prototype only)","props.caption",p.caption));
+      if(t==="video") body += grp("Video", text_("YouTube or Vimeo link","props.url",p.url));
+      if(t==="form") body += grp("LEAD form", select_("Form type","props.kind",{workshop:"Free workshop sign-up",interest:"Interest / lead magnet",enquiry:"Class enquiry"},p.kind) + (p.kind==="workshop" ? text_("Workshop title","props.title",p.title) + `<label class="f"><span>Workshop date</span><input class="inp2" type="date" data-k="props.date" value="${p.date}"></label>` + `<p class="note">Counts on Home → Free workshops as <code>LEAD - ${esc(p.title)} ${fmtDate(p.date)}</code></p>` : "") + text_("Button text","props.button",p.button) + `<p class="note">Name, email, phone and the marketing-consent box are always included. The lead goes to the CRM with its ad tracking.</p>`);
+      if(t==="order") body += grp("Order form", select_("Class","props.classCode",{"claude-ai-mastery-2026-11-28-zh":"Claude AI 实战课 · 28 Nov · RM 3,200","full-stack-building-14-15-Nov":"AI Full-Stack · 14–15 Nov","professional-ai-engineering-certification-2026-12-09-en":"Pro AI Engineering · 9 Dec"},p.classCode) + text_("Button text","props.button",p.button) + `<p class="note">Payment goes through the CRM's Stripe checkout, then to the Thank You step.</p>`);
+      if(t==="faq") body += grp("Questions", p.items.map(([q,a],i)=>`<div class="f"><span>Question ${i+1}</span><input class="inp2" data-faq="${i}" data-part="0" value="${esc(q)}"><textarea class="inp2" rows="2" data-faq="${i}" data-part="1">${esc(a)}</textarea></div>`).join("") + `<button class="btn" type="button" data-faqadd>＋ Add question</button>`);
+      if(t==="countdown") body += grp("Countdown", `<label class="f"><span>Counts down to</span><input class="inp2" type="datetime-local" data-k="props.to" value="${p.to}"></label>`);
+    }
+  } else if(st.tab==="styles"){
+    if(n.kind==="sec") body += grp("Background", swatch("Background colour","bg",n.bg) + `<button class="btn" type="button">Background image…</button>`) + grp("Spacing", slider("Padding top","style.pt",n.style.pt,0,200,"px",true) + slider("Padding bottom","style.pb",n.style.pb,0,200,"px",true));
+    else if(n.kind==="row") body += grp("Spacing", slider("Margin top","style.mt",n.style.mt,0,120,"px") + slider("Margin bottom","style.mb",n.style.mb,0,120,"px"));
+    else body += grp("Margin &amp; padding", spacing(n.style, n.kind==="col"?["mt","mb"]:["mt","mb"])) + grp("Background &amp; corners", swatch("Background","style.bg",n.style.bg||"#ffffff") + slider("Corner radius","style.radius",n.style.radius||0,0,40,"px"));
+  } else {
+    if(n.kind==="sec"||n.kind==="el") body += grp("Entrance animation", select_("Animation","anim",ANIMS,n.anim) + `<button class="btn" type="button" data-animprev>▶ Preview animation</button><p class="note">Plays once when the visitor scrolls to it. Turned off for visitors who ask their device for reduced motion.</p>`);
+    else body += `<div class="empty">Animations are set on sections and elements.</div>`;
+  }
+  side.innerHTML = head + `<div class="sbody">${body}</div>`;
+}
+const fmtDate = d => { const [y,m,dd] = d.split("-"); return `${+dd} ${"Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[m-1]} ${y}`; };
+function setPath(obj, key, v){ const ks = key.split("."); let o=obj; while(ks.length>1) o=o[ks.shift()]; const k=ks[0];
+  if(o[k] && typeof o[k]==="object" && "d" in o[k]) o[k][st.dev]=v; else o[k]=v; }
+const sideEl = document.getElementById("side");
+sideEl.addEventListener("input", e=>{ const k = e.target.dataset.k; const hit = find(st.sel); if(!hit) return;
+  if(e.target.dataset.faq!==undefined){ hit.n.props.items[+e.target.dataset.faq][+e.target.dataset.part]=e.target.value; softRender(); return; }
+  if(!k) return; let v = e.target.value;
+  if(e.target.type==="range"||e.target.type==="number"){ v=+v; e.target.closest(".slider")?.querySelectorAll("input").forEach(i=>{ if(i!==e.target) i.value=v; }); }
+  if(k==="props.items") v = v.split("\n");
+  if(k==="props.weight") v=+v;
+  setPath(hit.n, k, v); softRender();
+});
+sideEl.addEventListener("change", e=>{ if(e.target.dataset.k||e.target.dataset.faq!==undefined){ commit(); if(["props.action","props.kind","props.font"].includes(e.target.dataset.k)) renderSide(); renderCrumb(); } });
+sideEl.addEventListener("click", e=>{ const hit = find(st.sel);
+  const t = e.target.closest("[data-tab]"); if(t){ st.tab=t.dataset.tab; renderSide(); return; }
+  if(e.target.closest("[data-closeside]")){ select(null); return; }
+  const c = e.target.closest("[data-chip]"); if(c&&hit){ let v=c.dataset.v; if(v==="true"||v==="false") v = v==="true";
+    if(c.dataset.chip==="preset"){ const k = v.includes("/")?2:+v; const cols = hit.n.cols; while(cols.length<k) cols.push(col([])); while(cols.length>k){ const gone=cols.pop(); cols[cols.length-1].els.push(...gone.els); } hit.n.name = k+" Column Row"; }
+    setPath(hit.n, c.dataset.chip, v); commit(); renderPage(); return; }
+  const h = e.target.closest("[data-hide]"); if(h&&hit){ hit.n.hideOn[h.dataset.hide]=!hit.n.hideOn[h.dataset.hide]; commit(); renderPage(); return; }
+  if(e.target.closest("[data-faqadd]")&&hit){ hit.n.props.items.push(["New question","[Placeholder answer]"]); commit(); renderPage(); return; }
+  if(e.target.closest("[data-animprev]")&&hit){ const node=document.querySelector(`.n[data-id="${hit.n.id}"]`); node.style.animation="none"; node.offsetWidth; node.style.animation=`a-${hit.n.anim==="none"?"up":hit.n.anim} .7s ease both`; }
+});
+function softRender(){ const keep = st.sel; renderPageOnly(); st.sel=keep; decorate(); markDirty(); }
+function renderPageOnly(){ const pg=pgEl(); if(st.popup){ renderPage(); return; } pg.innerHTML = cur().map(rSec).join(""); tickCountdowns(); }
+
+// ---------- breadcrumb ----------
+function renderCrumb(){
+  const cr = document.getElementById("crumb"); const p = st.sel ? path(st.sel) : [];
+  cr.innerHTML = `<button type="button" data-crumb="" class="${p.length?"":"cur"}">📄 Page</button>` + p.map((n,i)=>`<span class="sepc">›</span><button type="button" data-crumb="${n.id}" class="${i===p.length-1?"cur":""}"><i style="background:${C[n.kind]}"></i>${esc(n.kind==="sec"?"Section · "+n.name:n.name)}</button>`).join("");
+}
+document.getElementById("crumb").addEventListener("click", e=>{ const b=e.target.closest("[data-crumb]"); if(!b) return; select(b.dataset.crumb||null); });
+
+// ---------- left flyouts ----------
+let addCat = "Quick add";
+function openFly(name, cat){ st.fly = name; if(cat) addCat = cat; renderFly(); }
+document.querySelector(".rail").addEventListener("click", e=>{ const b = e.target.closest("[data-fly]"); if(!b) return; st.fly = st.fly===b.dataset.fly ? null : b.dataset.fly; renderFly(); });
+function renderFly(passive){
+  const fly = document.getElementById("fly"), inn = document.getElementById("flyIn");
+  document.querySelectorAll(".rail [data-fly]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.fly===st.fly)));
+  fly.classList.toggle("open", !!st.fly); if(!st.fly){ inn.innerHTML=""; return; }
+  if(passive && !["layers","pages"].includes(st.fly)) return;
+  const title = {add:"Add elements", layers:"Layers", pages:"Pages", type:"Typography & colours", bg:"Page background", popups:"Popups", values:"Custom values", seo:"SEO & sharing", track:"Tracking pixels"}[st.fly];
+  let body = "";
+  if(st.fly==="add"){
+    const cats = ["Quick add","Sections","Rows","Elements","Prebuilt sections"];
+    let right = "";
+    if(addCat==="Sections") right = `<div class="widths">${["full","wide","medium","small"].map((w,i)=>`<button class="tile" type="button" data-addsec="${w}"><span class="wbar"><i style="width:${[100,80,56,36][i]}%"></i></span>${w[0].toUpperCase()+w.slice(1)}</button>`).join("")}</div><p class="note" style="padding:0 12px">Adds an empty section at the end of the page, or after the selected section.</p>`;
+    else if(addCat==="Rows") right = `<div class="tiles two">${["1","2","3","4","1/3+2/3","2/3+1/3"].map(p=>`<button class="tile" type="button" data-addrow="${p}"><span class="glyph">${"▮".repeat(p.includes("/")?2:+p)}</span>${p.includes("/")?p:p+" column"+(p==="1"?"":"s")}</button>`).join("")}</div>`;
+    else if(addCat==="Elements"||addCat==="Quick add") right = `<div class="tiles two">${Object.entries(ELS).map(([k,v])=>`<button class="tile" type="button" data-addel="${k}"><span class="glyph">${v.glyph}</span>${v.label}</button>`).join("")}</div><p class="note" style="padding:0 12px 12px">Drag onto the page, or click to add into the selected column.</p>`;
+    else { const groups = Object.keys(LIB); const g = st.libCat || groups[0];
+      right = `<div style="display:grid;grid-template-columns:1fr;min-height:0"><div class="chips" style="padding:10px">${groups.map(x=>`<button type="button" data-libcat="${x}" aria-pressed="${x===g}">${x}</button>`).join("")}</div><div class="tiles">${LIB[g].map((f,i)=>{ const s=f(); return `<button class="thumb" type="button" data-lib="${g}" data-i="${i}"><div class="shot"><div class="pg" style="--hf:'${site.hf}',sans-serif;--cf:'${site.cf}',sans-serif">${rSec(s)}</div></div><div class="cap">${esc(s.name)} · drag onto the page or click</div></button>`; }).join("")}</div></div>`; }
+    body = `<div class="addgrid"><div class="cats">${cats.map(c=>`<button type="button" data-cat="${c}" aria-pressed="${c===addCat}">${c}</button>`).join("")}<p class="hint">Sections hold rows. Rows hold columns. Columns hold elements.</p></div><div style="overflow:auto;min-height:0">${right}</div></div>`;
+  }
+  if(st.fly==="layers"){ const sel = st.sel; const line = (n,d)=>`<button type="button" data-layer="${n.id}" style="padding-left:${6+d*14}px" aria-current="${n.id===sel}"><i style="background:${C[n.kind]}"></i>${esc(n.kind==="sec"?"Section · "+n.name:n.name)}</button>`;
+    let t=""; for(const s of cur()){ t+=line(s,0); for(const r of s.rows){ t+=line(r,1); for(const c of r.cols){ t+=line(c,2); for(const e of c.els) t+=line(e,3); } } } body = `<div class="tree">${t}</div>`; }
+  if(st.fly==="pages") body = `<div class="list">${steps.map((s,i)=>`<button class="li" type="button" data-step="${i}" style="${i===st.step?"border-color:var(--accent)":""}"><span>📄</span><span class="grow" style="text-align:left"><b>${esc(s.name)}</b><br><span class="note">${esc(s.path)}</span></span></button>`).join("")}<button class="btn" type="button" onclick="toast('In the real builder this adds a funnel step.')">＋ Add new page</button></div>`;
+  if(st.fly==="type") body = `<div class="gb" style="padding:14px;display:grid;gap:14px">${select_("Headline font","hf",Object.fromEntries(FONTS.map(f=>[f,f])),site.hf)}${select_("Content font","cf",Object.fromEntries(FONTS.map(f=>[f,f])),site.cf)}${swatch("Text colour","tc",site.tc)}${swatch("Link colour","lc",site.lc)}<p class="note">Every element set to “Headline font” or “Content font” follows these. Change once, the whole funnel updates.</p></div>`;
+  if(st.fly==="bg") body = `<div style="padding:14px;display:grid;gap:14px">${swatch("Page background","bg",site.bg)}<button class="btn" type="button">Background image…</button></div>`;
+  if(st.fly==="popups") body = `<div class="list">${popups.map(p=>`<div class="li"><span>🗔</span><span class="grow"><b>${esc(p.name)}</b><br><span class="note">Opens: ${({exit:"when the visitor moves to leave",timer:"after 10 seconds",button:"from a button"})[p.trigger]}</span></span><button class="btn" type="button" data-editpop="${p.id}">Edit</button></div>`).join("")}<label class="f"><span>Exit offer opens</span><select class="inp2" data-poptrig><option value="exit">When the visitor moves to leave</option><option value="timer">After 10 seconds</option><option value="button">Only from a button</option></select></label><button class="btn primary" type="button" onclick="toast('In the real builder this creates a popup you design the same way as a page.')">＋ Create new popup</button><p class="note">Popups are built with the same sections, rows, columns and elements as pages. Buttons can open them.</p></div>`;
+  if(st.fly==="values") body = `<div class="list">${values.map((v,i)=>`<div class="li" style="display:grid;gap:6px"><span><code>{{${v.key}}}</code> · ${esc(v.label)}</span><input class="inp2" data-val="${i}" value="${esc(v.val)}"></div>`).join("")}<p class="note">Edit a value here and every page, popup and SEO title that uses it updates. Try changing the class dates.</p></div>`;
+  if(st.fly==="seo"){ const h = steps[st.step]; body = `<div style="padding:14px;display:grid;gap:12px"><div style="border:1px solid var(--line);border-radius:10px;overflow:hidden"><div style="height:110px;background:linear-gradient(135deg,#7c3aed,#111827);color:#fff;display:grid;place-items:center;font-weight:700">Share image</div><div style="padding:10px;display:grid;gap:4px"><b>${esc(values[0].val)} · ${esc(values[1].val)}</b><span class="note">Hands-on Claude workshop in Kuala Lumpur.</span><span class="note">ai.thelead.io${esc(h.path)}</span></div></div>${text_("Page title","seot","{{course_name}} · {{class_dates}}")}${text_("Description","seod","Hands-on Claude workshop in Kuala Lumpur.")}<p class="note">Preview of how the link looks on WhatsApp and Facebook.</p></div>`; }
+  if(st.fly==="track") body = `<div style="padding:14px;display:grid;gap:12px">${text_("Meta pixel ID","px1","613351752149959")}${text_("Google tag ID","px2","")}${text_("TikTok pixel ID","px3","")}${text_("LinkedIn partner ID","px4","")}<label class="sw"><span>Send server-side events to Meta</span><input type="checkbox" checked></label><p class="note">No custom code box: pixels are added safely by ID. Cookie banner and consent follow PDPA.</p></div>`;
+  inn.innerHTML = `<h2>${title}<button class="x" type="button" data-closefly aria-label="Close panel">×</button></h2><div class="body">${body}</div>`;
+}
+document.getElementById("fly").addEventListener("click", e=>{
+  if(e.target.closest("[data-closefly]")){ st.fly=null; renderFly(); return; }
+  const cat = e.target.closest("[data-cat]"); if(cat){ addCat=cat.dataset.cat; renderFly(); return; }
+  const lc = e.target.closest("[data-libcat]"); if(lc){ st.libCat=lc.dataset.libcat; renderFly(); return; }
+  const lib = e.target.closest("[data-lib]"); if(lib){ const s = LIB[lib.dataset.lib][+lib.dataset.i](); insertSection(s); return; }
+  const as = e.target.closest("[data-addsec]"); if(as){ insertSection(sec("New section",[row([col([])])],{width:as.dataset.addsec})); return; }
+  const ar = e.target.closest("[data-addrow]"); if(ar){ const p=ar.dataset.addrow, k=p.includes("/")?2:+p; const hit = st.sel&&find(st.sel); const s = hit ? path(st.sel)[0] : cur()[cur().length-1]; const r=row(Array.from({length:k},()=>col([])),p); s.rows.push(r); st.sel=r.id; commit(); renderPage(); scrollToSel(); return; }
+  const ae = e.target.closest("[data-addel]"); if(ae){ const ps = st.sel ? path(st.sel) : []; let target, at;
+    if(ps.length===4){ target=ps[2]; at=target.els.indexOf(ps[3])+1; } else if(ps.length===3){ target=ps[2]; at=target.els.length; }
+    else { const s = ps[0] || cur()[cur().length-1]; target = s.rows[s.rows.length-1].cols[0]; at = target.els.length; }
+    const x = el(ae.dataset.addel); target.els.splice(at,0,x); st.sel=x.id; commit(); renderPage(); scrollToSel(); return; }
+  const ly = e.target.closest("[data-layer]"); if(ly){ select(ly.dataset.layer); scrollToSel(); return; }
+  const sp = e.target.closest("[data-step]"); if(sp){ st.step=+sp.dataset.step; st.sel=null; st.popup=null; document.getElementById("stepSel").value=st.step; renderPage(); return; }
+  const ep = e.target.closest("[data-editpop]"); if(ep){ st.popup=ep.dataset.editpop; st.sel=null; renderPage(); toast("Editing the popup. Close it with × to return to the page."); return; }
+});
+document.getElementById("fly").addEventListener("input", e=>{
+  const k = e.target.dataset.k; if(k && k in site){ site[k]=e.target.value; renderPage(); markDirty(); return; }
+  if(e.target.dataset.val!==undefined){ values[+e.target.dataset.val].val = e.target.value; renderPageOnly(); decorate(); markDirty(); return; }
+  if(e.target.dataset.poptrig!==undefined){ popups[0].trigger = e.target.value; renderFly(); }
+});
+document.getElementById("fly").addEventListener("change", e=>{ if(e.target.dataset.k in site || e.target.dataset.val!==undefined) commit(); });
+function insertSection(s){ const list = cur(); const after = st.insertAfter || (st.sel && path(st.sel)[0]?.id); const i = after ? list.findIndex(x=>x.id===after) : -1; list.splice(i>=0?i+1:list.length,0,s); st.insertAfter=null; st.sel=s.id; commit(); renderPage(); scrollToSel(); toast("Section added. Double-click its text to edit."); }
+function scrollToSel(){ requestAnimationFrame(()=>document.querySelector(`.n[data-id="${st.sel}"]`)?.scrollIntoView({behavior:"smooth",block:"center"})); }
+
+// ---------- top bar ----------
+const stepSel = document.getElementById("stepSel");
+stepSel.innerHTML = steps.map((s,i)=>`<option value="${i}">${esc(s.name)}</option>`).join("");
+stepSel.addEventListener("change", ()=>{ st.step=+stepSel.value; st.sel=null; st.popup=null; renderPage(); });
+document.querySelector(".seg").addEventListener("click", e=>{ const b=e.target.closest("[data-dev]"); if(!b) return; st.dev=b.dataset.dev; document.querySelectorAll("[data-dev]").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); renderPage(); });
+function markDirty(){ const s=document.getElementById("saved"); s.textContent="Saving…"; clearTimeout(markDirty.t); markDirty.t=setTimeout(()=>s.textContent="Saved just now",700); }
+function syncUndo(){ document.getElementById("undo").disabled=!hist.length; document.getElementById("redo").disabled=!fut.length; }
+function undo(){ if(!hist.length) return; fut.push(snap()); restore(hist.pop()); lastSnap=snap(); st.sel=null; syncUndo(); renderPage(); }
+function redo(){ if(!fut.length) return; hist.push(snap()); restore(fut.pop()); lastSnap=snap(); st.sel=null; syncUndo(); renderPage(); }
+document.getElementById("undo").onclick=undo; document.getElementById("redo").onclick=redo;
+document.getElementById("publish").onclick=()=>toast("Prototype: in the real builder this runs the publish checks and goes live on ai.thelead.io.");
+document.getElementById("preview").onclick=()=>{ st.sel=null; st.hov=null; decorate(); renderSide(); toast("Prototype: Preview opens the page without editing outlines."); };
+document.getElementById("back").onclick=()=>toast("Prototype: Back returns to the funnel's Steps list.");
+function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove("on"),2600); }
+addEventListener("resize", ()=>{ document.getElementById("frame").style.width = Math.min(DEV_W[st.dev], document.getElementById("stage").clientWidth-36)+"px"; });
+
+// ---------- drag and drop (pointer events: mouse, pen and touch) ----------
+// Sections drop between sections, rows into a section, elements into a column.
+// A press only becomes a drag after the pointer moves 5px, so clicks still work.
+const DL_COLOR = {sec:"#16a34a", row:"#2563eb", el:"#ea580c"};
+let drag = null, suppressClick = false;
+function dragSource(t){
+  const h = t.closest("[data-drag]"); if(h){ const hit = find(h.dataset.drag); if(!hit || hit.n.kind==="col") return null;
+    return {mode:"move", what:hit.n.kind, id:hit.n.id, label:"Move: " + (hit.n.kind==="sec" ? "Section · " + hit.n.name : hit.n.name)}; }
+  const e = t.closest("[data-addel]"); if(e) return {mode:"new", what:"el", make:()=>el(e.dataset.addel), label:ELS[e.dataset.addel].label};
+  const r = t.closest("[data-addrow]"); if(r){ const p=r.dataset.addrow, k=p.includes("/")?2:+p; return {mode:"new", what:"row", make:()=>row(Array.from({length:k},()=>col([])),p), label:(p.includes("/")?p:p+"-column")+" row"}; }
+  const s = t.closest("[data-addsec]"); if(s) return {mode:"new", what:"sec", make:()=>sec("New section",[row([col([])])],{width:s.dataset.addsec}), label:s.dataset.addsec+" section"};
+  const l = t.closest("[data-lib]"); if(l){ const f = LIB[l.dataset.lib][+l.dataset.i]; return {mode:"new", what:"sec", make:f, label:l.dataset.lib+" section"}; }
+  return null;
+}
+function onDown(ev){
+  if(ev.button!==0 || st.editing) return; const src = dragSource(ev.target); if(!src) return;
+  drag = {...src, x0:ev.clientX, y0:ev.clientY, live:false, target:null};
+  if(src.mode==="move") ev.preventDefault();
+}
+document.getElementById("fly").addEventListener("pointerdown", onDown);
+document.getElementById("stage").addEventListener("pointerdown", onDown);
+addEventListener("pointermove", ev=>{
+  if(!drag) return;
+  if(!drag.live){ if(Math.hypot(ev.clientX-drag.x0, ev.clientY-drag.y0) < 5) return; startDrag(); }
+  drag.ghost.style.left = ev.clientX+"px"; drag.ghost.style.top = ev.clientY+"px";
+  autoScroll(ev.clientY); drag.target = dropTarget(ev.clientX, ev.clientY); showLine(drag.target);
+});
+addEventListener("pointerup", ev=>{ if(!drag) return; const d = drag; drag = null; if(!d.live) return;
+  suppressClick = true; setTimeout(()=>suppressClick=false, 0);
+  d.ghost.remove(); d.line.remove(); document.body.classList.remove("dragging"); clearInterval(d.scroller);
+  document.querySelectorAll(".ghosted").forEach(n=>n.classList.remove("ghosted"));
+  if(d.target) drop(d, d.target); else toast("Drop it on the page: sections between sections, rows inside a section, elements inside a column.");
+});
+addEventListener("pointercancel", ()=>{ if(drag?.live){ drag.ghost.remove(); drag.line.remove(); document.body.classList.remove("dragging"); clearInterval(drag.scroller); } drag=null; });
+document.addEventListener("click", e=>{ if(suppressClick){ e.stopPropagation(); e.preventDefault(); } }, true);
+function startDrag(){
+  drag.live = true; closeMenu(); document.body.classList.add("dragging");
+  drag.ghost = document.createElement("div"); drag.ghost.className="ghost"; drag.ghost.textContent = drag.label; document.body.appendChild(drag.ghost);
+  drag.line = document.createElement("div"); drag.line.className="dropline"; drag.line.hidden=true; drag.line.style.setProperty("--dl", DL_COLOR[drag.what]); document.body.appendChild(drag.line);
+  if(drag.mode==="move") document.querySelector(`.n[data-id="${drag.id}"]`)?.classList.add("ghosted");
+}
+function autoScroll(y){ const stg = document.getElementById("stage"), r = stg.getBoundingClientRect();
+  clearInterval(drag.scroller); const v = y < r.top+60 ? -12 : y > r.bottom-60 ? 12 : 0; if(v) drag.scroller = setInterval(()=>stg.scrollBy(0,v), 16); }
+// Returns {list, index, rect, before, label} — where the dragged thing would land.
+function dropTarget(x, y){
+  const under = document.elementFromPoint(x, y); if(!under || !under.closest("#pg")) return null;
+  const pick = (nodes, horizontal) => { // nearest gap among sibling nodes by pointer position
+    let idx = nodes.length; for(let i=0;i<nodes.length;i++){ const r = nodes[i].getBoundingClientRect(); if(y < r.top + r.height/2){ idx=i; break; } } return idx; };
+  if(drag.what==="sec"){
+    const nodes = [...document.querySelectorAll("#pg > .n.sec, #pg .pop > .n.sec")].filter(n=>!n.classList.contains("ghosted"));
+    const i = pick(nodes); const ref = nodes[Math.min(i, nodes.length-1)]; if(!ref) return null; const r = ref.getBoundingClientRect();
+    const list = cur(); const nodeIdx = i>=nodes.length ? list.length : list.findIndex(s=>s.id===nodes[i].dataset.id);
+    return {list, index:nodeIdx, y: i>=nodes.length ? r.bottom : r.top, x:r.left, w:r.width, label:"Drop section here"};
+  }
+  if(drag.what==="row"){
+    const secNode = under.closest(".n.sec"); if(!secNode) return null; const s = find(secNode.dataset.id)?.n; if(!s || !s.rows) return null;
+    const nodes = [...secNode.querySelectorAll(":scope > .wrap > .n.row")].filter(n=>!n.classList.contains("ghosted"));
+    const i = pick(nodes); const ref = nodes[Math.min(i,nodes.length-1)]; const r = (ref||secNode).getBoundingClientRect();
+    const index = i>=nodes.length ? s.rows.length : s.rows.findIndex(x=>x.id===nodes[i].dataset.id);
+    return {list:s.rows, index, y: !ref ? r.top+r.height/2 : i>=nodes.length ? r.bottom+6 : r.top-6, x:r.left, w:r.width, label:"Drop row into " + s.name};
+  }
+  // element: into the column under the pointer
+  const colNode = under.closest(".n.col"); if(!colNode) return null; const c = find(colNode.dataset.id)?.n; if(!c) return null;
+  const nodes = [...colNode.querySelectorAll(":scope > .n.el")].filter(n=>!n.classList.contains("ghosted"));
+  const i = pick(nodes); const ref = nodes[Math.min(i,nodes.length-1)]; const r = (ref||colNode).getBoundingClientRect();
+  const index = i>=nodes.length ? c.els.length : c.els.findIndex(x=>x.id===nodes[i].dataset.id);
+  return {list:c.els, index, y: !ref ? r.top+r.height/2 : i>=nodes.length ? r.bottom+4 : r.top-4, x:r.left, w:r.width, label:"Drop into column"};
+}
+function showLine(t){ const l = drag.line; if(!t){ l.hidden=true; return; } l.hidden=false;
+  l.style.left = t.x+"px"; l.style.width = Math.max(40,t.w)+"px"; l.style.top = (t.y-2)+"px"; l.dataset.label = t.label; }
+function drop(d, t){
+  let node;
+  if(d.mode==="new") node = d.make();
+  else { const hit = find(d.id); if(!hit) return; const from = listOf(hit.n, hit.p); const oldIdx = from.indexOf(hit.n);
+    from.splice(oldIdx,1); node = hit.n; if(from===t.list && oldIdx < t.index) t.index--; }
+  t.list.splice(Math.max(0,Math.min(t.index,t.list.length)),0,node); st.sel = node.id; commit(); renderPage();
+  toast(d.mode==="new" ? (d.label + " added") : "Moved");
+}
+
+lastSnap = snap(); syncUndo(); renderPage();
+// open with something selected so the panel shows a real state
+st.sel = steps[0].sections[0].rows[0].cols[0].els[1].id; st.tab="general"; decorate(); renderCrumb(); renderSide();
+</script>

@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "build:runtime": "node scripts/build-runtime.ts",
+    "sites:seed": "node --env-file-if-exists=.env.local scripts/seed-site-templates.ts",
+    "prebuild": "npm run build:runtime",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -25,6 +28,7 @@
     "postgres": "^3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sanitize-html": "2.17.7",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -32,6 +36,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "2.16.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "prettier": "^3.9.8",
