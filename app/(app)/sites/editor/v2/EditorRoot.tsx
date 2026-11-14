@@ -382,9 +382,13 @@ export default function EditorRoot(props: EditorProps) {
       publishRef.current = run.then((x) => {
         if (x.kind === "ok") versionRef.current = x.version;
       }, () => undefined);
-      const r = await run;
-      await publishRef.current;
-      publishRef.current = null;
+      let r: Awaited<typeof run>;
+      try {
+        r = await run;
+      } catch {
+        setBanner({ kind: "err", text: "Could not reach the server, so the page may not be published. Your edits are kept; try Publish again." });
+        return;
+      }
       if (r.kind === "ok") {
         setSteps((s) => s.map((x) => (x.id === pageId ? { ...x, livePath: props.path } : x)));
         setBanner({ kind: r.removed.length ? "warn" : "ok", text: r.removed.length ? "Published. These were removed from the live page:" : "Published.", list: r.removed });
@@ -392,6 +396,9 @@ export default function EditorRoot(props: EditorProps) {
       else if (r.kind === "conflict") stop("Changed by someone else — reload");
       else setBanner({ kind: "err", text: r.message });
     } finally {
+      // Always release the save gate, even when the publish call threw.
+      await publishRef.current;
+      publishRef.current = null;
       setPublishing(false);
     }
   }
