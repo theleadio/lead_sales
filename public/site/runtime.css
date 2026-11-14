@@ -102,3 +102,16 @@
 :where(.lead-form) .lead-class:empty {
   display: none;
 }
+
+/* Scroll animations: hidden only when runtime.js set html.lead-anim (IntersectionObserver present, motion allowed). */
+html.lead-anim [data-anim]{opacity:0;transition:opacity .6s ease,transform .6s ease}
+html.lead-anim [data-anim="up"]{transform:translateY(28px)}
+html.lead-anim [data-anim="left"]{transform:translateX(-28px)}
+html.lead-anim [data-anim="zoom"]{transform:scale(.94)}
+html.lead-anim [data-anim].in{opacity:1;transform:none}
+
+/* Popups */
+.lead-pop{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55)}
+.lead-pop-dlg{position:relative;box-sizing:border-box;width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;color:#0a0a0a;border-radius:12px;outline:none}
+.lead-pop-x{position:absolute;top:6px;right:6px;z-index:1;width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.9);color:#0a0a0a;font:400 28px/1 system-ui,sans-serif;cursor:pointer}
+.lead-pop-x:focus-visible{outline:2px solid #0a0a0a;outline-offset:2px}

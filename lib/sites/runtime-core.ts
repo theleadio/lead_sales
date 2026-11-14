@@ -172,3 +172,35 @@ export function failure(lang: Lang, status: number, body: unknown): Outcome {
   const wa = typeof b.whatsapp === "string" && WA.test(b.whatsapp) ? b.whatsapp : undefined;
   return { kind: "text", ok: false, text: t(lang, "unavailable"), whatsapp: wa };
 }
+
+// ---- popups, animation, button actions ----
+export type PopupState = { touch: boolean; elapsedSec: number; exitIntent: boolean; seen: boolean; delaySec: number };
+// Button-triggered popups open only through their button. Exit intent never fires on touch.
+export function popupShouldOpen(trigger: string, s: PopupState): boolean {
+  if (s.seen) return false;
+  if (trigger === "timer") return s.elapsedSec >= s.delaySec;
+  if (trigger === "exit") return !s.touch && s.exitIntent;
+  return false;
+}
+
+export type Target = { kind: "scroll" | "nav" | "popup" | "none"; value?: string };
+// "form"/"next"/"url" hrefs are already correct in the markup; only popup needs JS.
+export function buttonTarget(action: string | null | undefined, ctx: { popupIds: string[] }): Target {
+  const a = action ?? "";
+  if (a === "form") return { kind: "scroll", value: '[data-lead="form"],[data-lead="order"]' };
+  if (a === "next" || a === "url") return { kind: "nav" };
+  if (a.startsWith("popup:")) {
+    const id = a.slice(6);
+    return ctx.popupIds.includes(id) ? { kind: "popup", value: id } : { kind: "none" };
+  }
+  return { kind: "none" };
+}
+
+export const animEnabled = (hasObserver: boolean, reducedMotion: boolean): boolean => hasObserver && !reducedMotion;
+
+export function countdownParts(to: string, nowMs: number): { done: boolean; d: number; h: number; m: number; s: number } {
+  const ms = Date.parse(to) - nowMs;
+  if (!isFinite(ms) || ms <= 0) return { done: true, d: 0, h: 0, m: 0, s: 0 };
+  const x = Math.floor(ms / 1000);
+  return { done: false, d: Math.floor(x / 86400), h: Math.floor((x % 86400) / 3600), m: Math.floor((x % 3600) / 60), s: x % 60 };
+}

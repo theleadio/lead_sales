@@ -1,7 +1,7 @@
 // Browser half of public/site/runtime.js. Inlined after runtime-core.ts by
 // scripts/build-runtime.ts. Builds DOM with createElement/textContent only;
 // data-settings is untrusted and validated by parseSettings.
-import { FIRST, buildPayload, checkoutSuccess, cookieValue, cookiesToWrite, failure, formSuccess, langOf, parseSettings, t } from "./runtime-core.ts";
+import { FIRST, animEnabled, buildPayload, buttonTarget, checkoutSuccess, cookieValue, cookiesToWrite, countdownParts, failure, formSuccess, langOf, parseSettings, popupShouldOpen, t } from "./runtime-core.ts";
 import type { FormSettings, Outcome } from "./runtime-core.ts";
 
 const $$ = (sel: string, root: ParentNode = document): HTMLElement[] => Array.from(root.querySelectorAll<HTMLElement>(sel));
@@ -91,7 +91,7 @@ function mountForm(host: HTMLElement, kind: "form" | "order") {
     loadTurnstile().then(() => (window as any).turnstile?.render(box, { sitekey: siteKey, callback: (x: string) => (token = x) }));
   }
 
-  const btn = el("button", { type: "submit" }, t(lang, kind === "order" ? "pay" : "submit"));
+  const btn = el("button", { type: "submit" }, host.dataset.button || t(lang, kind === "order" ? "pay" : "submit"));
   const status = el("div", { role: "status" });
   form.append(btn, status);
 
@@ -214,6 +214,140 @@ function counter(root: HTMLElement) {
   io.observe(root);
 }
 
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function anims() {
+  const items = $$("[data-anim]");
+  if (!items.length || !animEnabled("IntersectionObserver" in window, reduced())) return;
+  document.documentElement.classList.add("lead-anim");
+  const io = new IntersectionObserver((es) => {
+    for (const e of es) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }, { threshold: 0.12 });
+  items.forEach((i) => io.observe(i));
+}
+
+function countdown(root: HTMLElement) {
+  const to = root.dataset.cd ?? "";
+  const nums = Array.from(root.querySelectorAll("b"));
+  const tick = () => {
+    const p = countdownParts(to, Date.now());
+    if (p.done) {
+      clearInterval(timer);
+      if (root.dataset.done) root.textContent = root.dataset.done;
+      else nums.forEach((n) => (n.textContent = "0"));
+      return;
+    }
+    [p.d, p.h, p.m, p.s].forEach((v, i) => nums[i] && (nums[i].textContent = String(v).padStart(2, "0")));
+  };
+  const timer = setInterval(tick, 1000);
+  tick();
+}
+
+function autoplay(root: HTMLElement) {
+  if (reduced()) return;
+  setInterval(() => {
+    const end = root.scrollLeft + root.clientWidth >= root.scrollWidth - 4;
+    root.scrollTo({ left: end ? 0 : root.scrollLeft + root.clientWidth, behavior: "smooth" });
+  }, 5000);
+}
+
+function countUp(root: HTMLElement) {
+  const to = Number(root.dataset.count);
+  if (!isFinite(to) || reduced() || !("IntersectionObserver" in window)) return;
+  const io = new IntersectionObserver((es) => {
+    if (!es.some((e) => e.isIntersecting)) return;
+    io.disconnect();
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / 1200);
+      root.textContent = String(Math.round(to * p));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+  io.observe(root);
+}
+
+// sessionStorage may throw (private mode); the Set is the in-memory fallback.
+const shown = new Set<string>();
+const wasSeen = (id: string) => {
+  if (shown.has(id)) return true;
+  try { return sessionStorage.getItem("lead_popup_" + id) === "1"; } catch { return false; }
+};
+const markSeen = (id: string) => {
+  shown.add(id);
+  try { sessionStorage.setItem("lead_popup_" + id, "1"); } catch {}
+};
+
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])';
+
+function popups() {
+  const all = $$('[data-lead="popup"]');
+  if (!all.length) return;
+  const touch = matchMedia("(hover: none)").matches || matchMedia("(pointer: coarse)").matches;
+  let isOpen = false;
+
+  const open = (box: HTMLElement, opener: Element | null) => {
+    if (isOpen) return;
+    isOpen = true;
+    markSeen(box.dataset.id ?? "");
+    const x = el("button", { type: "button", className: "lead-pop-x" }, "×");
+    x.setAttribute("aria-label", "Close");
+    const dialog = el("div", { className: "lead-pop-dlg", tabIndex: -1 }, x);
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.append(...Array.from(box.childNodes));
+    const back = el("div", { className: "lead-pop" }, dialog);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return close();
+      if (e.key !== "Tab") return;
+      const f = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (!f.length) return e.preventDefault();
+      const first = f[0], last = f[f.length - 1], a = document.activeElement;
+      if (e.shiftKey && (a === first || a === dialog)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+    };
+    function close() {
+      document.removeEventListener("keydown", onKey, true);
+      box.append(...Array.from(dialog.childNodes).filter((n) => n !== x));
+      back.remove();
+      isOpen = false;
+      (opener as HTMLElement | null)?.focus?.();
+    }
+    x.addEventListener("click", close);
+    back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
+    document.addEventListener("keydown", onKey, true);
+    document.body.append(back);
+    dialog.focus();
+  };
+
+  const ids = all.map((p) => p.dataset.id ?? "");
+  document.addEventListener("click", (e) => {
+    const a = (e.target as Element).closest?.<HTMLElement>("[data-action]");
+    if (!a) return;
+    const tg = buttonTarget(a.dataset.action, { popupIds: ids });
+    if (tg.kind !== "popup") return;
+    e.preventDefault();
+    const box = all.find((p) => p.dataset.id === tg.value);
+    if (box) open(box, a);
+  });
+
+  const t0 = Date.now();
+  const tryOpen = (box: HTMLElement, exitIntent: boolean) => {
+    const st = { touch, elapsedSec: (Date.now() - t0) / 1000, exitIntent, seen: wasSeen(box.dataset.id ?? ""), delaySec: Number(box.dataset.delay) || 0 };
+    if (popupShouldOpen(box.dataset.trigger ?? "", st)) open(box, document.activeElement);
+  };
+  for (const box of all) {
+    if (box.dataset.trigger === "timer") setTimeout(() => tryOpen(box, false), (Number(box.dataset.delay) || 0) * 1000);
+  }
+  if (!touch) {
+    document.addEventListener("mouseout", (e) => {
+      if (e.relatedTarget || e.clientY > 0) return;
+      for (const box of all) if (box.dataset.trigger === "exit") tryOpen(box, true);
+    });
+  }
+}
+
 function init() {
   attribution();
   beacon();
@@ -222,6 +356,11 @@ function init() {
   $$('[data-lead="faq"]').forEach(faq);
   $$('[data-lead="slider"]').forEach(slider);
   $$('[data-lead="counter"]').forEach(counter);
+  $$("[data-count]").forEach(countUp);
+  $$(".e-cd[data-cd]").forEach(countdown);
+  $$('.e-sl[data-autoplay="1"]').forEach(autoplay);
+  popups();
+  anims();
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
 else init();

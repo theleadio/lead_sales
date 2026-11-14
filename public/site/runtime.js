@@ -217,6 +217,35 @@ return { kind: "text", ok: false, text: t(lang, "checkFields"), fields };
 const wa = typeof b.whatsapp === "string" && WA.test(b.whatsapp) ? b.whatsapp : undefined;
 return { kind: "text", ok: false, text: t(lang, "unavailable"), whatsapp: wa };
 }
+function popupShouldOpen(trigger, s) {
+if (s.seen)
+return false;
+if (trigger === "timer")
+return s.elapsedSec >= s.delaySec;
+if (trigger === "exit")
+return !s.touch && s.exitIntent;
+return false;
+}
+function buttonTarget(action, ctx) {
+const a = action !== null && action !== void 0 ? action : "";
+if (a === "form")
+return { kind: "scroll", value: '[data-lead="form"],[data-lead="order"]' };
+if (a === "next" || a === "url")
+return { kind: "nav" };
+if (a.startsWith("popup:")) {
+const id = a.slice(6);
+return ctx.popupIds.includes(id) ? { kind: "popup", value: id } : { kind: "none" };
+}
+return { kind: "none" };
+}
+const animEnabled = (hasObserver, reducedMotion) => hasObserver && !reducedMotion;
+function countdownParts(to, nowMs) {
+const ms = Date.parse(to) - nowMs;
+if (!isFinite(ms) || ms <= 0)
+return { done: true, d: 0, h: 0, m: 0, s: 0 };
+const x = Math.floor(ms / 1000);
+return { done: false, d: Math.floor(x / 86400), h: Math.floor((x % 86400) / 3600), m: Math.floor((x % 3600) / 60), s: x % 60 };
+}
 
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const el = (tag, props = {}, ...kids) => {
@@ -306,7 +335,7 @@ const box = el("div");
 form.append(box);
 loadTurnstile().then(() => { var _a; return (_a = window.turnstile) === null || _a === void 0 ? void 0 : _a.render(box, { sitekey: siteKey, callback: (x) => (token = x) }); });
 }
-const btn = el("button", { type: "submit" }, t(lang, kind === "order" ? "pay" : "submit"));
+const btn = el("button", { type: "submit" }, host.dataset.button || t(lang, kind === "order" ? "pay" : "submit"));
 const status = el("div", { role: "status" });
 form.append(btn, status);
 const show = (o) => {
@@ -441,6 +470,173 @@ run();
 });
 io.observe(root);
 }
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function anims() {
+const items = $$("[data-anim]");
+if (!items.length || !animEnabled("IntersectionObserver" in window, reduced()))
+return;
+document.documentElement.classList.add("lead-anim");
+const io = new IntersectionObserver((es) => {
+for (const e of es)
+if (e.isIntersecting) {
+e.target.classList.add("in");
+io.unobserve(e.target);
+}
+}, { threshold: 0.12 });
+items.forEach((i) => io.observe(i));
+}
+function countdown(root) {
+var _a;
+const to = (_a = root.dataset.cd) !== null && _a !== void 0 ? _a : "";
+const nums = Array.from(root.querySelectorAll("b"));
+const tick = () => {
+const p = countdownParts(to, Date.now());
+if (p.done) {
+clearInterval(timer);
+if (root.dataset.done)
+root.textContent = root.dataset.done;
+else
+nums.forEach((n) => (n.textContent = "0"));
+return;
+}
+[p.d, p.h, p.m, p.s].forEach((v, i) => nums[i] && (nums[i].textContent = String(v).padStart(2, "0")));
+};
+const timer = setInterval(tick, 1000);
+tick();
+}
+function autoplay(root) {
+if (reduced())
+return;
+setInterval(() => {
+const end = root.scrollLeft + root.clientWidth >= root.scrollWidth - 4;
+root.scrollTo({ left: end ? 0 : root.scrollLeft + root.clientWidth, behavior: "smooth" });
+}, 5000);
+}
+function countUp(root) {
+const to = Number(root.dataset.count);
+if (!isFinite(to) || reduced() || !("IntersectionObserver" in window))
+return;
+const io = new IntersectionObserver((es) => {
+if (!es.some((e) => e.isIntersecting))
+return;
+io.disconnect();
+const t0 = performance.now();
+const step = (now) => {
+const p = Math.min(1, (now - t0) / 1200);
+root.textContent = String(Math.round(to * p));
+if (p < 1)
+requestAnimationFrame(step);
+};
+requestAnimationFrame(step);
+});
+io.observe(root);
+}
+const shown = new Set();
+const wasSeen = (id) => {
+if (shown.has(id))
+return true;
+try {
+return sessionStorage.getItem("lead_popup_" + id) === "1";
+}
+catch {
+return false;
+}
+};
+const markSeen = (id) => {
+shown.add(id);
+try {
+sessionStorage.setItem("lead_popup_" + id, "1");
+}
+catch { }
+};
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])';
+function popups() {
+const all = $$('[data-lead="popup"]');
+if (!all.length)
+return;
+const touch = matchMedia("(hover: none)").matches || matchMedia("(pointer: coarse)").matches;
+let isOpen = false;
+const open = (box, opener) => {
+var _a;
+if (isOpen)
+return;
+isOpen = true;
+markSeen((_a = box.dataset.id) !== null && _a !== void 0 ? _a : "");
+const x = el("button", { type: "button", className: "lead-pop-x" }, "×");
+x.setAttribute("aria-label", "Close");
+const dialog = el("div", { className: "lead-pop-dlg", tabIndex: -1 }, x);
+dialog.setAttribute("role", "dialog");
+dialog.setAttribute("aria-modal", "true");
+dialog.append(...Array.from(box.childNodes));
+const back = el("div", { className: "lead-pop" }, dialog);
+const onKey = (e) => {
+if (e.key === "Escape")
+return close();
+if (e.key !== "Tab")
+return;
+const f = Array.from(dialog.querySelectorAll(FOCUSABLE));
+if (!f.length)
+return e.preventDefault();
+const first = f[0], last = f[f.length - 1], a = document.activeElement;
+if (e.shiftKey && (a === first || a === dialog)) {
+e.preventDefault();
+last.focus();
+}
+else if (!e.shiftKey && a === last) {
+e.preventDefault();
+first.focus();
+}
+};
+function close() {
+var _a;
+document.removeEventListener("keydown", onKey, true);
+box.append(...Array.from(dialog.childNodes).filter((n) => n !== x));
+back.remove();
+isOpen = false;
+(_a = opener === null || opener === void 0 ? void 0 : opener.focus) === null || _a === void 0 ? void 0 : _a.call(opener);
+}
+x.addEventListener("click", close);
+back.addEventListener("mousedown", (e) => { if (e.target === back)
+close(); });
+document.addEventListener("keydown", onKey, true);
+document.body.append(back);
+dialog.focus();
+};
+const ids = all.map((p) => { var _a; return (_a = p.dataset.id) !== null && _a !== void 0 ? _a : ""; });
+document.addEventListener("click", (e) => {
+var _a, _b;
+const a = (_b = (_a = e.target).closest) === null || _b === void 0 ? void 0 : _b.call(_a, "[data-action]");
+if (!a)
+return;
+const tg = buttonTarget(a.dataset.action, { popupIds: ids });
+if (tg.kind !== "popup")
+return;
+e.preventDefault();
+const box = all.find((p) => p.dataset.id === tg.value);
+if (box)
+open(box, a);
+});
+const t0 = Date.now();
+const tryOpen = (box, exitIntent) => {
+var _a, _b;
+const st = { touch, elapsedSec: (Date.now() - t0) / 1000, exitIntent, seen: wasSeen((_a = box.dataset.id) !== null && _a !== void 0 ? _a : ""), delaySec: Number(box.dataset.delay) || 0 };
+if (popupShouldOpen((_b = box.dataset.trigger) !== null && _b !== void 0 ? _b : "", st))
+open(box, document.activeElement);
+};
+for (const box of all) {
+if (box.dataset.trigger === "timer")
+setTimeout(() => tryOpen(box, false), (Number(box.dataset.delay) || 0) * 1000);
+}
+if (!touch) {
+document.addEventListener("mouseout", (e) => {
+if (e.relatedTarget || e.clientY > 0)
+return;
+for (const box of all)
+if (box.dataset.trigger === "exit")
+tryOpen(box, true);
+});
+}
+}
 function init() {
 attribution();
 beacon();
@@ -449,6 +645,11 @@ $$('[data-lead="order"]').forEach((e) => mountForm(e, "order"));
 $$('[data-lead="faq"]').forEach(faq);
 $$('[data-lead="slider"]').forEach(slider);
 $$('[data-lead="counter"]').forEach(counter);
+$$("[data-count]").forEach(countUp);
+$$(".e-cd[data-cd]").forEach(countdown);
+$$('.e-sl[data-autoplay="1"]').forEach(autoplay);
+popups();
+anims();
 }
 if (document.readyState === "loading")
 document.addEventListener("DOMContentLoaded", init);

@@ -103,3 +103,39 @@ test("checkout redirects only to checkout.stripe.com", () => {
   assert.equal((checkoutSuccess("en", { result: "full" }) as any).text, "This class is full");
   assert.equal((checkoutSuccess("zh", { result: "already_enrolled" }) as any).text, COPY.zh.already_enrolled);
 });
+
+import { animEnabled, buttonTarget, countdownParts, popupShouldOpen } from "../lib/sites/runtime-core.ts";
+const ST = { touch: false, elapsedSec: 0, exitIntent: false, seen: false, delaySec: 5 };
+
+test("exit trigger never fires on touch (Review Focus 5)", () => {
+  assert.equal(popupShouldOpen("exit", { ...ST, touch: true, exitIntent: true }), false);
+  assert.equal(popupShouldOpen("exit", { ...ST, exitIntent: true }), true);
+  assert.equal(popupShouldOpen("exit", ST), false);
+});
+test("timer fires after the delay; seen never reopens; button trigger is never automatic", () => {
+  assert.equal(popupShouldOpen("timer", { ...ST, elapsedSec: 4 }), false);
+  assert.equal(popupShouldOpen("timer", { ...ST, elapsedSec: 5 }), true);
+  assert.equal(popupShouldOpen("timer", { ...ST, elapsedSec: 9, seen: true }), false);
+  assert.equal(popupShouldOpen("exit", { ...ST, exitIntent: true, seen: true }), false);
+  assert.equal(popupShouldOpen("button", { ...ST, elapsedSec: 99, exitIntent: true }), false);
+});
+test("button actions map", () => {
+  const ctx = { popupIds: ["a"] };
+  assert.equal(buttonTarget("form", ctx).kind, "scroll");
+  assert.equal(buttonTarget("next", ctx).kind, "nav");
+  assert.equal(buttonTarget("url", ctx).kind, "nav");
+  assert.deepEqual(buttonTarget("popup:a", ctx), { kind: "popup", value: "a" });
+  assert.equal(buttonTarget("popup:zzz", ctx).kind, "none");
+  assert.equal(buttonTarget(undefined, ctx).kind, "none");
+});
+test("reduced motion or no IntersectionObserver -> no anim class", () => {
+  assert.equal(animEnabled(true, true), false);
+  assert.equal(animEnabled(false, false), false);
+  assert.equal(animEnabled(true, false), true);
+});
+test("countdownParts", () => {
+  const now = Date.parse("2026-01-01T00:00:00Z");
+  assert.deepEqual(countdownParts("2026-01-02T01:02:03Z", now), { done: false, d: 1, h: 1, m: 2, s: 3 });
+  assert.equal(countdownParts("2025-01-01T00:00:00Z", now).done, true);
+  assert.equal(countdownParts("garbage", now).done, true);
+});
