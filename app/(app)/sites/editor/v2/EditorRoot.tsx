@@ -613,7 +613,7 @@ export default function EditorRoot(props: EditorProps) {
             chrome={chrome}
           />
         </main>
-        <RightPanel state={state} dispatch={dispatch} dev={dev} readOnly={readOnly} open={panelOpen} onClose={() => setPanelOpen(false)} />
+        <RightPanel state={state} dispatch={dispatch} dev={dev} steps={steps} readOnly={readOnly} open={panelOpen} onClose={() => setPanelOpen(false)} />
       </div>
       <Breadcrumb page={state.page} sel={state.sel} popupName={popup?.name ?? null} onSelect={(id) => select(id, true)} />
       {menu && (

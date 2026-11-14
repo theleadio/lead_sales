@@ -4,6 +4,7 @@
 import { useState } from "react";
 import type { Node } from "@/lib/sites/editor-state";
 import type { Page, Popup } from "@/lib/sites/tree";
+import { useDraft } from "./settings/controls";
 import { nodeLabel as label } from "./insert";
 import { KIND_COLOR, type StepInfo } from "./types";
 
@@ -114,6 +115,25 @@ export function PagesFlyout({
 
 const WHEN: Record<Popup["trigger"], string> = { exit: "when the visitor moves to leave", timer: "after a delay", button: "from a button" };
 
+// Debounced like the settings panel: one undo step per edit, not per keystroke.
+function DelayInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+  const { draft, set, focus } = useDraft(value, onCommit);
+  return (
+    <input
+      className="inp2"
+      type="number"
+      min={0}
+      max={600}
+      value={draft}
+      {...focus}
+      onChange={(e) => {
+        const n = Number(e.target.value);
+        if (e.target.value !== "" && Number.isFinite(n)) set(Math.max(0, Math.min(600, n)));
+      }}
+    />
+  );
+}
+
 export function PopupsFlyout({
   popups, onEdit, onAdd, onUpdate,
 }: {
@@ -156,14 +176,7 @@ export function PopupsFlyout({
           {p.trigger === "timer" && (
             <label className="f">
               <span>Delay (seconds)</span>
-              <input
-                className="inp2"
-                type="number"
-                min={0}
-                max={600}
-                value={p.delaySec ?? 10}
-                onChange={(e) => onUpdate(p.id, { delaySec: Math.max(0, Math.min(600, Number(e.target.value) || 0)) })}
-              />
+              <DelayInput value={p.delaySec ?? 10} onCommit={(delaySec) => onUpdate(p.id, { delaySec })} />
             </label>
           )}
         </div>
