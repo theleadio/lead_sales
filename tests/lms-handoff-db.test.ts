@@ -249,6 +249,25 @@ it("a cancel names the LMS seat only; no seat id, or a seat the LMS removed itse
   );
 });
 
+it("a cancel the LMS answers with removed: false gives Ops a task to check by hand", async () => {
+  await fresh();
+  await newUser("super_admin");
+  const s = await student();
+  await db()`UPDATE enrolment SET lms_enrollment_id = gen_random_uuid() WHERE id = ${s.enrolmentId}`;
+  await watchEnrolments();
+  await db()`UPDATE sales.lms_notice SET sent_at = now()`;
+  await db()`UPDATE enrolment SET status = 'cancelled', cancelled_reason = 'student_withdrew' WHERE id = ${s.enrolmentId}`;
+  await watchEnrolments();
+  const r = await drainLms(fakeLms(false, () => ({ removed: false })).send);
+  assert.equal(r.sent, 1, "not retried: retrying won't help");
+  const [n] = await db()`
+    SELECT last_error FROM sales.lms_notice WHERE kind = 'enrolment.cancelled'`;
+  assert.equal(n.last_error, "LMS removed nothing");
+  const [t] = await db()`
+    SELECT title FROM task WHERE enrolment_id = ${s.enrolmentId}`;
+  assert.match(t.title, /removed from the LMS/);
+});
+
 it("a seat the SalesProcess import made is not sent as confirmed, but its cancel is", async () => {
   await fresh();
   const orderId = `order-${crypto.randomUUID()}`;

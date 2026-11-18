@@ -47,8 +47,8 @@ async function rememberPerson(kind: LmsNoticeKind, refId: string) {
 // Keep the LMS's seat id on the CRM seat (lead_crm migration 028): a later
 // cancel or transfer names the seat by it. A transfer whose reply carries no
 // new id keeps the old one, moved to the new seat (the column is unique).
-// shortcut: reads the reply's `seatId`, JM's own name in his message shapes;
-// change it if his reply uses another field.
+// JM (18 Nov): the reply is { seatId, alreadyEnrolled }, and a transfer's
+// reply carries the new seat's id, which always replaces the saved one.
 async function saveSeat(
   seat: { on: string; from?: string },
   reply: Record<string, unknown>,
@@ -142,6 +142,26 @@ export async function drainLms(
             UPDATE sales.lms_notice SET sent_at = now(), last_error = NULL
             WHERE id = ${n.id}`;
           if (built.seat) await saveSeat(built.seat, reply.body);
+          // JM: a cancel with an out-of-date seat id still answers 200, with
+          // { removed: false }, and the student keeps the seat. Retrying
+          // won't help, so Ops check it by hand.
+          if (
+            n.kind === "enrolment.cancelled" &&
+            reply.body.removed === false
+          ) {
+            await sql`
+              UPDATE sales.lms_notice SET last_error = 'LMS removed nothing'
+              WHERE id = ${n.id}`;
+            await sql`
+              INSERT INTO task (type, title, person_id, enrolment_id,
+                                assigned_user_id, due_at, notes, source_key)
+              SELECT 'other', 'Check this student was removed from the LMS',
+                     e.person_id, e.id, ${await dutySuperAdmin()}, now(),
+                     ${"The seat was cancelled in the CRM, but the LMS said it removed nothing. Check the class in the LMS and remove the student by hand if they're still in it."},
+                     ${`lms:${n.id}:not-removed`}
+              FROM enrolment e WHERE e.id = ${n.ref_id}
+              ON CONFLICT (source_key) WHERE source_key IS NOT NULL DO NOTHING`;
+          }
           await rememberPerson(n.kind, n.ref_id);
           out.sent++;
         });
