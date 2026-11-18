@@ -101,6 +101,7 @@ it("a confirmed enrolment is watched, queued once and sent with the LMS class id
   assert.equal(d.class.id, await lmsIdOf("class", s.classId), "the LMS's id");
   assert.notEqual(d.class.id, s.classId);
   assert.equal(d.course, undefined, "the LMS owns course details");
+  assert.equal(d.enrolment.pricePaidMyr, undefined, "JM doesn't use the price");
   const [n] = await db()`SELECT id, sent_at FROM sales.lms_notice`;
   assert.equal(m.messageId, n.id);
   assert.ok(n.sent_at);

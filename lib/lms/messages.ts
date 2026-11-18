@@ -8,6 +8,7 @@ import type { LmsNoticeKind } from "./send.ts";
 // Shapes as JM gave them (18 Nov), with LMS ids, never CRM ones:
 //   enrolment.confirmed    person, class.id (the LMS class id) and
 //                          enrolment.fundingType are read; the rest is ignored
+//                          (no price: JM doesn't use it, Shawn 18 Nov)
 //   enrolment.cancelled    { seatId }
 //   enrolment.transferred  { seatId, toClassId }
 //   person.updated         { previousEmail, email, fullName, phoneE164 }
@@ -78,7 +79,7 @@ export type BuiltMessage =
 
 async function enrolMessage(enrolmentId: string): Promise<BuiltMessage> {
   const [e] = await db()`
-    SELECT e.id, e.status, e.payer_type, e.price_paid_myr::text AS price,
+    SELECT e.id, e.status, e.payer_type,
            e.person_id, e.class_id,
            -- The seat's funding, in the LMS's own values (decided 12 Nov;
            -- lead_crm migration 023): self_funded, hrdc, internal,
@@ -116,7 +117,6 @@ async function enrolMessage(enrolmentId: string): Promise<BuiltMessage> {
         id: e.id,
         status: e.status,
         payerType: e.payer_type,
-        pricePaidMyr: e.price ?? null,
         fundingType: e.funding_type ?? null,
         confirmedAt: e.confirmed_at
           ? new Date(e.confirmed_at as string).toISOString()
