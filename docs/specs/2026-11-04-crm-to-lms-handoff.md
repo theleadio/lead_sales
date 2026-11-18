@@ -115,7 +115,10 @@ The CRM data is incomplete for this message:
 
 **Trigger:** the existing `EnrolmentCancelled` event. **Data:** `{ "enrolmentId", "reason" }`.
 
-**What the LMS does:** remove the student's access to the cohort. It keeps the row, marked cancelled.
+**What the LMS does (changed 18 Nov, from Jaman, 17 Nov):** removes the student from the cohort, which **deletes the enrollment row**. The LMS has no "cancelled" status, so nothing is kept or marked.
+
+- **Already gone is done.** If the enrollment no longer exists (a repeat of this notice, or someone removed the seat in the LMS first), answer `200`, not `404`, so the CRM doesn't retry it (§3, idempotency; §5).
+- **The other direction.** A seat removed in the LMS by hand is cancelled in the CRM by the daily LMS sync, which gives Ops a task (lead_crm #88, in progress).
 
 ### 4.3 `enrolment.transferred`
 
