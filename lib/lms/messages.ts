@@ -19,6 +19,9 @@ import type { LmsNoticeKind } from "./send.ts";
 // nothing left to remove.
 export const GONE_REASON = "Removed from the LMS";
 
+// Seats that give LMS access (lead_crm spec §12.4).
+const SEAT_HOLDING = ["confirmed", "onboarded", "attended"];
+
 // The class as the LMS knows it, or null while it has no LMS id (lead_crm
 // migration 029, set by the CRM's daily LMS sync).
 async function lmsClass(classId: string) {
@@ -91,6 +94,12 @@ async function enrolMessage(enrolmentId: string): Promise<BuiltMessage> {
     FROM enrolment e
     WHERE e.id = ${enrolmentId}`;
   if (!e) throw new Error(`enrolment ${enrolmentId} not found`);
+  // The body is built at send time, which can be long after the confirm (a
+  // held class, a retry): a seat cancelled, refunded or moved since must not
+  // get LMS access. Its cancel was skipped (no LMS seat id), so nothing else
+  // would undo it.
+  if (!SEAT_HOLDING.includes(e.status as string))
+    return { kind: "skip", reason: `seat is ${e.status}` };
   const person = await personBlock(e.person_id as string);
   // §4.1: the LMS can't make a login without an email. Ops are told
   // instead (by the caller), and adding the email later re-queues this

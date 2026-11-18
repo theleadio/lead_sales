@@ -221,6 +221,42 @@ it("a cancel is sent only for a student who was ever confirmed", async () => {
   assert.equal(cancels[0].extra.reason, "student_withdrew");
 });
 
+it("a held enrol whose seat is cancelled before the class reaches the LMS is never sent", async () => {
+  await fresh();
+  await newUser("super_admin");
+  const classId = await lmsClass(false);
+  const id = await enrol(classId, "confirmed");
+  await db()`
+    UPDATE person SET email = ${`c-${id.slice(0, 8)}@lead.test`}
+    WHERE id = (SELECT person_id FROM enrolment WHERE id = ${id})`;
+  await watchEnrolments();
+  const lms = fakeLms();
+  assert.equal((await drainLms(lms.send)).held, 1);
+
+  // Cancelled while held: the LMS never had the seat, so its cancel is skipped.
+  await db()`UPDATE enrolment SET status = 'cancelled', cancelled_reason = 'refunded' WHERE id = ${id}`;
+  await watchEnrolments();
+  // Then Ops create the class in the LMS and the sync links it.
+  await db()`UPDATE class SET lms_cohort_id = gen_random_uuid() WHERE id = ${classId}`;
+  await db()`UPDATE sales.lms_notice SET next_attempt_at = now()`;
+  const r = await drainLms(lms.send);
+  assert.equal(
+    lms.sent.length,
+    0,
+    "a cancelled student must not get LMS access",
+  );
+  assert.equal(r.skipped, 2);
+  const reasons = await db()`
+    SELECT kind, skipped_reason FROM sales.lms_notice ORDER BY kind`;
+  assert.deepEqual(
+    reasons.map((n) => [n.kind, n.skipped_reason]),
+    [
+      ["enrolment.cancelled", "no LMS seat id"],
+      ["enrolment.confirmed", "seat is cancelled"],
+    ],
+  );
+});
+
 it("a cancel names the LMS seat only; no seat id, or a seat the LMS removed itself, is not sent", async () => {
   await fresh();
   const seatId = crypto.randomUUID();
