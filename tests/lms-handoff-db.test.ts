@@ -284,6 +284,11 @@ it("a cancel names the LMS seat only; no seat id, or a seat the LMS removed itse
       [gone.enrolmentId]: "already removed in the LMS",
     },
   );
+  assert.equal(
+    (await db()`SELECT 1 FROM task WHERE enrolment_id = ${unknown.enrolmentId}`).length,
+    0,
+    "never sent, so nothing in the LMS to remove",
+  );
 });
 
 it("a cancel the LMS answers with removed: false gives Ops a task to check by hand", async () => {
@@ -303,6 +308,44 @@ it("a cancel the LMS answers with removed: false gives Ops a task to check by ha
   const [t] = await db()`
     SELECT title FROM task WHERE enrolment_id = ${s.enrolmentId}`;
   assert.match(t.title, /removed from the LMS/);
+});
+
+it("a cancel of a seat the LMS has but whose id wasn't saved gives Ops a task to remove the student", async () => {
+  await fresh();
+  await newUser("super_admin");
+  const s = await student();
+  await watchEnrolments();
+  // The LMS enrolled them, but its reply had no usable seat id.
+  assert.equal((await drainLms(fakeLms().send)).sent, 1);
+  await db()`UPDATE enrolment SET status = 'cancelled', cancelled_reason = 'student_withdrew' WHERE id = ${s.enrolmentId}`;
+  await watchEnrolments();
+  const lms = fakeLms();
+  const r = await drainLms(lms.send);
+  assert.equal(lms.sent.length, 0);
+  assert.equal(r.skipped, 1);
+  const tasks = await db()`SELECT title FROM task WHERE enrolment_id = ${s.enrolmentId}`;
+  assert.deepEqual(tasks.map((t) => t.title), ["Remove this student from the LMS"]);
+});
+
+it("a seat id the CRM can't save doesn't undo the send: not sent again, the error is noted", async () => {
+  await fresh();
+  const seatId = crypto.randomUUID();
+  const taken = await student();
+  await db()`UPDATE enrolment SET lms_enrollment_id = ${seatId} WHERE id = ${taken.enrolmentId}`;
+  const s = await student();
+  await watchEnrolments();
+  await db()`DELETE FROM sales.lms_notice WHERE ref_id <> ${s.enrolmentId}`;
+  // The reply names a seat id another enrolment already holds (unique, 028).
+  const lms = fakeLms(false, () => ({ seatId }));
+  assert.equal((await drainLms(lms.send)).sent, 1);
+  const [n] = await db()`SELECT sent_at, attempts, last_error FROM sales.lms_notice`;
+  assert.ok(n.sent_at);
+  assert.equal(n.attempts, 0);
+  assert.match(n.last_error, /seat id wasn't saved/);
+  assert.equal(await lmsIdOf("enrolment", s.enrolmentId), null);
+  await db()`UPDATE sales.lms_notice SET next_attempt_at = now()`;
+  await drainLms(lms.send);
+  assert.equal(lms.sent.length, 1, "not sent again");
 });
 
 it("a seat the SalesProcess import made is not sent as confirmed, but its cancel is", async () => {

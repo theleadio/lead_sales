@@ -64,6 +64,14 @@ async function personBlock(personId: string) {
   };
 }
 
+export type OpsTask = {
+  key: string; // the task's source_key ends lms:<notice id>:<key>
+  title: string;
+  notes: string;
+  personId: string;
+  enrolmentId: string;
+};
+
 export type BuiltMessage =
   | {
       kind: "send";
@@ -76,7 +84,8 @@ export type BuiltMessage =
       seat?: { on: string; from?: string };
     }
   // Nothing to send, with the reason (recorded on the outbox row's handler).
-  | { kind: "skip"; reason: string; personId?: string; enrolmentId?: string }
+  // `task`: Ops must act on this seat, so the sender opens a task for it.
+  | { kind: "skip"; reason: string; task?: OpsTask }
   // Not yet: the class isn't in the LMS. Retried without using up a try.
   | { kind: "hold"; reason: string; classId: string; classCode: string };
 
@@ -108,8 +117,14 @@ async function enrolMessage(enrolmentId: string): Promise<BuiltMessage> {
     return {
       kind: "skip",
       reason: "no email",
-      personId: person.id,
-      enrolmentId: e.id as string,
+      task: {
+        key: "no-email",
+        title: "Add an email so the LMS account can be made",
+        notes:
+          "The student has no email, so the LMS can't create their login. Adding one sends them to the LMS automatically.",
+        personId: person.id,
+        enrolmentId: e.id as string,
+      },
     };
   const cls = await lmsClass(e.class_id as string);
   if (!cls.class)
@@ -150,14 +165,37 @@ export async function buildLmsMessage(
 
     case "enrolment.cancelled": {
       const [e] = await sql`
-        SELECT lms_enrollment_id, cancelled_reason FROM enrolment
+        SELECT person_id, lms_enrollment_id, cancelled_reason FROM enrolment
         WHERE id = ${refId}`;
       if (!e) throw new Error(`enrolment ${refId} not found`);
       if (e.cancelled_reason === GONE_REASON)
         return { kind: "skip", reason: "already removed in the LMS" };
       // Without the LMS's seat id the LMS can't tell which seat to remove.
-      if (!e.lms_enrollment_id)
-        return { kind: "skip", reason: "no LMS seat id" };
+      if (!e.lms_enrollment_id) {
+        // A seat never sent has nothing in the LMS. One whose enrol (or the
+        // move into it) was sent but whose id wasn't saved still gives the
+        // student LMS access, so Ops remove them by hand (Shawn, #33).
+        const [sent] = await sql`
+          SELECT 1 FROM sales.lms_notice
+          WHERE sent_at IS NOT NULL
+            AND ((kind = 'enrolment.confirmed' AND ref_id = ${refId})
+              OR (kind = 'enrolment.transferred' AND ref_id IN (
+                    SELECT id FROM enrolment
+                    WHERE transferred_to_enrolment_id = ${refId})))
+          LIMIT 1`;
+        return {
+          kind: "skip",
+          reason: "no LMS seat id",
+          task: sent && {
+            key: "not-removed",
+            title: "Remove this student from the LMS",
+            notes:
+              "The seat was cancelled in the CRM, but the CRM has no LMS seat id to cancel it by. Remove the student from the class in the LMS by hand.",
+            personId: e.person_id as string,
+            enrolmentId: refId,
+          },
+        };
+      }
       return { kind: "send", data: { seatId: e.lms_enrollment_id } };
     }
 

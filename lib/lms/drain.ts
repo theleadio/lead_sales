@@ -100,16 +100,16 @@ export async function drainLms(
               UPDATE sales.lms_notice SET skipped_reason = ${built.reason}
               WHERE id = ${n.id}`;
             // Spec §4.1: no email, no LMS login. Ops add one; the watcher
-            // then sends the student (watchPeople).
-            if (built.enrolmentId && built.personId)
+            // then sends the student (watchPeople). Or a cancel the LMS
+            // can't be told about: Ops remove the student by hand.
+            if (built.task)
               await sql`
                 INSERT INTO task (type, title, person_id, enrolment_id,
                                   assigned_user_id, due_at, notes, source_key)
-                VALUES ('other', 'Add an email so the LMS account can be made',
-                        ${built.personId}, ${built.enrolmentId},
-                        ${await dutySuperAdmin()}, now(),
-                        ${"The student has no email, so the LMS can't create their login. Adding one sends them to the LMS automatically."},
-                        ${`lms:${n.id}:no-email`})
+                VALUES ('other', ${built.task.title},
+                        ${built.task.personId}, ${built.task.enrolmentId},
+                        ${await dutySuperAdmin()}, now(), ${built.task.notes},
+                        ${`lms:${n.id}:${built.task.key}`})
                 ON CONFLICT (source_key) WHERE source_key IS NOT NULL DO NOTHING`;
             out.skipped++;
             return;
@@ -141,7 +141,20 @@ export async function drainLms(
           await sql`
             UPDATE sales.lms_notice SET sent_at = now(), last_error = NULL
             WHERE id = ${n.id}`;
-          if (built.seat) await saveSeat(built.seat, reply.body);
+          // In its own savepoint: a failed save (a clash on the unique seat
+          // id, say) must not undo the send, or the retry sends it again.
+          // Without the id, a later cancel gives Ops a task instead.
+          const seat = built.seat;
+          if (seat)
+            try {
+              await withTransaction(() => saveSeat(seat, reply.body));
+            } catch (err) {
+              const why = err instanceof Error ? err.message : String(err);
+              await sql`
+                UPDATE sales.lms_notice
+                SET last_error = ${`Sent, but the LMS seat id wasn't saved: ${why}`.slice(0, 500)}
+                WHERE id = ${n.id}`;
+            }
           // JM: a cancel with an out-of-date seat id still answers 200, with
           // { removed: false }, and the student keeps the seat. Retrying
           // won't help, so Ops check it by hand.
