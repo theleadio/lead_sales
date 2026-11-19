@@ -12,13 +12,13 @@ import { closeDb } from "../lib/sql.ts";
 
 try {
   const watched = await runWatch();
-  const total = { sent: 0, skipped: 0, failed: 0, dead: 0 };
+  const total = { sent: 0, skipped: 0, held: 0, failed: 0, dead: 0 };
   for (;;) {
     const r = await drainLms();
     for (const k of Object.keys(total) as (keyof typeof total)[])
       total[k] += r[k];
     // A failed row waits out its backoff, so it isn't due again this run.
-    if (r.sent + r.skipped + r.failed + r.dead === 0) break;
+    if (r.sent + r.skipped + r.held + r.failed + r.dead === 0) break;
   }
   console.log(
     `lms: queued ${JSON.stringify(watched)} sent ${JSON.stringify(total)}`,

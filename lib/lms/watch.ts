@@ -11,7 +11,6 @@ import { lmsHandoffEnabled, type LmsNoticeKind } from "./send.ts";
 //   enrolment_status_history  → enrolment.confirmed / .cancelled / .transferred
 //                               (written by a CRM database trigger on every
 //                               status change, whoever made it)
-//   class                     → class.updated, when what the LMS holds changed
 //   person                    → person.updated, when email, phone or name
 //                               changed; or enrolment.confirmed once a student
 //                               the LMS never got (no email) gets one
@@ -72,7 +71,10 @@ export async function watchEnrolments(): Promise<number> {
       return 0;
     }
     const rows = await sql`
-      SELECT h.id, h.enrolment_id, h.to_status, e.cancelled_reason
+      SELECT h.id, h.enrolment_id, h.to_status, e.cancelled_reason,
+             -- The new seat of a transfer: the LMS hears of it as the move.
+             EXISTS (SELECT 1 FROM enrolment o
+                     WHERE o.transferred_to_enrolment_id = e.id) AS moved_in
       FROM enrolment_status_history h JOIN enrolment e ON e.id = h.enrolment_id
       WHERE h.changed_at > ${c.read_until}::timestamptz
                            - make_interval(mins => ${OVERLAP_MINUTES})
@@ -94,7 +96,8 @@ export async function watchEnrolments(): Promise<number> {
       const key = `history:${r.id}`;
       const id = r.enrolment_id as string;
       if (r.to_status === "confirmed") {
-        if (!imported.has(id))
+        // Sending it as well would put the student in the new class twice.
+        if (!imported.has(id) && !r.moved_in)
           queued += Number(await queue("enrolment.confirmed", id, key));
       } else if (r.to_status === "transferred")
         queued += Number(await queue("enrolment.transferred", id, key));
@@ -113,50 +116,6 @@ export async function watchEnrolments(): Promise<number> {
       WHERE name = 'enrolment_status'`;
     return queued;
   });
-}
-
-// What the LMS holds about a class: a change to anything here is worth a
-// class.updated; a seat-count or status change is not.
-export function classFingerprint(c: Record<string, unknown>): string {
-  return createHash("sha256")
-    .update(
-      JSON.stringify([
-        c.code,
-        c.start_date,
-        c.end_date,
-        c.start_time,
-        c.end_time,
-        c.language,
-        c.mode,
-        c.venue_name,
-        c.venue_address,
-        c.city,
-        c.online_url,
-        c.course_id,
-      ]),
-    )
-    .digest("hex");
-}
-
-export const CLASS_FIELDS = `c.id, c.code, c.start_date::text, c.end_date::text,
-  c.start_time::text, c.end_time::text, c.language, c.mode, c.venue_name,
-  c.venue_address, c.city, c.online_url, c.course_id`;
-
-export async function watchClasses(): Promise<number> {
-  const sql = db();
-  // Only classes the LMS already knows (it was sent a student in them).
-  const rows = await sql.unsafe(`
-    SELECT ${CLASS_FIELDS}, s.fingerprint
-    FROM sales.lms_class_sent s JOIN class c ON c.id = s.class_id`);
-  let queued = 0;
-  for (const r of rows) {
-    const fp = classFingerprint(r);
-    if (fp === r.fingerprint) continue;
-    queued += Number(
-      await queue("class.updated", r.id as string, `class:${r.id}:${fp}`),
-    );
-  }
-  return queued;
 }
 
 export async function watchPeople(): Promise<number> {
@@ -182,14 +141,19 @@ export async function watchPeople(): Promise<number> {
     );
   }
   // Students skipped for having no email who now have one, still enrolled
-  // in a class that hasn't ended: send them now.
+  // in a class that hasn't ended: send them now. A skipped transfer (sent as
+  // an enrol, lib/lms/messages.ts) is about its new seat.
   const late = await sql`
-    SELECT DISTINCT n.ref_id
+    SELECT DISTINCT e.id AS ref_id
     FROM sales.lms_notice n
-    JOIN enrolment e ON e.id = n.ref_id
+    JOIN enrolment o ON o.id = n.ref_id
+    JOIN enrolment e ON e.id = CASE WHEN n.kind = 'enrolment.transferred'
+                                    THEN o.transferred_to_enrolment_id
+                                    ELSE o.id END
     JOIN person p ON p.id = e.person_id
     JOIN class c ON c.id = e.class_id
-    WHERE n.kind = 'enrolment.confirmed' AND n.skipped_reason = 'no email'
+    WHERE n.kind IN ('enrolment.confirmed', 'enrolment.transferred')
+      AND n.skipped_reason = 'no email'
       AND p.email IS NOT NULL
       AND e.status IN ('confirmed','onboarded')
       AND c.end_date >= (now() AT TIME ZONE 'Asia/Kuala_Lumpur')::date`;
@@ -204,15 +168,14 @@ export async function watchPeople(): Promise<number> {
   return queued;
 }
 
+// Classes aren't watched any more: the LMS owns them (JM point 3).
 export async function runWatch(): Promise<{
   enrolments: number;
-  classes: number;
   people: number;
 }> {
-  if (!lmsHandoffEnabled()) return { enrolments: 0, classes: 0, people: 0 };
+  if (!lmsHandoffEnabled()) return { enrolments: 0, people: 0 };
   return {
     enrolments: await watchEnrolments(),
-    classes: await watchClasses(),
     people: await watchPeople(),
   };
 }
