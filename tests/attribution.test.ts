@@ -289,3 +289,20 @@ test("hasCampaign is what tells an arrival from a navigation", () => {
   );
 });
 
+
+test("utm_id and utm_ad_id are kept in the touch and the landing URL", () => {
+  const t = touchFrom(
+    "https://lead.test/x?utm_source=facebook&utm_id=c1&utm_ad_id=a1&ref=z",
+    null,
+  );
+  assert.equal(t.utmId, "c1");
+  assert.equal(t.utmAdId, "a1");
+  assert.equal(t.landingUrl, "https://lead.test/x?utm_source=facebook&utm_id=c1&utm_ad_id=a1");
+  assert.equal(hasCampaign(touchFrom("https://lead.test/x?utm_ad_id=a1", null)), true);
+  const back = parseTouch(serialiseTouch(t));
+  assert.equal(back?.utmId, "c1");
+  assert.equal(back?.utmAdId, "a1");
+  const p = attributionPayload(null, t);
+  assert.equal(p?.utmId, "c1");
+  assert.equal(p?.utmAdId, "a1");
+});

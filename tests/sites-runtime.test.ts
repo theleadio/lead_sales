@@ -141,3 +141,12 @@ test("countdownParts", () => {
   assert.equal(countdownParts("2025-01-01T00:00:00Z", now).done, true);
   assert.equal(countdownParts("garbage", now).done, true);
 });
+
+test("utm_id and utm_ad_id reach the cookie and count as a campaign", () => {
+  const out = cookiesToWrite(null, "https://ai.thelead.io/x?utm_id=c1&utm_ad_id=a1", null, NOW);
+  assert.equal(out.length, 2);
+  const v = JSON.parse(decodeURIComponent(out[1].split(";")[0].split("=")[1]));
+  assert.equal(v.utmId, "c1");
+  assert.equal(v.utmAdId, "a1");
+  assert.equal(v.landingUrl, "https://ai.thelead.io/x?utm_id=c1&utm_ad_id=a1");
+});
