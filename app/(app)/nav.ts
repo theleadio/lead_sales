@@ -30,5 +30,12 @@ export const NAV: readonly {
     ready: true,
     roles: ["super_admin", "management", "marketing", "sales", "operations"],
   },
-  { href: "/payments", label: "Payments", phase: 2, ready: false },
+  {
+    href: "/payments",
+    label: "Payments",
+    phase: 2,
+    ready: true,
+    // The CRM's payment read (spec §6); sales see their own deals only.
+    roles: ["super_admin", "management", "sales", "operations"],
+  },
 ];
