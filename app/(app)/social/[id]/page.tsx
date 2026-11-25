@@ -28,6 +28,7 @@ import {
 } from "../actions";
 import { MediaPicker } from "../media-picker";
 import { HandKit, ResultNote, StateBadge } from "../shared";
+import { SubmitButton } from "../submit-button";
 
 // One post: while nothing of it has gone out, its words, images, channels
 // and time; then, per channel, what happened.
@@ -144,17 +145,16 @@ async function Editor({ p }: { p: Post }) {
           />
         </label>
         <div className="flex flex-wrap gap-3">
-          <button type="submit" name="intent" value="schedule" className={button}>
+          <SubmitButton name="intent" value="schedule" className={button}>
             {p.status === "scheduled" ? "Save and keep scheduled" : "Schedule"}
-          </button>
-          <button
-            type="submit"
+          </SubmitButton>
+          <SubmitButton
             name="intent"
             value="draft"
             className={`${button} !bg-surface-muted !text-ink border-line border`}
           >
             {p.status === "scheduled" ? "Unschedule (back to draft)" : "Save draft"}
-          </button>
+          </SubmitButton>
         </div>
       </form>
 
@@ -164,9 +164,9 @@ async function Editor({ p }: { p: Post }) {
           <input type="checkbox" name="confirm" required className="mt-1" />
           <span>Delete this post. This can&apos;t be undone.</span>
         </label>
-        <button type="submit" className="text-danger cursor-pointer text-sm underline">
+        <SubmitButton className="text-danger cursor-pointer text-sm underline" pending="Deleting…">
           Delete post
-        </button>
+        </SubmitButton>
       </form>
     </>
   );
@@ -244,9 +244,9 @@ function Channels({ p }: { p: Post }) {
               <form action={retryAction}>
                 <input type="hidden" name="id" value={p.id} />
                 <input type="hidden" name="channel" value={c.channel} />
-                <button type="submit" className="cursor-pointer underline">
+                <SubmitButton className="cursor-pointer underline" pending="Retrying…">
                   Retry
-                </button>
+                </SubmitButton>
               </form>
             )}
             {(c.status === "failed" || (c.status === "pending" && (!isAuto(c.channel) || needsHand(c, p.scheduledAt, now)))) && (
@@ -259,9 +259,9 @@ function Channels({ p }: { p: Post }) {
                   placeholder="Link to the live post (optional)"
                   className={`${field} w-64 py-1`}
                 />
-                <button type="submit" className="cursor-pointer underline">
+                <SubmitButton className="cursor-pointer underline">
                   {c.status === "failed" ? "I posted it by hand" : "Mark posted"}
-                </button>
+                </SubmitButton>
               </form>
             )}
           </li>
