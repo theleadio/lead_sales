@@ -5,6 +5,9 @@
 #   meta  retry Meta leads the webhook couldn't save yet (scripts/meta-run.ts)
 #   automations  start and advance automation runs (scripts/automations-run.ts)
 #   capi  send queued Meta Conversions API events (scripts/capi-run.ts)
+#   email send queued email marketing campaigns (scripts/email-run.ts)
+#   social post due social planner posts to the Facebook Page
+#         (scripts/social-run.ts)
 #
 # Every 5 minutes, GitHub's shortest schedule. GitHub runs scheduled
 # workflows from the default branch only, and may start them late or skip
@@ -16,7 +19,9 @@
 # each job its own: LMS_HANDOFF_ENABLED, LMS_WEBHOOK_URL, LMS_WEBHOOK_SECRET;
 # META_PAGE_ACCESS_TOKEN (META_GRAPH_VERSION optional); for automations'
 # WhatsApp steps, WATI_API_HOST and WATI_API_TOKEN; for capi, META_CAPI_TOKEN
-# and META_PIXEL_ID (META_TEST_EVENT_CODE optional). A job whose secrets
+# and META_PIXEL_ID (META_TEST_EVENT_CODE optional); for email, RESEND_API_KEY,
+# EMAIL_FROM, APP_BASE_URL and EMAIL_UNSUBSCRIBE_SECRET; for social,
+# FACEBOOK_PAGE_ID and FACEBOOK_PAGE_TOKEN. A job whose secrets
 # aren't set yet is skipped, not failed.
 #
 # Logs may be public: the scripts print counts and error messages only, and
@@ -147,3 +152,61 @@ jobs:
         run: npm ci --omit=dev
       - if: steps.ready.outputs.go == 'true'
         run: node --import=./scripts/ci-errors.mjs scripts/capi-run.ts
+
+  email:
+    concurrency: { group: email, cancel-in-progress: false }
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+      EMAIL_UNSUBSCRIBE_SECRET: ${{ secrets.EMAIL_UNSUBSCRIBE_SECRET }}
+    steps:
+      - name: Skip until configured
+        id: ready
+        run: |
+          if [ -n "$DATABASE_URL" ] && [ -n "$RESEND_API_KEY" ] && [ -n "$EMAIL_FROM" ] \
+             && [ -n "$APP_BASE_URL" ] && [ -n "$EMAIL_UNSUBSCRIBE_SECRET" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Email marketing secrets not set: skipped."
+          fi
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - if: steps.ready.outputs.go == 'true'
+        run: npm ci --omit=dev
+      - if: steps.ready.outputs.go == 'true'
+        run: node --import=./scripts/ci-errors.mjs scripts/email-run.ts
+
+  social:
+    concurrency: { group: social, cancel-in-progress: false }
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+      FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+      META_GRAPH_VERSION: ${{ secrets.META_GRAPH_VERSION }}
+    steps:
+      - name: Skip until configured
+        id: ready
+        run: |
+          if [ -n "$DATABASE_URL" ] && [ -n "$FACEBOOK_PAGE_ID" ] && [ -n "$FACEBOOK_PAGE_TOKEN" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Facebook Page secrets not set: skipped."
+          fi
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - if: steps.ready.outputs.go == 'true'
+        run: npm ci --omit=dev
+      - if: steps.ready.outputs.go == 'true'
+        run: node --import=./scripts/ci-errors.mjs scripts/social-run.ts

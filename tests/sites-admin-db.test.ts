@@ -6,6 +6,11 @@ import {
   cloneStep,
   addStep,
   createFunnel,
+  deleteSite,
+  duplicateSite,
+  moveSiteToFolder,
+  renameSite,
+  createFolder,
   renameStep,
   saveTemplate,
   deleteStep,
@@ -384,4 +389,28 @@ it("the three starter templates create funnels with all their steps and html", a
       assert.equal(pageSchema.safeParse(d.project).success, true, `${t.name} / ${s.name}`);
     }
   }
+});
+
+it("a funnel can be renamed, moved, duplicated (drafts only) and deleted when nothing is live", async () => {
+  const m = await newUser("marketing");
+  const b = base();
+  const { siteId } = await createFunnel(m, { name: "F", language: "en", basePath: b });
+  await renameSite(m, siteId, "  Renamed  ");
+  await createFolder(m, "funnel", "Folder");
+  const [{ id: folderId }] = await db()`SELECT id FROM sales.site_folder WHERE name = 'Folder' ORDER BY created_at DESC LIMIT 1`;
+  await moveSiteToFolder(m, siteId, folderId as string);
+  const s = (await getSite(m, siteId))!;
+  assert.deepEqual([s.name, s.folderId], ["Renamed", folderId]);
+  const { siteId: copyId } = await duplicateSite(m, siteId);
+  const c = (await getSite(m, copyId))!;
+  assert.equal(c.name, "Renamed copy");
+  assert.equal(c.basePath, `${b}-copy`);
+  assert.deepEqual(c.steps.map((x) => x.path), [`${b}-copy`, `${b}-copy/payment`, `${b}-copy/thank-you`]);
+  assert.ok(c.steps.every((x) => !x.live));
+  await db()`UPDATE sales.site_page SET active_version_id = (SELECT id FROM sales.page_version WHERE page_id = ${s.steps[0].id} LIMIT 1) WHERE id = ${s.steps[0].id}`;
+  await assert.rejects(deleteSite(m, siteId), /Unpublish/);
+  await deleteSite(m, copyId);
+  assert.equal(await getSite(m, copyId), null);
+  const sales = await newUser("sales");
+  await assert.rejects(renameSite(sales, siteId, "x"), SitesPermissionError);
 });

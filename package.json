@@ -17,7 +17,10 @@
     "lms:run": "node --env-file-if-exists=.env.local scripts/lms-run.ts",
     "lms:backfill": "node --env-file-if-exists=.env.local scripts/lms-backfill.ts",
     "meta:run": "node --env-file-if-exists=.env.local scripts/meta-run.ts",
-    "automations:run": "node --env-file-if-exists=.env.local scripts/automations-run.ts"
+    "automations:run": "node --env-file-if-exists=.env.local scripts/automations-run.ts",
+    "email:run": "node --env-file-if-exists=.env.local scripts/email-run.ts",
+    "social:run": "node --env-file-if-exists=.env.local scripts/social-run.ts",
+    "consent:import": "node --env-file-if-exists=.env.local scripts/consent-import.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

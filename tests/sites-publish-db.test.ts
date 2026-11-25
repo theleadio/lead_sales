@@ -228,3 +228,18 @@ it("a button pointing at a deleted popup refuses publishing", async () => {
   assert.equal(r.kind, "refused");
   assert.match((r as { reasons: string[] }).reasons.join(), /popup that no longer exists/);
 });
+
+it("getSite says when a live step has draft changes visitors don't see yet", async () => {
+  const { m, page } = await setup();
+  const [{ site_id }] = await db()`SELECT site_id FROM sales.site_page WHERE id = ${page.id}`;
+  const before = (await getSite(m, site_id as string))!;
+  assert.deepEqual([before.steps[0].live, before.steps[0].changed], [false, false]);
+  assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
+  const siteId = before.id;
+  let s = (await getSite(m, siteId))!.steps[0];
+  assert.deepEqual([s.live, s.changed], [true, false]);
+  assert.ok(s.publishedAt instanceof Date);
+  await setDraftTree(page.id, paraPage("edited"));
+  s = (await getSite(m, siteId))!.steps[0];
+  assert.deepEqual([s.live, s.changed], [true, true]);
+});

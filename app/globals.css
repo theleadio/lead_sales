@@ -9,9 +9,12 @@
 :root {
   --surface: #ffffff;
   --surface-muted: #f5f5f7;
+  /* Row and menu hover tints (the reviewed UI demo, 25 Nov). */
+  --hover-row: #f7f9fb;
+  --hover-nav: #ebebef;
   --line: #e5e5ea;
   --ink: #0a0a0a;
-  --ink-muted: #3d3d3d;
+  --ink-muted: #5a5a60;
   --lead-blue: #a1bace;
   --lead-yellow: #fbe33b;
   --action: #3d3d3d;
@@ -19,6 +22,15 @@
   --focus-ring: #0a0a0a;
   /* Errors: red text on white must pass AA too. */
   --danger: #b42318;
+  /* Status badges (app/(app)/ui.tsx): dark text on a pale fill of the same
+     hue, each pair AA (tests/brand.test.ts). */
+  --danger-soft: #fdecea;
+  --ok: #1d6b3a;
+  --ok-soft: #e6f4ea;
+  --warn: #8a5a00;
+  --warn-soft: #fff4d6;
+  --info: #2c5674;
+  --info-soft: #e8eff5;
 }
 
 @theme inline {
@@ -27,16 +39,43 @@
   --color-line: var(--line);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
+  --color-hover-row: var(--hover-row);
+  --color-hover-nav: var(--hover-nav);
   --color-lead-blue: var(--lead-blue);
   --color-lead-yellow: var(--lead-yellow);
   --color-action: var(--action);
   --color-action-ink: var(--action-ink);
   --color-focus-ring: var(--focus-ring);
   --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --font-sans: var(--font-inter);
 }
 
 body {
   background: var(--surface);
   color: var(--ink);
+}
+
+/* Loading placeholders (app/(app)/loading.tsx). */
+.skeleton {
+  background: linear-gradient(90deg, #eeeef1 0%, #f7f7f9 50%, #eeeef1 100%);
+  background-size: 200% 100%;
+  animation: skeleton 1.2s infinite linear;
+  border-radius: 8px;
+}
+@keyframes skeleton {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
 }

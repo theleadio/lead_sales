@@ -660,6 +660,20 @@ function StepFields({
             are set; email isn&apos;t connected yet. Until a channel is, this
             step stops the run with a clear message in its log.
           </p>
+          {s.kind === "send_email" && (
+            <p className="text-ink-muted text-xs sm:col-span-2">
+              Email templates are written and edited in Resend; use the name
+              without the -en or -zh ending.{" "}
+              <a
+                href="https://resend.com/templates"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Open Resend
+              </a>
+            </p>
+          )}
         </div>
       );
   }

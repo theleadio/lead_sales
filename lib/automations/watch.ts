@@ -193,8 +193,15 @@ async function lmsCauses(): Promise<Cause[]> {
     "lms_account",
     (from, to) => sql`
     SELECT n.id, n.sent_at, e.id AS enrolment_id, e.person_id, e.class_id
-    FROM sales.lms_notice n JOIN enrolment e ON e.id = n.ref_id
-    WHERE n.kind = 'enrolment.confirmed' AND n.sent_at IS NOT NULL
+    FROM sales.lms_notice n
+    JOIN enrolment o ON o.id = n.ref_id
+    -- A move is sent as one transfer (no confirm for the new seat), so the
+    -- new seat starts onboarding from it, as it did from its own confirm.
+    JOIN enrolment e ON e.id = CASE WHEN n.kind = 'enrolment.transferred'
+                                    THEN o.transferred_to_enrolment_id
+                                    ELSE o.id END
+    WHERE n.kind IN ('enrolment.confirmed', 'enrolment.transferred')
+      AND n.sent_at IS NOT NULL
       -- Go-live backfill (scripts/lms-backfill.ts): those students were
       -- onboarded before, so they don't start onboarding again.
       AND n.source_key NOT LIKE 'backfill:%'

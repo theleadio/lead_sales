@@ -68,7 +68,7 @@ it("the footer has a privacy link, the sign-up form a LEAD form, the testimonial
 });
 
 it("the starter templates are v2 trees with only marked copy", async () => {
-  assert.deepEqual(TEMPLATES.map((t) => t.steps.map((s) => s.kind)), [["page"], ["page", "checkout", "thank_you"], ["page", "thank_you"]]);
+  assert.deepEqual(TEMPLATES.map((t) => t.steps.map((s) => s.kind)), [["page"], ["page", "checkout", "thank_you"], ["page", "thank_you"], ["page", "checkout", "thank_you"], ["page", "thank_you"]]);
   for (const t of TEMPLATES) {
     for (const s of t.steps) {
       assert.ok(pageSchema.safeParse(s.project).success, `${t.name} / ${s.name}`);

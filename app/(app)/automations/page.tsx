@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { canEditAutomations, listAutomations } from "@/lib/automations/admin";
 import { TRIGGER_LABEL } from "@/lib/automations/model";
-import { button } from "../ui";
+import { RowLink } from "../row-link";
+import { Plus } from "lucide-react";
+import { Badge, button, EmptyState, page, PageHeader, table as t } from "../ui";
 import { toggleAutomationAction } from "./actions";
 import { ResultNote } from "./shared";
 
@@ -21,65 +23,62 @@ export default async function AutomationsPage({
   const automations = await listAutomations();
 
   return (
-    <section className="max-w-5xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Automations</h1>
-        <Link href="/automations/new" className={button}>
-          New automation
-        </Link>
-      </div>
-      <p className="text-ink-muted mt-1 text-sm">
-        &ldquo;When this happens, do that.&rdquo; Switch one off to stop new
-        runs and hold the ones waiting.
-      </p>
+    <section className={page}>
+      <PageHeader
+        title="Automations"
+        lede={
+          <>
+            &ldquo;When this happens, do that.&rdquo; Switch one off to stop
+            new runs and hold the ones waiting.
+          </>
+        }
+        action={
+          <Link href="/automations/new" className={button}>
+            <Plus className="size-[18px]" aria-hidden="true" />
+            New automation
+          </Link>
+        }
+      />
       <ResultNote code={result} />
 
       {automations.length === 0 ? (
-        <div className="border-line bg-surface-muted mt-6 rounded-2xl border p-10 text-center">
-          <p className="font-medium">No automations yet</p>
-          <p className="text-ink-muted mt-1 text-sm">
-            Start with a new-lead follow-up: tag the lead and give sales a task.
-          </p>
-        </div>
+        <EmptyState title="No automations yet">
+          Start with a new-lead follow-up: tag the lead and give sales a task.
+        </EmptyState>
       ) : (
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-ink-muted">
+        <div className={`${t.wrap} mt-[22px]`}>
+          <table className={t.table}>
+            <thead>
               <tr>
-                <th className="py-2 pr-4 font-medium">Name</th>
-                <th className="py-2 pr-4 font-medium">When</th>
-                <th className="py-2 pr-4 font-medium">Steps</th>
-                <th className="py-2 pr-4 font-medium">In progress</th>
-                <th className="py-2 pr-4 font-medium">Failed</th>
-                <th className="py-2 font-medium">Status</th>
+                <th className={t.th}>Name</th>
+                <th className={t.th}>When</th>
+                <th className={`${t.th} text-right`}>Steps</th>
+                <th className={`${t.th} text-right`}>In progress</th>
+                <th className={`${t.th} text-right`}>Failed</th>
+                <th className={t.th}>Status</th>
               </tr>
             </thead>
             <tbody>
               {automations.map((a) => (
-                <tr key={a.id} className="border-line border-t">
-                  <td className="py-2 pr-4">
+                <RowLink key={a.id} href={`/automations/${a.id}`} className={t.row}>
+                  <td className={t.td}>
                     <Link
                       href={`/automations/${a.id}`}
-                      className="font-medium underline"
+                      className="font-medium"
                     >
                       {a.name}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4">
-                    {TRIGGER_LABEL[a.trigger] ?? a.trigger}
-                  </td>
-                  <td className="py-2 pr-4">{a.steps}</td>
-                  <td className="py-2 pr-4">{a.inProgress}</td>
+                  <td className={t.td}>{TRIGGER_LABEL[a.trigger] ?? a.trigger}</td>
+                  <td className={`${t.td} ${t.num}`}>{a.steps}</td>
+                  <td className={`${t.td} ${t.num}`}>{a.inProgress}</td>
                   <td
-                    className={`py-2 pr-4 ${a.failed ? "text-danger font-medium" : ""}`}
+                    className={`${t.td} ${t.num} ${a.failed ? "text-danger font-bold" : ""}`}
                   >
                     {a.failed}
                   </td>
-                  <td className="py-2">
-                    <form
-                      action={toggleAutomationAction}
-                      className="flex items-center gap-2"
-                    >
+                  <td className={t.td}>
+                    <form action={toggleAutomationAction}>
                       <input type="hidden" name="id" value={a.id} />
                       <input
                         type="hidden"
@@ -87,20 +86,19 @@ export default async function AutomationsPage({
                         value={a.active ? "off" : "on"}
                       />
                       <input type="hidden" name="from" value="list" />
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${a.active ? "bg-lead-blue/50" : "bg-surface-muted text-ink-muted"}`}
-                      >
-                        {a.active ? "On" : "Off"}
-                      </span>
                       <button
                         type="submit"
-                        className="text-ink-muted cursor-pointer text-xs underline"
+                        title={a.active ? "Click to switch off" : "Click to switch on"}
+                        aria-label={`${a.name} is ${a.active ? "on" : "off"}. Switch ${a.active ? "off" : "on"}`}
+                        className="cursor-pointer rounded-full hover:opacity-80"
                       >
-                        {a.active ? "Switch off" : "Switch on"}
+                        <Badge tone={a.active ? "green" : "grey"}>
+                          {a.active ? "On" : "Off"}
+                        </Badge>
                       </button>
                     </form>
                   </td>
-                </tr>
+                </RowLink>
               ))}
             </tbody>
           </table>

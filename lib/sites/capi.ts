@@ -119,7 +119,16 @@ export async function drainCapi(now: Date, fetchImpl: typeof fetch = fetch): Pro
   if (!token || !pixel) return { sent: 0, failed: 0 };
   const sql = db();
   await queuePurchases(now);
-  await sql`DELETE FROM sales.page_view_seen WHERE day < ${klDay(new Date(now.getTime() - 2 * 86_400_000))}::date`;
+  // Day-salted rows go after 2 days; stable ones (migration 011) after 90.
+  const twoDays = klDay(new Date(now.getTime() - 2 * 86_400_000));
+  const [col] = await sql`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'sales' AND table_name = 'page_view_seen' AND column_name = 'stable'`;
+  if (col)
+    await sql`
+      DELETE FROM sales.page_view_seen
+      WHERE day < (CASE WHEN stable THEN ${klDay(new Date(now.getTime() - 90 * 86_400_000))} ELSE ${twoDays} END)::date`;
+  else await sql`DELETE FROM sales.page_view_seen WHERE day < ${twoDays}::date`;
   const claimUntil = new Date(now.getTime() + CLAIM_MIN * 60_000);
   const due = (await sql`
     UPDATE sales.capi_event SET next_attempt_at = ${claimUntil}

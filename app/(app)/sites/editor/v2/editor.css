@@ -1,7 +1,7 @@
 /* Sites editor v2 chrome. Ported from the approved prototype
    (docs/specs/assets/2026-11-14-editor-prototype.html); everything is scoped under .ev2. */
 .ev2{
-  --chrome:#ffffff; --chrome-2:#f4f6f9; --line:#e3e7ee; --fg:#1d2433; --muted:#6a7385; --accent:#2563eb; --accent-ink:#ffffff;
+  --chrome:#ffffff; --chrome-2:#f4f6f9; --line:#e3e7ee; --fg:#1d2433; --muted:#6a7385; --accent:#3d3d3d; --accent-ink:#ffffff; /* the app's charcoal action colour (app/globals.css --action) */
   --sec:#16a34a; --row:#2563eb; --col:#9333ea; --el:#ea580c;
   --ground:#e9edf3; --shadow:0 6px 24px rgba(20,30,50,.12);
   --ui:var(--font-inter),"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -9,7 +9,7 @@
   background:var(--ground);color:var(--fg);font-family:var(--ui);font-size:13px;overflow:hidden;
 }
 @media (prefers-color-scheme:dark){.ev2{
-  --chrome:#171b24; --chrome-2:#1f2430; --line:#2c3342; --fg:#e6e9f0; --muted:#9aa3b5; --accent:#4f8bff; --accent-ink:#0b1020; --ground:#0f131a; --shadow:0 6px 24px rgba(0,0,0,.45); color-scheme:dark}}
+  --chrome:#171b24; --chrome-2:#1f2430; --line:#2c3342; --fg:#e6e9f0; --muted:#9aa3b5; --accent:#e5e5ea; --accent-ink:#0b1020; --ground:#0f131a; --shadow:0 6px 24px rgba(0,0,0,.45); color-scheme:dark}}
 .ev2 *,.ev2 *::before,.ev2 *::after{box-sizing:border-box}
 .ev2 button,.ev2 input,.ev2 select,.ev2 textarea{font:inherit;color:inherit}
 .ev2 button{cursor:pointer}
@@ -113,6 +113,9 @@
 .ev2 .tb.in{transform:none;top:2px;border-radius:5px}
 .ev2 .tb.l{left:-1px}
 .ev2 .tb.r{right:-1px}
+/* Element toolbars: one column in the gutter right of the element (see SelectionChrome). */
+.ev2 .tbs{position:absolute;left:100%;top:-2px;margin-left:4px;display:flex;flex-direction:column;gap:3px;pointer-events:none}
+.ev2 .tbs .tb{position:static;transform:none;flex-direction:column;border-radius:5px}
 .ev2 .tb button{border:0;background:none;color:#fff;width:24px;height:22px;border-radius:4px;display:grid;place-items:center;font:600 12px/1 var(--ui);padding:0}
 .ev2 .tb button:hover{background:rgba(255,255,255,.2)}
 .ev2 .tb button[data-drag]{cursor:grab;touch-action:none}
