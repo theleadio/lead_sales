@@ -70,12 +70,10 @@ export default async function HomePage() {
   if (!user) redirect("/sign-in");
   const now = new Date();
   const first = user.fullName.split(/\s+/)[0] || user.fullName;
-  const today = new Intl.DateTimeFormat("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    timeZone: "Asia/Kuala_Lumpur",
-  }).format(now);
+  // "Wednesday, 25 Nov", as in the demo.
+  const part = (o: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-GB", { ...o, timeZone: "Asia/Kuala_Lumpur" }).format(now);
+  const today = `${part({ weekday: "long" })}, ${part({ day: "numeric" })} ${part({ month: "short" })}`;
   const r = user.role;
 
   return (

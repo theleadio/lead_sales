@@ -156,7 +156,9 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
       )}
 
       {edit && (
-        <div id="new-funnel" className="mt-8 grid scroll-mt-6 gap-6 md:grid-cols-2">
+        // Hidden until "New funnel" opens it (#new-funnel in the address), so the
+        // list looks as in the reviewed demo.
+        <div id="new-funnel" className="mt-[22px] hidden scroll-mt-6 gap-6 target:grid md:grid-cols-2">
           <ActionForm
             action={createFunnelAction}
             className="border-line flex flex-col gap-3 rounded-[14px] border p-4"
