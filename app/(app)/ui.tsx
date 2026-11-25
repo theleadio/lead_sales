@@ -131,13 +131,15 @@ export const tiles =
   "mt-[22px] grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3";
 
 // A number with its label. With href it links to the screen behind it; with
-// alert it turns red, for counts that need someone.
+// alert it turns red, for counts that need someone; with ok it turns green,
+// for a count that is clear (the demo's colours, both ways).
 export function StatTile({
   label,
   value,
   note,
   href,
   alert,
+  ok,
   icon,
   trend,
 }: {
@@ -146,6 +148,7 @@ export function StatTile({
   note?: React.ReactNode;
   href?: string;
   alert?: boolean;
+  ok?: boolean;
   icon?: React.ReactNode;
   trend?: number[];
 }) {
@@ -156,7 +159,7 @@ export function StatTile({
         {label}
       </span>
       <span
-        className={`block text-2xl font-semibold tracking-[-0.01em] tabular-nums ${alert ? "text-danger" : ""}`}
+        className={`block text-2xl font-semibold tracking-[-0.01em] tabular-nums ${alert ? "text-danger" : ok ? "text-ok" : ""}`}
       >
         {value}
       </span>
@@ -164,7 +167,7 @@ export function StatTile({
       {trend && trend.length > 1 && <Sparkline values={trend} />}
     </>
   );
-  const cls = `flex flex-col gap-1 rounded-[14px] border px-4 py-3.5 ${alert ? "border-[#f3c4bf] bg-danger-soft" : "border-line"}`;
+  const cls = `flex flex-col gap-1 rounded-[14px] border px-4 py-3.5 ${alert ? "border-[#f3c4bf] bg-danger-soft" : ok ? "border-[#b9dcc4] bg-ok-soft" : "border-line"}`;
   return href ? (
     <Link
       href={href}
@@ -191,14 +194,16 @@ export const table = {
 };
 
 // A small trend line, oldest value first, scaled to its own highest value.
-// All zeros draw a flat line along the bottom.
+// A flat run (all zeros, say) draws its line across the middle, so the
+// blue fill under it still shows, as in the demo.
 export function Sparkline({ values }: { values: number[] }) {
   const w = 160;
   const h = 30;
-  const max = Math.max(...values, 0);
+  const max = Math.max(...values);
+  const min = Math.min(...values);
   const pts = values.map((v, i) => [
     (i * w) / (values.length - 1),
-    h - 3 - (max > 0 ? (v / max) * (h - 8) : 0),
+    max > min ? h - 3 - ((v - min) / (max - min)) * (h - 8) : h / 2,
   ]);
   const d = pts
     .map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`)
