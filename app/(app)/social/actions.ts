@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
@@ -18,6 +19,13 @@ import {
 
 // Server Actions are public POST endpoints: the user comes from the session,
 // every field is validated here, and the library checks the role again.
+
+// After a change: refresh the whole signed-in layout too, so the menu's red
+// "needs you" count (rendered in the layout) matches the page, then go on.
+function done(url: string): never {
+  revalidatePath("/", "layout");
+  redirect(url);
+}
 
 async function actor(): Promise<Actor> {
   const u = await getCurrentUser();
@@ -54,7 +62,7 @@ export async function newPostAction(form: FormData) {
     if (!(e instanceof SocialError)) throw e;
     redirect(`/social?result=${code(e)}`);
   }
-  redirect(`/social/${id}`);
+  done(`/social/${id}`);
 }
 
 const saveSchema = z.object({
@@ -111,7 +119,7 @@ export async function savePostAction(form: FormData) {
     result = code(e);
     why = detail(e);
   }
-  redirect(`/social/${p.data.id}?result=${result}${why}`);
+  done(`/social/${p.data.id}?result=${result}${why}`);
 }
 
 export async function deletePostAction(form: FormData) {
@@ -126,7 +134,7 @@ export async function deletePostAction(form: FormData) {
     if (!(e instanceof SocialError)) throw e;
     redirect(`/social/${p.data.id}?result=${code(e)}`);
   }
-  redirect("/social?result=deleted");
+  done("/social?result=deleted");
 }
 
 const channelSchema = z.object({
@@ -152,7 +160,7 @@ export async function markPostedAction(form: FormData) {
     result = code(e);
     why = detail(e);
   }
-  redirect(backTo(p.data.id, p.data.back, result) + why);
+  done(backTo(p.data.id, p.data.back, result) + why);
 }
 
 export async function retryAction(form: FormData) {
@@ -168,7 +176,7 @@ export async function retryAction(form: FormData) {
     result = code(e);
     why = detail(e);
   }
-  redirect(backTo(p.data.id, p.data.back, result) + why);
+  done(backTo(p.data.id, p.data.back, result) + why);
 }
 
 export async function removeMediaAction(form: FormData) {
@@ -182,5 +190,5 @@ export async function removeMediaAction(form: FormData) {
     if (!(e instanceof SocialError)) throw e;
     result = code(e);
   }
-  redirect(`/social/library?result=${result}`);
+  done(`/social/library?result=${result}`);
 }

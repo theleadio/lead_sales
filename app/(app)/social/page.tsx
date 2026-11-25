@@ -44,6 +44,7 @@ import {
   ResultNote,
   StateBadge,
 } from "./shared";
+import { SubmitButton } from "./submit-button";
 
 // The social planner (build plan phase 3): posts on a calendar. Facebook Page
 // posts go out on their own; every other channel shows under "Needs you" when
@@ -121,17 +122,17 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
     <section className={page}>
       <PageHeader
         title="Social planner"
-        lede="Posts on a calendar, in Malaysia time. Facebook Page posts go out on their own; other channels show under Needs you when it's time to post them."
+        lede="Posts on a calendar, in Malaysia time. When a post's time comes it shows under Needs you, to post by hand and mark posted. Facebook Page posts will go out on their own once auto-posting is set up."
         action={
           <>
             <Link href="/social/library" className={ghostButton}>
               Image library
             </Link>
             <form action={newPostAction}>
-              <button type="submit" className={button}>
+              <SubmitButton className={button} pending="Creating…">
                 <Plus className="size-[18px]" aria-hidden="true" />
                 New post
-              </button>
+              </SubmitButton>
             </form>
           </>
         }
@@ -196,13 +197,13 @@ function NewOnDay({ day }: { day: string }) {
   return (
     <form action={newPostAction}>
       <input type="hidden" name="day" value={day} />
-      <button
-        type="submit"
+      <SubmitButton
+        pending="…"
         className="text-ink-muted hover:text-ink cursor-pointer text-xs"
         aria-label={`New post on ${dayLabel(day)}`}
       >
         +
-      </button>
+      </SubmitButton>
     </form>
   );
 }
@@ -368,9 +369,9 @@ function NeedsYou({ posts }: { posts: Post[] }) {
                           <input type="hidden" name="id" value={p.id} />
                           <input type="hidden" name="channel" value={c.channel} />
                           <input type="hidden" name="back" value="planner" />
-                          <button type="submit" className="cursor-pointer underline">
+                          <SubmitButton className="cursor-pointer underline" pending="Retrying…">
                             Retry
-                          </button>
+                          </SubmitButton>
                         </form>
                       </>
                     )}
@@ -384,9 +385,9 @@ function NeedsYou({ posts }: { posts: Post[] }) {
                         placeholder="Link to the live post (optional)"
                         className={`${field} w-64 py-1`}
                       />
-                      <button type="submit" className="cursor-pointer underline">
+                      <SubmitButton className="cursor-pointer underline">
                         {c.status === "failed" ? "I posted it by hand" : "Mark posted"}
-                      </button>
+                      </SubmitButton>
                     </form>
                   </li>
                 ))}
