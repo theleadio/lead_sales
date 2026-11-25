@@ -28,7 +28,13 @@ export const NAV: readonly {
     ready: true,
     roles: ["super_admin", "management", "marketing"],
   },
-  { href: "/social", label: "Social planner", phase: 3, ready: false },
+  {
+    href: "/social",
+    label: "Social planner",
+    phase: 3,
+    ready: true,
+    roles: ["super_admin", "management", "marketing"],
+  },
   {
     href: "/sites",
     label: "Sites & forms",
