@@ -1,0 +1,70 @@
+@/ai-agents-online-workshop
+~AI Agents Online Workshop| 20 OCT | 8–10PM
+~A live 2-hour Zoom workshop for beginners. Watch four AI agents work together as one team, then build your first one yourself. No coding needed.
+~M/6acf2b8a883b04e61945cfa4.png
+#
+img M/6acf2b8a883b04e61945cfa4.png AI Agents Online Workshop
+p <b>LIVE ON ZOOM · TUE, 20 OCT · 8–10PM</b>
+h1 Your AI team is one instruction away.
+h2 Stop doing everything alone.
+p In this live 2-hour workshop, watch an AI team at work, then build your first teammate. No coding. No jargon. Made for complete beginners.
+btn Sign Up Now #pay
+p + 8% SST · Led by Dr. Lau Cher Han
+#
+h1 Same request. Very different answer.
+h3 “I need a promo post for our weekend sale.”
+p "Here are 5 tips for writing a great promo post..."
+ul Post written‖Image made‖Scheduled for Saturday, 9am
+p One gives you advice. The other gets it done. Now imagine a few of them, working together.
+#
+h2 MEET YOUR AI TEAM
+h1 One agent does a task. A team does the job.
+h2 You’re the boss. They do the work.
+h3 The Writer
+p Posts, emails and captions, in your voice.
+h3 The Analyst
+p Reads your numbers and tells you what changed.
+h3 The Assistant
+p Handles the repetitive tasks, on repeat.
+h3 The Web Builder
+p Builds pages and simple tools from a sentence.
+p One instruction from you. Four jobs done. You're not replacing your team. You're adding one that never clocks out.
+#
+h2 WHO IT'S FOR
+h1 Built for people who've never built anything with AI.
+h3 The overloaded employee
+p You spend hours on reports and copy-paste work.
+h3 The small business owner
+p You're the marketer, admin and customer service, all at once.
+h3 The solo founder or freelancer
+p You've got ideas, but no team and no budget to hire one.
+h3 The curious beginner
+p You've only used ChatGPT for emails, and keep hearing about 'AI agents'.
+p See yourself here? Your AI team is ready when you are.
+h2 Things you don't need.
+ul "I need to know how to code." You type in plain English.‖"I need to be good with tech." If you can send a WhatsApp, you can do this.‖"I need to keep up with 100 AI tools." We show you the few that matter.‖"I need to understand how AI works." You just need to know what to ask.
+p <b>What you do need: a laptop, Wi-Fi and Zoom.</b>
+#
+h2 YOUR TRAINER
+img M/69b3b3d8277ba0de57c105d3.png Dr. Lau Cher Han
+h3 Dr. Lau Cher Han
+p Founder &amp; CEO, LEAD and AI365 · AI Engineer &amp; Chief Data Scientist
+p Dr. Lau Cher Han, Ph.D in Machine Learning from Queensland University of Technology, Australia, is an AI engineer and chief data scientist who helps organisations across Southeast Asia turn advanced AI capabilities into real-world business results.
+p He founded LEAD in 2015 to bridge academia and industry through hands-on AI training, from public programmes to bespoke in-house capability building. LEAD has since trained over 19,000 professionals and worked with more than 720 organisations across the region, equipping teams to build and deploy AI systems in real business settings.
+p He leads the development of AI solutions that help organisations become AI-native through consulting, product design, and implementation. In 2026, he founded AI365, a platform bringing practical AI knowledge to everyday professionals through multimedia content, live sessions, and the AI365 Hub, a dedicated innovation space in Kuala Lumpur.
+p <b>19,000+</b> professionals trained · <b>720+</b> organisations · <b>11 years</b> teaching AI
+#
+h3 AI Agents Online Workshop
+price RM 228
+p +8% SST · Tue, 20 Oct 2026 · 8:00–10:00pm (MYT) · Live on Zoom · English
+btn Sign Up Now #pay
+h1 Quick questions.
+faq I'm a total beginner. Is that OK? Perfect. That's exactly who this is for.
+faq Do I need to code? No. You type in plain English.
+faq What's an "AI team"? A few AI agents, each with its own job, passing work to each other. You stay the boss and review everything.
+faq What do I need to prepare? A laptop, a stable internet connection and Zoom installed. No experience needed.
+faq Can I join on my phone? It's fine for watching. You'll need a laptop to build along.
+faq What language is it in? English.
+h1 Your AI team is still waiting.
+p Give your first instruction on 20 Oct. Two hours. One sentence. Real results.
+btn Sign Up Now #pay

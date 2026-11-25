@@ -1,0 +1,101 @@
+@/en/workshop/youth-vibe-coding-bootcamp
+~Youth Vibe Coding Bootcamp | 18 Dec 2026 | Ages 15–22
+~One-day, hands-on bootcamp for ages 15–22. Build 5 real projects with Claude Code. 18 Dec 2026, AI365 Space, Oval Damansara.
+~
+#
+p <b>YOUTH VIBE CODING BOOTCAMP · AGES 15–22</b>
+h1 Your child uses tech. Can they <i>create</i> with it?
+p <b>1</b> day · <b>5</b> real projects · <b>15–22</b> years old · <b>0</b> coding needed
+btn Book a Seat https://ai.thelead.io/youth-vibe-coding-bootcamp-payment-form
+btn WhatsApp Us https://wa.me/60174508388
+p <b>18 Dec 2026, Friday · 9:00am–5:00pm</b><br>AI365 Space, Oval Damansara<br>Admit one · ages 15–22 · seats are filling fast
+p Small class · Bring your own laptop · Lunch included · 3 months support · Certificate of Completion · Claude Pro subscription required
+#
+h2 A note to parents
+h3 Dear Parents,
+p Right now, <b>you're always there</b> for homework, exams and reminders. But one day, they'll be at university or work, and <b>they'll have to manage it all on their own.</b> You won't always be there to solve every problem for them.
+p That's why we created <b>Youth Vibe Coding Bootcamp</b>, a one-day, hands-on course. Instead of only using apps made by others, they'll <b>build their own simple tools</b> with Claude Code across five projects, and grow three abilities: more creative, think independently, solve problems with AI.
+h3 Small class. Last seats left.
+btn Book Now https://ai.thelead.io/youth-vibe-coding-bootcamp-payment-form
+#
+h2 5 projects your child builds in one day
+p Every project ends with something that actually works, and that they can show you.
+h3 Project 1 · 3D Mini Game Creator
+p Your child loves playing games. What if they made one?
+p Try the demo. Students build their own game, then change the rules.
+h3 Project 2 · AI Creative Studio
+p They have ideas. Can they bring them to life?
+p Write a fairy tale where the reader chooses what happens next.
+h3 Project 3 · AI Study Buddy
+p Stuck on homework? Build a tool that gives hints, not answers.
+p Build a study buddy that organises learning materials and gives step-by-step hints when they're stuck.
+h3 Project 4 · My Personal Reminder
+p How many times do you have to remind them?
+p Build a reminder app to organise tasks, track important dates and check off what's done.
+h3 Project 5 · My Own Portfolio
+p Four projects built. Now, who's the maker behind them?
+p Build a personal portfolio website that introduces themselves and shows off everything they made today.
+btn Book a Seat → https://ai.thelead.io/youth-vibe-coding-bootcamp-payment-form
+#
+h3 Learning objective
+p In one day, your child moves from <b>using AI</b> to <b>building with AI</b>. They learn to describe a problem, work with Claude Code to build a solution, then test it and make it better.
+p No coding experience needed. Ages 15 to 22.
+h3 Learning goals
+p By the end of the day, they can:
+ul Give clear instructions to AI in everyday language‖Use Claude Code to build simple games, websites and tools‖Turn their ideas into working projects‖Test what they built and spot mistakes‖Ask AI to help fix problems and improve their work‖Think about how technology can solve everyday problems‖Use AI safely and ethically: protect personal data, check answers, give credit
+h3 Learning outcomes
+p What they walk away with:
+ul A playable game they designed themselves‖An interactive fairy tale where the reader chooses what happens next‖An AI study buddy that gives hints, not answers‖A reminder app to track tasks and important dates‖A personal portfolio website that introduces them‖A Certificate of Completion and all their project files‖The confidence to keep creating with AI after class
+h2 Is this for my child?
+h3 Aged 15–22
+p From Form 4 students to university undergraduates.
+h3 Loves games, stories or making things
+p Curious about how things work, not only how to use them.
+h3 Zero coding background is fine
+p They start by talking to AI in plain language.
+h3 Getting ready for what's next
+p University, work and life on their own: building the habit of organising themselves.
+h2 Skills that show up in school
+p Maths, Physics and logical thinking, practised by building things. Try the three examples below.
+h3 Step-by-step problem solving
+p Students build a study helper that gives hints one step at a time, so the child still does the thinking.
+h3 Interactive concepts
+p Change the angle, power and gravity, then watch the arc change. Seeing the idea move makes it stick.
+h3 Think in clear steps
+p Plan a route, run it, find the bug, fix it. The same habit behind programming and robot design.
+p These are on-screen demos of the kind of thinking practised in class. The bootcamp is a one-day foundation course, not a full Maths or Physics tuition programme.
+h2 “Mum, look! I made this myself!”
+p They open their laptop and show you what they built, and how they fixed what broke.
+h2 Learn from a trainer who builds with AI
+img https://files.leadconnectorhq.com/file/69a2867b753f150f50146f5a/yee-sheng-photo.png YeeSheng Choon, trainer
+h3 YeeSheng Choon
+p Helps businesses scale efficiently through automation. Alumnus of Queen's University Belfast. He brings that practical, problem-solving mindset to young people learning to build with AI.
+p <b>19,000</b> learners trained. Hands-on AI training, now at our new home AI365 Space.
+h2 Questions parents ask
+faq Will AI make my child lazy or just copy answers? No. The AI Study Buddy project is built to give step-by-step hints, not final answers. We teach students to use AI as a thinking partner, so they understand the problem and solve it themselves.
+faq Does my child need coding experience? No. They start by giving AI clear instructions in everyday language. This is a foundation course designed for first steps.
+faq What do they need to bring? Their own laptop and a <b>Claude Pro subscription</b>, which Claude Code needs to run. Students log in with their own Claude account.
+faq What will they take home? Five working projects they built themselves, a Certificate of Completion and their project files, plus the confidence to keep creating.
+faq Can parents stay or watch? Parents are welcome to join the Show &amp; Tell at the end of the day.
+faq What is Claude Code? Is it safe? Claude Code is an AI assistant that writes and fixes code from plain-language instructions. Students use it under trainer supervision, on tasks we set for the day.
+faq What if my child is younger than 15? The course is made for ages 15 to 22. For younger students, WhatsApp us and we will advise.
+faq What is the refund or reschedule policy? WhatsApp us as early as you can if plans change, and we will help you reschedule where possible.
+h2 Course fee: one day, five projects, their own.
+h3 Explorer
+price RM 550
+p +8% SST
+ul 1 full day hands-on (9am–5pm)‖5 working projects + lunch + certificate
+btn Book Now https://ai.thelead.io/youth-vibe-coding-bootcamp-payment-form
+h3 Builder: most popular
+price RM 680
+p +8% SST
+ul 1 full day hands-on (9am–5pm)‖5 working projects + lunch + certificate‖3 months post-class support‖Prompt playbook &amp; project templates‖Parent demo showcase (4:30pm)
+btn Book Now https://ai.thelead.io/youth-vibe-coding-bootcamp-payment-form
+h3 Young Founder VIP
+price RM 1,580
+p +8% SST
+ul 1 full day hands-on (9am–5pm) with priority front-row seating (max 3-4 seats)‖5 working projects + lunch + certificate‖3 months post-class support‖Prompt playbook &amp; project templates‖Parent demo showcase (4:30pm)
+btn Book Now https://ai.thelead.io/youth-vibe-coding-bootcamp-payment-form
+p AI365 Space, Oval Damansara. Questions? <a href="https://wa.me/60174508388">WhatsApp us</a>
+h2 You can't solve every problem for your child forever. But you can give them the chance to start.
+btn Book a Seat https://ai.thelead.io/youth-vibe-coding-bootcamp-payment-form

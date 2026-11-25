@@ -1,0 +1,10 @@
+%base ai-vibe-coding-cn
+@/cn/workshop/vibe-coding-mastery-jb
+~2026年 10月 23日 (五) | 9:00 AM - 5:00 PM | Crescendo 国际学院 (新山站)
+~一天实战课，教你使用市面上最强大的氛围编程（Vibe Coding）工具，快速制作原型、上线并部署 AI 产品。专为想亲手打造、而不只是旁观的创办人、管理者与专业人士设计。
+~M/6ac9f390bd6bb710ca2613da.jpg
+%sub img M/6abcbac3dbed623a52fd2f77.png ⟂ img M/6abdfec12cc4aa198bb4595d.png
+%sub img M/6abb7c9cdf795f5ccc7a9d7c.png ⟂ img M/6abdfec1612cffc49a1aac24.png
+%sub 2026年 10月 25日 (日) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara (线下课) ⟂ 2026年 10月 23日 (五) | 9:00 AM - 5:00 PM | Crescendo 国际学院 (新山站) (线下课)
+%sub 2026年 10月 25日‖9:00 AM - 5:00 PM‖AI365 Hub, Oval Damansara‖ ⟂ 2026年 10月 23日‖9:00 AM - 5:00 PM‖Crescendo 国际学院‖
+%dropbtn https://ai.thelead.io/ai-vibe-coding-mastery-payment-form

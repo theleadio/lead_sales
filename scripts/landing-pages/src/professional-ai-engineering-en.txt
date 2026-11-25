@@ -1,0 +1,94 @@
+@/en/courses/professional-ai-engineering-certification
+~Professional AI Engineering Certification 9-10 Dec 2026 (Wed, Thurs) | 9AM - 5PM | AI365 Hub, Oval Damansara | LEAD
+~Learn to build and deploy AI systems in 2 days. Covers LLMs, RAG, multi-agent apps, and APIs. HRDC claimable. No coding background required.
+~M/6a6b4118a4c8a1a2c3a1b25a.jpg
+#
+img M/6aec4df90c8a41402ceb3d84.png
+img M/6aec4df90c8a41402ceb3d8e.png
+h1 Professional AI Engineering Certification
+h1 Build Real AI Systems: From Prototype to Production in 2 Days.
+p A practical, 2-day intensive certification to architect and deploy AI-powered applications using Python, LLMs, RAG, and multi-agent systems — designed for engineers, developers, and technical leaders.
+h1 9-10 Dec 2026 (Wed, Thurs) | 9AM - 5PM | AI365 Hub, Oval Damansara (In-person)
+btn Sign Up Here https://ai.thelead.io/professional-ai-engineering-certification-payment-form
+#
+h1 Who Should Attend?
+img M/69d4798fa7dcb4cff0fb752c.png
+p <b>Professionals who want to break into AI</b>
+p Who are curious about AI and want to go beyond just using ChatGPT to actually building with it.
+p <b>Team leads &amp; managers driving digital transformation</b>
+p Who need to understand how AI systems work under the hood to make better decisions for their teams.
+p <b>Entrepreneurs &amp; business owners</b>
+p Who want to build AI-powered products, tools, or internal systems to gain a competitive edge.
+p <b>Career switchers &amp; working professionals exploring new paths</b>
+p Who want to future-proof their career by gaining practical, job-ready AI engineering skills. No coding background needed.
+h2 Practical Hands-on Projects
+h3 AI-Powered API Service
+p Build and deploy a machine learning model as a working API that other applications can connect to. Turn your AI from a notebook experiment into a real, usable service that your team or clients can access.
+h3 In-House Knowledge Q&amp;A System
+p Create a Retrieval-Augmented Generation (RAG) system that answers questions using your company's own documents and data. Think of it as having an AI expert that knows your business inside out.
+h3 Multi-Agent AI Application
+p Design and build a system where multiple AI agents work together using MCP to coordinate tasks, make decisions, and deliver results. This is the architecture behind today's most powerful AI products.
+#
+h2 TOPICS COVERED
+h3 Day 1 - Foundations of AI Engineering
+ul AI system architecture and engineering principles‖Python programming for AI development‖Machine learning and NLP foundations‖Structuring data and building AI pipelines‖Deploying machine learning models as APIs‖Hands-on: Build an AI-powered service; Link it to external systems
+img M/69ca9f4523b082dc606b797c.jpg
+h3 Day 2 - Building AI-Powered Applications
+ul LLM landscape and model selection‖Prompt engineering and behaviour control‖Retrieval-Augmented Generation (RAG) for knowledge systems‖Fine-tuning for specialised use cases‖Designing automated AI workflows, cost and token optimisation‖Hands-on: Build a multi-agent application with MCP; An in-house RAG Q&amp;A system‖Final assessment: Design and present a production-ready AI application
+h2 What You Will Learn
+img M/69ca91c9ad333516fc835c42.svg
+p <b>Architect and Build AI Systems</b>
+p Understand how AI components fit together and learn to design systems that are ready for real-world deployment, not just experiments.
+img M/69ca922ce4ec2e5eda9498b8.svg
+p <b>Deploy AI Models as Usable Services</b>
+p Turn machine learning models into APIs that other applications can use, so your AI actually works inside your business operations.
+img M/69b45c5bfb38cafc359804e9.svg
+p <b>Build Knowledge Systems with RAG</b>
+p Create AI applications that can search, retrieve, and answer questions from your company's own documents and internal data.
+img M/69ca928050635e17acb13ca9.svg
+p <b>Design Multi-Agent AI Applications</b>
+p Build systems where multiple AI agents coordinate and work together to handle complex tasks automatically.
+#
+h2 COURSE DETAILS
+h3 KEY TECHNOLOGIES
+logos M/6a6b3ff8f982994d1593a346.jpg,M/69b3bc96cab7f74c8f9e845a.png,M/69cce5d866c8fc9a01d9b766.png,M/6a6c01c2cdfcf049561a9c14.jpg,M/69ca940ab837d0e2a8f4157a.png,M/6a6bfe2a6e6593e30e8d7d3a.jpg
+h2 COURSE FEE
+h3 Self-Funded
+p Kickstart your Professional AI Engineering journey
+price RM 3,200
+p +8% SST
+ul 2 full days of in-person intensive training‖Complete programme materials, tools and templates‖Certificate of Completion‖3-month post-training WhatsApp group support‖Unlimited refresher class access‖$100USD worth of tokens for the premium LLM model.
+btn Sign Up Now https://ai.thelead.io/professional-ai-engineering-certification-payment-form
+h3 HRDC-Claimable
+p Upskill with your company's HRDC grant
+price RM 3,500
+p +8% SST
+ul 2 full days of in-person intensive training‖Complete programme materials, tools and templates‖Certificate of Completion‖3-month post-training WhatsApp group support‖Unlimited refresher class access‖$100USD worth of tokens for the premium LLM model.
+btn Fill Up Form #form
+h3 Certification + Coaching
+p Accelerate with personalised mentorship
+price RM 9,250
+p +8% SST
+ul Everything in the Certification‖Personalised career &amp; AI skills roadmap‖4 x 30-min personal coaching sessions with Dr. Lau or Edmund‖1-year ongoing guidance for real-world implementation
+btn Email Us mailto:support@thelead.io
+#
+h2 Frequently Asked Questions (FAQs)
+faq Is this course suitable for non-technical people? Yes. This course is designed to take you from the basics all the way to building real AI systems. No technical background is required. We guide you step by step through everything, including Python programming fundamentals.
+faq Is there any prerequisite? No deep AI or coding background needed. Just bring a strong curiosity, willingness to learn through hands-on building, and some basic familiarity with using AI tools like ChatGPT or similar.
+faq What makes this different from the AI Agentic Automation course? The AI Agentic Automation course focuses on building no-code AI workflows using tools like n8n. This AI Engineering course goes deeper into the technical side, covering Python programming, machine learning, LLMs, RAG, and multi-agent systems. You will learn to build AI applications from the ground up.
+faq What are the hardware requirements? A laptop that can connect to the Internet is sufficient. Please contact us for the list of websites to whitelist if you are using a company laptop.
+faq Is this course HRDC claimable? Yes, this programme is 100% HRDC-claimable for all eligible Malaysian companies. We will provide all the necessary documents. For more HRDC enquiries, feel free to WhatsApp us: <a href="https://wa.me/60182777989">+6018-2777 989</a>
+faq Will there be a certificate? Yes, and the evaluation is your participation during class and your contributions during the final group presentations.
+faq Will I have projects in my portfolio? Absolutely. You will walk away with working AI projects including an API service, a RAG-powered knowledge system, and a multi-agent application. These are real, deployable systems you can showcase to employers or implement in your organisation.
+faq Is there post-training support? Yes. You will be added to a 3-month WhatsApp support group where you can get guidance on refining your projects, building production-ready systems, and implementing what you learned into your actual work environment.
+#
+trainers This Professional AI Engineering certification is designed and led by Dr. Lau, AI engineer, chief data scientist and founder of LEAD.
+#
+form Professional AI Engineering Certification Interest Form
+p Kindly fill in the form and our course coordinator will contact you via WhatsApp.
+p Kindly provide the information below for HRDC application processing.
+h2 Build Real AI Systems: From Chatbots to Agents in 2 Days.
+p Stop just talking about AI. Start building it. In this intensive, hands-on programme, you will design and deploy real AI applications, from intelligent chatbots to autonomous agents, using the tools that run in production.
+p Instead of just "learning about AI", you'll:
+ul Design AI systems using proven architecture patterns and engineering principles‖Build in Python and deploy machine learning models as working APIs‖Control model behaviour with prompt engineering across ChatGPT and Claude‖Store and retrieve knowledge at scale with RAG on Pinecone vector databases‖Build multi-agent applications with LangGraph and MCP that reason and act on real tasks‖Extend agent capabilities with skills.md and fine-tuning for specialised use cases‖Run powerful LLMs locally on your own machine with LM Studio‖Cut cost and token usage while keeping your systems fast and reliable
+p By the end, you won't just have theory. You will walk away with working AI systems, real portfolio projects, and the confidence to engineer AI solutions in your organisation.

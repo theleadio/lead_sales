@@ -1,0 +1,41 @@
+@pay /ai-full-stack-building-certification-payment-form
+title LEAD - AI Full-Stack Building Certification Payment Form
+sub Fill up personal information & intake
+intake AI Full-Stack Building Certification (English) | 2 & 3 Dec 2026 (Wed, Thu) | AI365 Hub, Oval Damansara (In-person) ⟂ 3200
+intake AI Full-Stack Building Certification (English) | 14 & 15 Dec 2026 (Mon, Tue) | Vouk Hotel Suites, Penang (In-person) ⟂ 3200
+@pay /cn/ai-full-stack-building-certification-payment-form
+title LEAD - 全栈开发认证课 付款表格
+sub 请填写个人资料与报名信息
+intake AI 全栈开发认证课 ⟂ 3200
+@pay /professional-ai-engineering-certification-payment-form
+title LEAD - Professional AI Engineering Certification Payment Form
+sub Fill up personal information & intake
+intake Professional AI Engineering Certification 9-10 Dec 2026 (Wed, Thurs) | 9AM - 5PM | AI365 Hub, Oval Damansara ⟂ 3200
+intake Professional AI Engineering Certification 25-26 Feb 2026 (Thurs, Fri) | 9AM - 5PM | AI365 Hub, Oval Damansara ⟂ 3200
+@pay /ai-vibe-coding-mastery-payment-form
+title LEAD - AI Vibe Coding Mastery Payment Form
+sub Fill up personal information & intake
+intake AI Vibe Coding Mastery｜23 Nov (Mon) | 9:00 AM - 5:00 PM | AI365 Hub @ Oval Damansara ⟂ 680
+@pay /claude-ai-mastery-payment-form
+title LEAD - Claude AI Mastery Payment Form
+sub Fill up personal information & intake
+intake Claude AI 实战课 (中文) | 28 November 2026 (Sat) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara (sold out on the original) ⟂ 0
+intake Claude AI Mastery | 29 December 2026 (Tue) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara ⟂ 680
+@pay /youth-vibe-coding-bootcamp-payment-form
+title LEAD - Youth Vibe Coding Bootcamp Payment Form
+sub Fill up personal information & intake
+intake Explorer – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 550
+intake Builder – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 680
+intake Young Founder VIP – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 1580
+@pay /cn/ai-agents-foundation-form
+title AI Agent 基础认证课（中文班）报名付款
+sub 请填写个人资料并完成付款
+intake AI Agent 基础认证课 - 2027年1月20–21日 ⟂ 2700
+@pay /ai-agents-online-workshop-payment-form
+title LEAD - AI Agents Online Workshop Payment Form
+sub Fill up personal information & intake
+intake AI Agents Online Workshop | Tue, 20 Oct 2026 | 8:00–10:00pm (MYT) | Live on Zoom ⟂ 228
+@pay /cn/aios-workshop-payment-form
+title LEAD - AI Agents 实作课 付款表格
+sub 请填写个人资料与报名信息
+intake AI Agents 实作课 | 12月14日（一）| 7:00PM–10:00PM | Vouk Hotel Suites Penang ⟂ 228

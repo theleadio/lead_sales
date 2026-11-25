@@ -5,7 +5,9 @@ import { C, counter, h2, h3, icon, logos, M, nav, one, p, row, sec, slider } fro
 export const LEAD_LOGO = M("6981ffeb7a20d0dfb97eac3a.png");
 
 export const header = (items: [string, string][]) =>
-  sec({ name: "Header", pt: 12, pb: 12 }, row("1/3+2/3", [[icon(LEAD_LOGO, "LEAD Logo", 48)], [nav(items)]], { valign: "center" }));
+  items.length
+    ? sec({ name: "Header", pt: 12, pb: 12 }, row("1/3+2/3", [[icon(LEAD_LOGO, "LEAD Logo", 48)], [nav(items)]], { valign: "center" }))
+    : sec({ name: "Header", pt: 12, pb: 12 }, one(icon(LEAD_LOGO, "LEAD Logo", 48)));
 
 const ABOUT_SLIDES = [
   "6a846d01b71315ed520d3020.jpg", "6a846c62b39b2fad7f8bea20.jpg", "6a846c627998683b3c97420a.jpg",
@@ -39,11 +41,13 @@ const CLIENTS = [
 ].map(M);
 // 35 client logos (SalesProcess scrolls them in a marquee). One logos element
 // holds at most 30, so they are split across two.
-export const TRUSTED_LOGOS = () =>
+export const trustedLogos = (lang: "en" | "zh" = "en") =>
   sec(
     { name: "Trusted by", pt: 32, pb: 40 },
-    one(h2("TRUSTED BY INDUSTRY LEADERS", { color: C.purple }), logos(CLIENTS.slice(0, 30), 48), logos(CLIENTS.slice(30), 48)),
+    one(h2(lang === "zh" ? "行业领导者信赖" : "TRUSTED BY INDUSTRY LEADERS", { color: C.purple }), logos(CLIENTS.slice(0, 30), 48), logos(CLIENTS.slice(30), 48)),
   );
+
+export const TRUSTED_LOGOS = () => trustedLogos("en");
 
 export const footer = (courses: [string, string][] = DEFAULT_COURSES) =>
   sec(
@@ -67,3 +71,38 @@ const DEFAULT_COURSES: [string, string][] = [
   ["AI For Data Science", "https://ai.thelead.io/en/courses/ai-for-data-science"],
   ["Professional AI Engineering", "https://ai.thelead.io/en/courses/professional-ai-engineering-certification"],
 ];
+
+export const aboutLeadCn = () =>
+  sec(
+    { name: "About LEAD" },
+    one(slider(ABOUT_SLIDES)),
+    one(
+      h2("关于 LEAD 科技学院", { box: { mt: 24 } }),
+      p("<b>LEAD 科技学院</b>由<b>刘哲涵博士</b>于2015年创立，使命是弥合教育与产业之间的差距，确保学习不仅停留在理论与概念上，而且能在现实场景中得到有意义的应用。"),
+      p("11年后，LEAD 科技学院已成长为马来西亚最注重实践的技术学院之一，专注于 <b>人工智能、数据科学、自动化 及 氛围编程</b> 等领域的职业培训。"),
+      p("秉持“实践应用胜于空洞理论”的理念，刘哲涵博士与团队开发了以实操为核心的学习方法，将真实的实施置于学习体验的中心。目标是帮助个人与组织在人工智能驱动的世界中保持领先并自信地发展。"),
+      p("迄今为止，LEAD 科技学院已培训超过19,000名学员，并服务超过720家企业客户。无论线上或线下课程，LEAD 科技学院都与专业人士、IT 专家、企业领导者及政府机构合作，持续推动马来西亚各行业的数字化转型。"),
+    ),
+  );
+
+const CN_COURSES: [string, string][] = [
+  ["AI 自动化", "https://ai.thelead.io/en/courses/ai-agentic-automation-certification"],
+  ["AI 氛围编程", "https://ai.thelead.io/en/courses/ai-vibe-coding-certification"],
+  ["AI 工程技术", "https://ai.thelead.io/en/courses/professional-ai-engineering-certification"],
+  ["AI 数据分析", "https://ai.thelead.io/en/courses/ai-for-data-science"],
+];
+
+export const footerCn = () =>
+  sec(
+    { name: "Footer", bg: C.dark, pt: 40, pb: 32 },
+    row("3", [
+      [h3("课程导航", { color: C.white, size: { d: 18 } }), ...CN_COURSES.map(([label, href]) => p(`<a href="${href}">${label}</a>`, { color: "#e5e7eb" }))],
+      [h3("社交媒体频道", { color: C.white, size: { d: 18 } })],
+      [
+        h3("联系我们", { color: C.white, size: { d: 18 } }),
+        p('<a href="mailto:hi@thelead.io">hi@thelead.io</a>', { color: "#e5e7eb" }),
+        p('<a href="https://wa.me/60173767946">+6017 376 7946</a>', { color: "#e5e7eb" }),
+      ],
+    ]),
+    one(p("Copyright © 2015 - 2026.<br>UCAN Technologies Sdn Bhd (1207802-V).<br>All Rights Reserved.", { align: "center", color: "#9ca3af", size: { d: 13 }, box: { mt: 16 } })),
+  );

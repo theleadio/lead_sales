@@ -2,7 +2,7 @@
 // https://ai.thelead.io/en/courses/ai-agentic-automation-certification and its
 // payment step on 25 Nov 2026.
 import {
-  btn, C, card, counter, faq, h1, h2, h3, icon, img, leadForm, logos, M, nav, one, orderForm, p, pageOf, row, sec, slider,
+  btn, C, card, counter, faq, h1, h2, h3, icon, img, leadForm, logos, M, one, orderForm, p, pageOf, row, sec, slider,
   social, ul, type FunnelSpec,
 } from "../kit.ts";
 import { footer, header, aboutLead, TRUSTED_LOGOS, LEAD_LOGO } from "./shared.ts";
