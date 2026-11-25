@@ -250,6 +250,8 @@ export async function siteSummaries(
   kind: "funnel" | "website",
   from: string,
   to: string,
+  // When given, also counts opt-ins per Malaysia day (all sites together).
+  optinsPerDay?: Map<string, number>,
 ): Promise<Map<string, SiteSummary>> {
   await guard(viewer, "view site stats", false);
   const sql = db();
@@ -282,12 +284,18 @@ export async function siteSummaries(
   const a = new Date(`${from}T00:00:00${KL}`);
   const b = new Date(new Date(`${to}T00:00:00${KL}`).getTime() + 86_400_000);
   const tps = await sql`
-    SELECT landing_url, form_name FROM touchpoint
+    SELECT landing_url, form_name, occurred_at FROM touchpoint
     WHERE channel = 'web_form' AND form_name = ANY(${all}) AND occurred_at >= ${a} AND occurred_at < ${b}`;
   for (const s of sites) {
     for (const t of tps) {
       const path = pathOn(t.landing_url, s.domain);
-      if (path && names.get(s.id)?.has(t.form_name) && paths.get(s.id)?.has(path)) out.get(s.id)!.optins++;
+      if (path && names.get(s.id)?.has(t.form_name) && paths.get(s.id)?.has(path)) {
+        out.get(s.id)!.optins++;
+        if (optinsPerDay) {
+          const d = klDay(t.occurred_at as Date);
+          optinsPerDay.set(d, (optinsPerDay.get(d) ?? 0) + 1);
+        }
+      }
     }
   }
   return out;

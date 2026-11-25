@@ -13,6 +13,32 @@ export async function failedRunCount(): Promise<number> {
   return r.n as number;
 }
 
+// The same count, with the automation that has the most of them.
+export async function failedRuns(): Promise<{ count: number; top: string | null }> {
+  const rows = await db()`
+    SELECT a.name, count(*)::int AS n
+    FROM sales.automation_run r JOIN sales.automation a ON a.id = r.automation_id
+    WHERE r.status = 'failed'
+    GROUP BY a.name ORDER BY n DESC, a.name`;
+  return {
+    count: rows.reduce((t, r) => t + (r.n as number), 0),
+    top: (rows[0]?.name as string | undefined) ?? null,
+  };
+}
+
+// People a campaign reached who then used an unsubscribe link (at any time
+// after their email went out; the link doesn't say which email it came from).
+export async function unsubscribedAfter(campaignId: string): Promise<number> {
+  const [r] = await db()`
+    SELECT count(DISTINCT s.person_id)::int AS n
+    FROM sales.email_send s
+    JOIN consent c ON c.person_id = s.person_id
+      AND c.purpose = 'marketing_email' AND NOT c.is_granted
+      AND c.source = 'unsubscribe_link' AND c.recorded_at >= s.sent_at
+    WHERE s.campaign_id = ${campaignId} AND s.status = 'sent'`;
+  return r.n as number;
+}
+
 // The red numbers in the menu: things waiting for a person, per screen, for
 // the screens this person can open. Each count is its own query, and a count
 // that fails shows nothing rather than breaking the menu.

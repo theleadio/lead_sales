@@ -3,24 +3,25 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import {
   CalendarDays,
+  CircleAlert,
   CreditCard,
   Globe,
   Mail,
-  TriangleAlert,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/current-user";
 import { canEditAutomations } from "@/lib/automations/admin";
 import { canEditEmail, consentSummary, listCampaigns } from "@/lib/email/marketing";
-import { failedRunCount } from "@/lib/home/attention";
+import { failedRuns, unsubscribedAfter } from "@/lib/home/attention";
 import {
   canSeePayments,
   paymentSummary,
   receivedByDay,
 } from "@/lib/payments/list";
 import { canViewSites } from "@/lib/sites/permissions";
-import { klDay, siteSummaries, viewsByDay } from "@/lib/sites/stats";
-import { CHANNEL_LABEL, mytDay, mytTime } from "@/lib/social/planner";
+import { klDay, siteSummaries } from "@/lib/sites/stats";
+import { CHANNEL_LABEL, mytDay, mytTime, STATE_LABEL } from "@/lib/social/planner";
 import {
   canUseSocial,
   listNeedsAction,
@@ -28,16 +29,18 @@ import {
 } from "@/lib/social/social";
 import { STATUS_LABEL as EMAIL_STATUS, emailTone } from "../email/shared";
 import { preview, stateTone } from "../social/shared";
-import { STATE_LABEL } from "@/lib/social/planner";
-import { Badge, myt, StatTile } from "../ui";
+import { Badge, myt, page, StatTile, tiles } from "../ui";
 
-// Home: today's snapshot. Each tile and panel shows only to the roles that
-// can open the screen behind it, links there, and loads on its own, so one
-// slow or failing number never holds up the rest.
+// Home: today's snapshot, laid out as in the reviewed UI demo (25 Nov). Each
+// tile and panel shows only to the roles that can open the screen behind it,
+// links there, and loads on its own, so one slow or failing number never
+// holds up the rest.
 
 const rm = (v: string | number) =>
   `RM ${Number(v).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const n = (v: number) => v.toLocaleString("en-MY");
+const plural = (k: number, one: string, many = `${one}s`) =>
+  `${n(k)} ${k === 1 ? one : many}`;
 
 // A number that couldn't load shows as missing, not as an error page.
 async function safe<T>(what: string, f: () => Promise<T>): Promise<T | null> {
@@ -60,31 +63,35 @@ function greeting(now: Date): string {
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
-const icon = "size-3.5";
+const icon = (I: LucideIcon) => <I className="size-[18px]" aria-hidden="true" />;
 
 export default async function HomePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
   const now = new Date();
   const first = user.fullName.split(/\s+/)[0] || user.fullName;
-  const today = new Intl.DateTimeFormat("en-MY", {
+  const today = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
     day: "numeric",
-    month: "long",
+    month: "short",
     timeZone: "Asia/Kuala_Lumpur",
   }).format(now);
   const r = user.role;
 
   return (
-    <section className="max-w-5xl">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {greeting(now)}, {first}
-      </h1>
-      <p className="text-ink-muted mt-1 text-sm">
-        {today}. Here is what needs you today.
-      </p>
+    <section className={page}>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-balance">
+            {greeting(now)}, {first}
+          </h1>
+          <p className="text-ink-muted mt-1 text-sm">
+            {today}. Here is what needs you today.
+          </p>
+        </div>
+      </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={tiles}>
         {canSeePayments(r) && (
           <Suspense fallback={<TileSkeleton count={2} />}>
             <PaymentTiles user={user} />
@@ -103,7 +110,7 @@ export default async function HomePage() {
       </div>
 
       {(canUseSocial(r) || canEditEmail(r)) && (
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[1.4fr_1fr]">
           {canUseSocial(r) && (
             <Suspense fallback={<PanelSkeleton />}>
               <SocialPanel />
@@ -117,7 +124,7 @@ export default async function HomePage() {
         </div>
       )}
 
-      <p className="text-ink-muted mt-8 text-sm">
+      <p className="text-ink-muted mt-7 text-[13px]">
         The inbox, enquiries (tickets) and the help form are in LEAD CRM.
       </p>
     </section>
@@ -126,12 +133,12 @@ export default async function HomePage() {
 
 function TileSkeleton({ count }: { count: number }) {
   return Array.from({ length: count }, (_, i) => (
-    <div key={i} className="skeleton h-[148px] rounded-2xl" />
+    <div key={i} className="skeleton h-[122px] rounded-[14px]" />
   ));
 }
 
 function PanelSkeleton() {
-  return <div className="skeleton h-56 rounded-2xl" />;
+  return <div className="skeleton h-56 rounded-[14px]" />;
 }
 
 function Panel({
@@ -146,10 +153,10 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-line min-w-0 rounded-2xl border p-4">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="font-semibold">{title}</h2>
-        <Link href={href} className="text-ink-muted hover:text-ink text-sm">
+    <section className="border-line min-w-0 rounded-[14px] border p-4">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <Link href={href} className="text-ink-muted hover:text-ink text-[13px] underline">
           {linkText}
         </Link>
       </div>
@@ -161,47 +168,55 @@ function Panel({
 async function PaymentTiles({ user }: { user: CurrentUser }) {
   const [s, days] = await Promise.all([
     safe("payments", () => paymentSummary(user)),
-    safe("payment trend", () => receivedByDay(user, 7)),
+    safe("payment trend", () => receivedByDay(user, 14)),
   ]);
   if (!s) return null;
-  const week = days?.reduce((a, d) => a + d.myr, 0) ?? null;
+  const week = days?.slice(7) ?? null;
+  const before = days?.slice(0, 7) ?? null;
+  const sum = (d: { myr: number }[]) => d.reduce((a, x) => a + x.myr, 0);
+  let note: string;
+  if (week && before) {
+    const count = week.reduce((a, x) => a + x.count, 0);
+    const [w, b] = [sum(week), sum(before)];
+    const change =
+      b > 0
+        ? ` · ${w >= b ? "up" : "down"} ${Math.round((Math.abs(w - b) / b) * 100)}% on last week`
+        : "";
+    note = `${plural(count, "payment")}${change}`;
+  } else note = `${rm(s.receivedThisMonthMyr)} this month`;
   return (
     <>
       <StatTile
         href="/payments"
-        icon={<CreditCard className={icon} aria-hidden="true" />}
-        label={week == null ? "Received this month" : "Received, last 7 days"}
-        value={rm(week ?? s.receivedThisMonthMyr)}
-        note={`${rm(s.receivedThisMonthMyr)} this month${user.role === "sales" ? ", your deals" : ""}`}
-        trend={days?.map((d) => d.myr)}
+        icon={icon(CreditCard)}
+        label={week ? "Paid this week" : "Paid this month"}
+        value={rm(week ? sum(week) : s.receivedThisMonthMyr)}
+        note={note}
+        trend={week?.map((d) => d.myr)}
       />
       <StatTile
         href="/payments?view=unmatched"
         alert={s.unmatchedCount > 0}
-        icon={<TriangleAlert className={icon} aria-hidden="true" />}
+        icon={icon(CircleAlert)}
         label="Unmatched payments"
         value={n(s.unmatchedCount)}
-        note={
-          s.unmatchedCount
-            ? `${rm(s.unmatchedMyr)} waiting to be matched in the CRM`
-            : "Nothing to match"
-        }
+        note={s.unmatchedCount ? "Match them in the CRM" : "Nothing to match"}
       />
     </>
   );
 }
 
 async function AutomationTile() {
-  const failed = await safe("automation runs", failedRunCount);
-  if (failed == null) return null;
+  const f = await safe("automation runs", failedRuns);
+  if (!f) return null;
   return (
     <StatTile
       href="/automations"
-      alert={failed > 0}
-      icon={<Zap className={icon} aria-hidden="true" />}
+      alert={f.count > 0}
+      icon={icon(Zap)}
       label="Failed automation runs"
-      value={n(failed)}
-      note={failed ? "Open the automation to retry" : "All runs are fine"}
+      value={n(f.count)}
+      note={f.top ? `In “${f.top}”` : "All runs are fine"}
     />
   );
 }
@@ -211,25 +226,24 @@ async function SitesTile({ user }: { user: CurrentUser }) {
   const from = klDay(
     new Date(new Date(`${to}T00:00:00+08:00`).getTime() - 6 * 86_400_000),
   );
-  const [sums, days] = await Promise.all([
-    safe("site stats", () => siteSummaries(user, "funnel", from, to)),
-    safe("view trend", () => viewsByDay(user, from, to)),
-  ]);
+  const perDay = new Map<string, number>();
+  const sums = await safe("site stats", () =>
+    siteSummaries(user, "funnel", from, to, perDay),
+  );
   if (!sums) return null;
-  let views = 0;
   let optins = 0;
-  for (const s of sums.values()) {
-    views += s.views;
-    optins += s.optins;
-  }
+  for (const s of sums.values()) optins += s.optins;
+  const days = Array.from({ length: 7 }, (_, i) =>
+    klDay(new Date(new Date(`${from}T12:00:00+08:00`).getTime() + i * 86_400_000)),
+  );
   return (
     <StatTile
       href="/sites"
-      icon={<Globe className={icon} aria-hidden="true" />}
+      icon={icon(Globe)}
       label="Opt-ins, last 7 days"
       value={n(optins)}
-      note={`${n(views)} page views across ${n(sums.size)} funnel${sums.size === 1 ? "" : "s"}`}
-      trend={days?.map((d) => d.views)}
+      note={`From ${plural(sums.size, "funnel")}`}
+      trend={days.map((d) => perDay.get(d) ?? 0)}
     />
   );
 }
@@ -245,19 +259,10 @@ async function SocialPanel() {
   if (!data) return null;
   const [upcoming, needs] = data;
   const today = mytDay(now);
+  const shown = [...needs, ...upcoming.filter((p) => !needs.some((x) => x.id === p.id))].slice(0, 5);
   return (
     <Panel title="Coming up on social" href="/social" linkText="Open planner">
-      {needs.length > 0 && (
-        <Link
-          href="/social"
-          className="bg-warn-soft text-warn mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium"
-        >
-          <CalendarDays className="size-4" aria-hidden="true" />
-          {needs.length} post{needs.length === 1 ? "" : "s"} need
-          {needs.length === 1 ? "s" : ""} you to post or retry
-        </Link>
-      )}
-      {upcoming.length === 0 ? (
+      {shown.length === 0 ? (
         <Empty
           icon={<CalendarDays className="size-5" aria-hidden="true" />}
           text="Nothing planned for the next 7 days."
@@ -266,31 +271,27 @@ async function SocialPanel() {
         />
       ) : (
         <ul>
-          {upcoming.slice(0, 5).map((p) => (
+          {shown.map((p) => (
             <li key={p.id} className="border-line border-t first:border-t-0">
               <Link
                 href={`/social/${p.id}`}
-                className="hover:bg-surface-muted/70 -mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5"
+                className="hover:bg-hover-row -mx-2 flex items-center gap-2.5 rounded-lg px-2 py-[9px]"
               >
                 {p.media[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={p.media[0].url}
                     alt=""
-                    className="size-10 shrink-0 rounded-lg object-cover"
+                    className="size-[38px] shrink-0 rounded-lg object-cover"
                   />
                 ) : (
                   <span
                     aria-hidden="true"
-                    className="bg-surface-muted text-ink-muted grid size-10 shrink-0 place-items-center rounded-lg"
-                  >
-                    <CalendarDays className="size-4" />
-                  </span>
+                    className="from-lead-blue to-info size-[38px] shrink-0 rounded-lg bg-gradient-to-br"
+                  />
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">
-                    {preview(p, 70)}
-                  </span>
+                  <span className="block truncate">{preview(p, 70)}</span>
                   <span className="text-ink-muted block truncate text-xs">
                     {p.scheduledAt &&
                       (mytDay(p.scheduledAt) === today
@@ -307,11 +308,6 @@ async function SocialPanel() {
           ))}
         </ul>
       )}
-      {upcoming.length > 5 && (
-        <p className="text-ink-muted mt-1 text-xs">
-          And {upcoming.length - 5} more this week.
-        </p>
-      )}
     </Panel>
   );
 }
@@ -323,38 +319,31 @@ async function EmailPanel() {
   if (!data) return null;
   const [campaigns, consent] = data;
   const last = campaigns.find((c) => c.status === "sending" || c.status === "sent");
-  const next = campaigns
-    .filter((c) => c.status === "scheduled" && c.scheduledAt)
-    .sort((a, b) => a.scheduledAt!.getTime() - b.scheduledAt!.getTime())[0];
+  const unsub = last ? await safe("unsubscribes", () => unsubscribedAfter(last.id)) : null;
   return (
-    <Panel title="Email marketing" href="/email" linkText="All campaigns">
+    <Panel title="Last email campaign" href="/email" linkText="All campaigns">
       {last ? (
-        <Link
-          href={`/email/${last.id}`}
-          className="hover:bg-surface-muted/70 -mx-2 block rounded-lg px-2 py-2"
-        >
-          <span className="flex items-center justify-between gap-2">
+        <Link href={`/email/${last.id}`} className="block">
+          <span className="flex items-center gap-2">
             <span className="truncate font-medium">{last.name}</span>
-            <Badge tone={emailTone(last.status)}>
-              {EMAIL_STATUS[last.status]}
-            </Badge>
+            <Badge tone={emailTone(last.status)}>{EMAIL_STATUS[last.status]}</Badge>
           </span>
-          <span className="text-ink-muted block text-xs">
+          <span className="text-ink-muted mt-1 mb-3 block text-sm">
             {last.sentAt
               ? `Sent ${myt(last.sentAt)}`
               : last.queuedAt
                 ? `Started ${myt(last.queuedAt)}`
                 : ""}
-            {last.recipientCount != null && ` · ${n(last.recipientCount)} people`}
+            {last.recipientCount != null && ` · ${plural(last.recipientCount, "person", "people")}`}
           </span>
-          <span className="mt-3 grid grid-cols-3 gap-2">
+          <span className="grid grid-cols-3 gap-3">
             <Figure label="Sent" value={n(last.counts.sent)} />
             <Figure
               label="Failed"
               value={n(last.counts.failed)}
               alert={last.counts.failed > 0}
             />
-            <Figure label="Waiting" value={n(last.counts.queued)} />
+            <Figure label="Unsubscribed" value={unsub == null ? "—" : n(unsub)} />
           </span>
         </Link>
       ) : (
@@ -365,14 +354,7 @@ async function EmailPanel() {
           action="Start a campaign"
         />
       )}
-      {next?.scheduledAt && (
-        <p className="border-line mt-2 border-t pt-2 text-sm">
-          <Mail className="text-ink-muted mr-1.5 inline size-4 align-[-3px]" aria-hidden="true" />
-          Next: <Link href={`/email/${next.id}`} className="font-medium hover:underline">{next.name}</Link>
-          <span className="text-ink-muted">, {myt(next.scheduledAt)}</span>
-        </p>
-      )}
-      <p className="text-ink-muted border-line mt-2 border-t pt-2 text-xs">
+      <p className="text-ink-muted border-line mt-3 border-t pt-2.5 text-xs">
         {n(consent.consented)} of {n(consent.withEmail)} people with an email
         address can be emailed.
       </p>
@@ -420,7 +402,7 @@ function Empty({
       <p className="text-ink-muted text-sm">{text}</p>
       <Link
         href={href}
-        className="border-line hover:bg-surface-muted rounded-lg border px-3 py-1.5 text-sm font-medium"
+        className="bg-surface ring-line hover:bg-surface-muted rounded-lg px-3 py-1.5 text-sm font-medium ring-1 ring-inset"
       >
         {action}
       </Link>

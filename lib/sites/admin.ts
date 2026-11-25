@@ -76,6 +76,8 @@ export type SiteRow = {
   steps: number;
   liveUrl: string;
   updatedAt: Date;
+  // At least one step has a published version.
+  live: boolean;
 };
 
 export async function listSites(viewer: Viewer, kind: Kind): Promise<SiteRow[]> {
@@ -83,7 +85,10 @@ export async function listSites(viewer: Viewer, kind: Kind): Promise<SiteRow[]> 
   const rows = await db()`
     SELECT s.id, s.name, s.kind, s.folder_id, f.name AS folder_name, s.updated_at, s.domain,
            (SELECT count(*)::int FROM sales.site_page p WHERE p.site_id = s.id) AS steps,
-           (SELECT p.path FROM sales.site_page p WHERE p.site_id = s.id ORDER BY p.position LIMIT 1) AS first_path
+           (SELECT p.path FROM sales.site_page p WHERE p.site_id = s.id ORDER BY p.position LIMIT 1) AS first_path,
+           EXISTS (SELECT 1 FROM sales.site_page p
+                   JOIN sales.page_version v ON v.id = p.active_version_id AND v.status = 'published'
+                   WHERE p.site_id = s.id) AS live
     FROM sales.site s LEFT JOIN sales.site_folder f ON f.id = s.folder_id
     WHERE s.kind = ${kind} ORDER BY s.updated_at DESC`;
   return rows.map((r) => ({
@@ -95,6 +100,7 @@ export async function listSites(viewer: Viewer, kind: Kind): Promise<SiteRow[]> 
     steps: r.steps,
     liveUrl: `https://${r.domain}${!r.first_path || r.first_path === "/" ? "" : r.first_path}`,
     updatedAt: r.updated_at,
+    live: r.live === true,
   }));
 }
 

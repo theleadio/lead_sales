@@ -9,9 +9,12 @@
 :root {
   --surface: #ffffff;
   --surface-muted: #f5f5f7;
+  /* Row and menu hover tints (the reviewed UI demo, 25 Nov). */
+  --hover-row: #f7f9fb;
+  --hover-nav: #ebebef;
   --line: #e5e5ea;
   --ink: #0a0a0a;
-  --ink-muted: #3d3d3d;
+  --ink-muted: #5a5a60;
   --lead-blue: #a1bace;
   --lead-yellow: #fbe33b;
   --action: #3d3d3d;
@@ -36,6 +39,8 @@
   --color-line: var(--line);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
+  --color-hover-row: var(--hover-row);
+  --color-hover-nav: var(--hover-nav);
   --color-lead-blue: var(--lead-blue);
   --color-lead-yellow: var(--lead-yellow);
   --color-action: var(--action);

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  type Channel,
   CHANNEL_LABEL,
   isReason,
   REASONS,
@@ -89,20 +90,57 @@ export const preview = (p: Post, n = 60) => {
 export const channelList = (p: Post) =>
   p.channels.map((c) => CHANNEL_LABEL[c.channel]).join(", ") || "No channel";
 
-// One post as a small card on the calendar.
+// Each channel as a small coloured square on calendar cards.
+const CHIP: Record<Channel, { text: string; bg: string }> = {
+  facebook: { text: "f", bg: "#1f4fa8" },
+  instagram: { text: "ig", bg: "#a8326d" },
+  linkedin: { text: "in", bg: "#135f8f" },
+  tiktok: { text: "tt", bg: "#111111" },
+  youtube: { text: "yt", bg: "#b31b1b" },
+  x: { text: "x", bg: "#0a0a0a" },
+};
+
+export function ChannelChips({ p }: { p: Post }) {
+  return (
+    <span className="flex shrink-0 gap-0.5">
+      {p.channels.map((c) => (
+        <span
+          key={c.channel}
+          title={CHANNEL_LABEL[c.channel]}
+          aria-label={CHANNEL_LABEL[c.channel]}
+          className="grid size-3.5 place-items-center rounded text-[9px] leading-none font-bold text-white"
+          style={{ background: CHIP[c.channel].bg }}
+        >
+          {CHIP[c.channel].text}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// One post as a small card on the calendar: its first image, its words and
+// its channels. A failed post is red; a draft is faded.
 export function PostChip({ p }: { p: Post }) {
+  const failed = p.state === "failed";
   return (
     <Link
       href={`/social/${p.id}`}
-      className="border-line bg-surface hover:bg-surface-muted block rounded-lg border px-2 py-1 text-xs"
+      title={`${p.scheduledAt ? `${mytTime(p.scheduledAt)} · ` : ""}${STATE_LABEL[p.state]} · ${preview(p, 120)}`}
+      className={`flex items-center gap-1.5 rounded-lg p-1 text-xs ${failed ? "bg-danger-soft ring-[#f3c4bf]" : "bg-surface ring-line hover:bg-hover-row"} ring-1 ring-inset ${p.state === "draft" ? "opacity-70" : ""}`}
     >
-      <span className="flex items-center justify-between gap-1">
-        <span className="font-medium">
-          {p.scheduledAt ? mytTime(p.scheduledAt) : "—"}
-        </span>
-        <StateBadge state={p.state} />
+      {p.media[0] ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={p.media[0].url} alt="" className="size-[26px] shrink-0 rounded-md object-cover" />
+      ) : (
+        <span aria-hidden="true" className="from-lead-blue to-info size-[26px] shrink-0 rounded-md bg-gradient-to-br" />
+      )}
+      <span className="min-w-0 flex-1 truncate">
+        {p.scheduledAt && (
+          <span className="text-ink-muted">{mytTime(p.scheduledAt)} </span>
+        )}
+        {preview(p, 40)}
       </span>
-      <span className="text-ink-muted mt-0.5 block truncate">{preview(p, 40)}</span>
+      <ChannelChips p={p} />
     </Link>
   );
 }

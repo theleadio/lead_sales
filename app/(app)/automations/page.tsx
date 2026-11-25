@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { canEditAutomations, listAutomations } from "@/lib/automations/admin";
 import { TRIGGER_LABEL } from "@/lib/automations/model";
 import { RowLink } from "../row-link";
-import { Badge, button, EmptyState, PageHeader, table as t } from "../ui";
+import { Plus } from "lucide-react";
+import { Badge, button, EmptyState, page, PageHeader, table as t } from "../ui";
 import { toggleAutomationAction } from "./actions";
 import { ResultNote } from "./shared";
 
@@ -22,7 +23,7 @@ export default async function AutomationsPage({
   const automations = await listAutomations();
 
   return (
-    <section className="max-w-5xl">
+    <section className={page}>
       <PageHeader
         title="Automations"
         lede={
@@ -33,6 +34,7 @@ export default async function AutomationsPage({
         }
         action={
           <Link href="/automations/new" className={button}>
+            <Plus className="size-[18px]" aria-hidden="true" />
             New automation
           </Link>
         }
@@ -44,7 +46,7 @@ export default async function AutomationsPage({
           Start with a new-lead follow-up: tag the lead and give sales a task.
         </EmptyState>
       ) : (
-        <div className={`${t.wrap} mt-6`}>
+        <div className={`${t.wrap} mt-[22px]`}>
           <table className={t.table}>
             <thead>
               <tr>
@@ -62,7 +64,7 @@ export default async function AutomationsPage({
                   <td className={t.td}>
                     <Link
                       href={`/automations/${a.id}`}
-                      className="font-medium hover:underline"
+                      className="font-medium"
                     >
                       {a.name}
                     </Link>
@@ -71,15 +73,12 @@ export default async function AutomationsPage({
                   <td className={`${t.td} ${t.num}`}>{a.steps}</td>
                   <td className={`${t.td} ${t.num}`}>{a.inProgress}</td>
                   <td
-                    className={`${t.td} ${t.num} ${a.failed ? "text-danger font-semibold" : ""}`}
+                    className={`${t.td} ${t.num} ${a.failed ? "text-danger font-bold" : ""}`}
                   >
                     {a.failed}
                   </td>
                   <td className={t.td}>
-                    <form
-                      action={toggleAutomationAction}
-                      className="flex items-center gap-2"
-                    >
+                    <form action={toggleAutomationAction}>
                       <input type="hidden" name="id" value={a.id} />
                       <input
                         type="hidden"
@@ -87,14 +86,15 @@ export default async function AutomationsPage({
                         value={a.active ? "off" : "on"}
                       />
                       <input type="hidden" name="from" value="list" />
-                      <Badge tone={a.active ? "green" : "grey"}>
-                        {a.active ? "On" : "Off"}
-                      </Badge>
                       <button
                         type="submit"
-                        className="text-ink-muted hover:text-ink hover:bg-surface cursor-pointer rounded-md px-2 py-1 text-xs"
+                        title={a.active ? "Click to switch off" : "Click to switch on"}
+                        aria-label={`${a.name} is ${a.active ? "on" : "off"}. Switch ${a.active ? "off" : "on"}`}
+                        className="cursor-pointer rounded-full hover:opacity-80"
                       >
-                        {a.active ? "Switch off" : "Switch on"}
+                        <Badge tone={a.active ? "green" : "grey"}>
+                          {a.active ? "On" : "Off"}
+                        </Badge>
                       </button>
                     </form>
                   </td>
