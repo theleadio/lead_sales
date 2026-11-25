@@ -58,3 +58,17 @@ test("danger red text on white passes WCAG AA", async () => {
     `${contrast(t.danger, t.surface)}`,
   );
 });
+
+test("every status badge pairs dark text with its pale fill at AA", async () => {
+  const t = await tokens();
+  for (const [ink, fill] of [
+    ["danger", "danger-soft"],
+    ["ok", "ok-soft"],
+    ["warn", "warn-soft"],
+    ["info", "info-soft"],
+    ["ink-muted", "surface-muted"],
+  ]) {
+    const c = contrast(t[ink], t[fill]);
+    assert.ok(c >= 4.5, `${ink} on ${fill}: ${c.toFixed(2)}`);
+  }
+});

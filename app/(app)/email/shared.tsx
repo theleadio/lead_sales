@@ -1,3 +1,5 @@
+import { Badge, type Tone } from "../ui";
+
 // Pieces shared by the email marketing pages.
 
 export const RESULTS: Record<string, { text: string; ok: boolean }> = {
@@ -65,19 +67,15 @@ export const STATUS_LABEL: Record<string, string> = {
   sent: "Sent",
 };
 
-const STATUS_STYLE: Record<string, string> = {
-  draft: "bg-surface-muted text-ink-muted",
-  scheduled: "bg-lead-blue/40 text-ink",
-  sending: "bg-lead-yellow/60 text-ink",
-  sent: "bg-surface-muted text-ink",
-};
+export const emailTone = (status: string): Tone =>
+  status === "sent"
+    ? "green"
+    : status === "sending"
+      ? "amber"
+      : status === "scheduled"
+        ? "blue"
+        : "grey";
 
 export function StatusBadge({ status }: { status: string }) {
-  return (
-    <span
-      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[status] ?? STATUS_STYLE.draft}`}
-    >
-      {STATUS_LABEL[status] ?? status}
-    </span>
-  );
+  return <Badge tone={emailTone(status)}>{STATUS_LABEL[status] ?? status}</Badge>;
 }

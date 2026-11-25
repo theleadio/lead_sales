@@ -1,4 +1,5 @@
 import { TRIGGER_LABEL, TRIGGERS } from "@/lib/automations/model";
+import { Badge, type Tone } from "../ui";
 
 // Pieces shared by the automation pages.
 
@@ -41,16 +42,15 @@ export const RUN_STATUS: Record<string, string> = {
   failed: "Failed",
 };
 
+export const runTone = (status: string): Tone =>
+  status === "failed"
+    ? "red"
+    : status === "done"
+      ? "green"
+      : status === "stopped"
+        ? "grey"
+        : "blue";
+
 export function RunPill({ status }: { status: string }) {
-  const tone =
-    status === "failed"
-      ? "bg-danger/10 text-danger"
-      : status === "done" || status === "stopped"
-        ? "bg-surface-muted text-ink-muted"
-        : "bg-lead-blue/50 text-ink";
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>
-      {RUN_STATUS[status] ?? status}
-    </span>
-  );
+  return <Badge tone={runTone(status)}>{RUN_STATUS[status] ?? status}</Badge>;
 }

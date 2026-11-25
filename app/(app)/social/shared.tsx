@@ -9,6 +9,7 @@ import {
   type PostState,
 } from "@/lib/social/planner";
 import { CopyButton } from "./copy-button";
+import { Badge, type Tone } from "../ui";
 import type { Post } from "@/lib/social/social";
 
 // Pieces shared by the social planner pages.
@@ -64,24 +65,19 @@ export function ResultNote({
   );
 }
 
-const TONE: Record<PostState, string> = {
-  draft: "border-line text-ink-muted",
-  scheduled: "border-line",
-  due: "border-transparent bg-lead-yellow text-ink",
-  posting: "border-line",
-  posted: "border-transparent bg-lead-blue text-ink",
-  partly_posted: "border-line",
-  failed: "border-danger/40 bg-danger/5 text-danger",
+const TONE: Record<PostState, Tone> = {
+  draft: "grey",
+  scheduled: "blue",
+  due: "amber",
+  posting: "amber",
+  posted: "green",
+  partly_posted: "amber",
+  failed: "red",
 };
+export const stateTone = (state: PostState): Tone => TONE[state];
 
 export function StateBadge({ state }: { state: PostState }) {
-  return (
-    <span
-      className={`inline-block rounded-full border px-2 py-0.5 text-xs whitespace-nowrap ${TONE[state]}`}
-    >
-      {STATE_LABEL[state]}
-    </span>
-  );
+  return <Badge tone={TONE[state]}>{STATE_LABEL[state]}</Badge>;
 }
 
 export const preview = (p: Post, n = 60) => {

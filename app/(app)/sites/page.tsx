@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { listFolders, listSites, listTemplates } from "@/lib/sites/admin";
 import { klDay, siteSummaries } from "@/lib/sites/stats";
 import { canEditSites, canViewSites } from "@/lib/sites/permissions";
-import { button, field, myt } from "../ui";
+import { RowLink } from "../row-link";
+import { button, EmptyState, field, myt, PageHeader, table as t } from "../ui";
 import { ActionForm, Field } from "./action-form";
 import { createFolderAction, createFunnelAction } from "./funnel/[id]/actions";
 
@@ -34,7 +35,10 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
 
   return (
     <section className="max-w-5xl">
-      <h1 className="text-2xl font-semibold">Sites &amp; funnels</h1>
+      <PageHeader
+        title="Sites & funnels"
+        lede="Your funnels, with their views and opt-ins over the last 7 days."
+      />
       <nav
         className="border-line mt-4 flex gap-4 border-b text-sm"
         aria-label="Site type"
@@ -92,43 +96,46 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
       </form>
 
       {sites.length === 0 ? (
-        <div className="border-line bg-surface-muted mt-6 rounded-2xl border p-10 text-center">
-          <p className="font-medium">
-            No funnels {search || folder ? "match" : "yet"}
-          </p>
-        </div>
+        <EmptyState title={`No funnels ${search || folder ? "match" : "yet"}`} />
       ) : (
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-ink-muted">
+        <div className={t.wrap}>
+          <table className={t.table}>
+            <thead>
               <tr>
-                <th className="py-2 pr-4 font-medium">Name</th>
-                <th className="py-2 pr-4 font-medium">Folder</th>
-                <th className="py-2 pr-4 font-medium">Steps</th>
-                <th className="py-2 pr-4 font-medium">Views (7 days)</th>
-                <th className="py-2 pr-4 font-medium">Opt-ins (7 days)</th>
-                <th className="py-2 pr-4 font-medium">Updated</th>
-                <th className="py-2 font-medium">Live URL</th>
+                <th className={t.th}>Name</th>
+                <th className={t.th}>Folder</th>
+                <th className={`${t.th} text-right`}>Steps</th>
+                <th className={`${t.th} text-right`}>Views, 7 days</th>
+                <th className={`${t.th} text-right`}>Opt-ins, 7 days</th>
+                <th className={t.th}>Updated</th>
               </tr>
             </thead>
             <tbody>
               {sites.map((s) => (
-                <tr key={s.id} className="border-line border-t">
-                  <td className="py-2 pr-4">
+                <RowLink key={s.id} href={`/sites/funnel/${s.id}`} className={t.row}>
+                  <td className={t.td}>
                     <Link
                       href={`/sites/funnel/${s.id}`}
-                      className="font-medium underline"
+                      className="font-medium hover:underline"
                     >
                       {s.name}
                     </Link>
+                    {s.liveUrl && (
+                      <span className="text-ink-muted block text-xs break-all">
+                        {s.liveUrl}
+                      </span>
+                    )}
                   </td>
-                  <td className="py-2 pr-4">{s.folderName ?? "—"}</td>
-                  <td className="py-2 pr-4">{s.steps}</td>
-                  <td className="py-2 pr-4">{summary.get(s.id)?.views ?? 0}</td>
-                  <td className="py-2 pr-4">{summary.get(s.id)?.optins ?? 0}</td>
-                  <td className="py-2 pr-4">{myt(s.updatedAt)}</td>
-                  <td className="py-2">{s.liveUrl}</td>
-                </tr>
+                  <td className={t.td}>{s.folderName ?? "—"}</td>
+                  <td className={`${t.td} ${t.num}`}>{s.steps}</td>
+                  <td className={`${t.td} ${t.num}`}>
+                    {(summary.get(s.id)?.views ?? 0).toLocaleString("en-MY")}
+                  </td>
+                  <td className={`${t.td} ${t.num}`}>
+                    {(summary.get(s.id)?.optins ?? 0).toLocaleString("en-MY")}
+                  </td>
+                  <td className={`${t.td} whitespace-nowrap`}>{myt(s.updatedAt)}</td>
+                </RowLink>
               ))}
             </tbody>
           </table>
