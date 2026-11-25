@@ -22,6 +22,21 @@ export const button =
 // A quieter button: white with a hairline border.
 export const ghostButton =
   "bg-surface text-ink ring-line inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-[9px] text-sm font-medium ring-1 ring-inset hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+// Smaller versions, for buttons inside a panel or a status box.
+export const buttonSm =
+  "bg-action text-action-ink inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap hover:brightness-[1.15] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+export const ghostSm =
+  "bg-surface text-ink ring-line inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap ring-1 ring-inset hover:bg-surface-muted disabled:cursor-default disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+// One row in a ⋯ menu (app/(app)/menus.tsx).
+export const menuItem =
+  "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-surface-muted disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent [&_svg]:size-4 [&_svg]:text-ink-muted";
+// An on/off switch: put it on a checkbox.
+export const switchInput =
+  "relative h-5 w-9 shrink-0 cursor-pointer appearance-none rounded-full bg-line transition-colors before:absolute before:top-0.5 before:left-0.5 before:size-4 before:rounded-full before:bg-white before:shadow-[0_1px_2px_rgba(0,0,0,.25)] before:transition-transform checked:bg-action checked:before:translate-x-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-default disabled:opacity-60";
+// A choice drawn as a card (a radio inside a label): the picked one gets a dark border.
+export const choiceCard =
+  "border-line flex cursor-pointer flex-col gap-0.5 rounded-[10px] border px-3 py-2.5 text-sm has-checked:border-action has-checked:ring-1 has-checked:ring-action has-focus-visible:outline-2 has-focus-visible:outline-focus-ring";
+
 // The search box in a screen's toolbar.
 export const searchField =
   "border-line bg-surface min-w-0 flex-[1_1_200px] max-w-[280px] rounded-lg border px-2.5 py-2 text-sm focus-visible:outline-2 focus-visible:outline-focus-ring";

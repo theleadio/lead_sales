@@ -15,7 +15,11 @@ import {
   cloneStep,
   createFolder,
   createFunnel,
+  deleteSite,
   deleteStep,
+  duplicateSite,
+  moveSiteToFolder,
+  renameSite,
   moveStep,
   renameStep,
   setStepPath,
@@ -91,10 +95,13 @@ export async function setStepPathAction(_: ActionState, f: FormData) {
     (v, p) => setStepPath(v, p.siteId, p.version, p.pageId, p.path),
   );
 }
+// Keeps the moved step selected, wherever it lands.
 export async function moveStepAction(_: ActionState, f: FormData) {
-  return run(f, z.object({ ...step, to: int }), "Moved.", (v, p) =>
+  const r = await run(f, z.object({ ...step, to: int }), "Moved.", (v, p) =>
     moveStep(v, p.siteId, p.version, p.pageId, p.to),
   );
+  if (r.ok) redirect(`/sites/funnel/${str(f, "siteId")}?tab=steps&step=${str(f, "pageId")}`);
+  return r;
 }
 export async function cloneStepAction(_: ActionState, f: FormData) {
   return run(f, z.object(step), "Cloned.", (v, p) =>
@@ -231,4 +238,46 @@ export async function createFolderAction(
   );
   revalidatePath("/sites");
   return r;
+}
+
+// ---- the ⋯ menu on a list row ----
+
+const relist = (r: ActionState) => {
+  revalidatePath("/sites");
+  return r;
+};
+
+export async function renameSiteAction(_: ActionState, f: FormData) {
+  const v = await viewer();
+  const p = z.object({ siteId: uuid, name: z.string() }).safeParse(Object.fromEntries(f));
+  if (!p.success) return bad;
+  return relist(await act(() => renameSite(v, p.data.siteId, p.data.name), "Renamed."));
+}
+
+export async function moveSiteAction(_: ActionState, f: FormData) {
+  const v = await viewer();
+  const p = z.object({ siteId: uuid, folderId: z.union([uuid, z.literal("")]) }).safeParse(Object.fromEntries(f));
+  if (!p.success) return bad;
+  return relist(
+    await act(() => moveSiteToFolder(v, p.data.siteId, p.data.folderId || null), "Moved."),
+  );
+}
+
+export async function duplicateSiteAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const v = await viewer();
+  const p = z.object({ siteId: uuid }).safeParse(Object.fromEntries(f));
+  if (!p.success) return bad;
+  let id = "";
+  const r = await act(async () => {
+    id = (await duplicateSite(v, p.data.siteId)).siteId;
+  });
+  if (id) redirect(`/sites/funnel/${id}`);
+  return r;
+}
+
+export async function deleteSiteAction(_: ActionState, f: FormData) {
+  const v = await viewer();
+  const p = z.object({ siteId: uuid }).safeParse(Object.fromEntries(f));
+  if (!p.success) return bad;
+  return relist(await act(() => deleteSite(v, p.data.siteId), "Deleted."));
 }

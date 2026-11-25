@@ -169,8 +169,15 @@ export async function getSite(viewer: Viewer, siteId: string) {
   if (!s) return null;
   const pages = await sql`
     SELECT p.id, p.position, p.name, p.path, p.kind, p.version,
-           (SELECT r.path FROM sales.site_route r WHERE r.page_id = p.id LIMIT 1) AS live_path
+           (SELECT r.path FROM sales.site_route r WHERE r.page_id = p.id LIMIT 1) AS live_path,
+           pub.published_at,
+           (pub.id IS NOT NULL) AS live,
+           -- The draft differs from what visitors see (a save since the last publish).
+           EXISTS (SELECT 1 FROM sales.page_version d
+                   WHERE d.page_id = p.id AND d.variant = 'A' AND d.status = 'draft'
+                     AND d.project IS DISTINCT FROM pub.project) AS changed
     FROM sales.site_page p
+    LEFT JOIN sales.page_version pub ON pub.id = p.active_version_id AND pub.status = 'published'
     WHERE p.site_id = ${siteId} ORDER BY p.position`;
   return {
     id: s.id as string,
@@ -190,6 +197,10 @@ export async function getSite(viewer: Viewer, siteId: string) {
       kind: p.kind as string,
       version: p.version as number,
       livePath: (p.live_path as string | null) ?? null,
+      live: p.live === true,
+      // Only meaningful when live.
+      changed: p.live === true && p.changed === true,
+      publishedAt: (p.published_at as Date | null) ?? null,
     })),
   };
 }
@@ -545,4 +556,96 @@ export async function saveGlobalSection(
   if (!g) return CONFLICT;
   await audit(viewer, "update", "global_section", input.id, null, { name, version: g.version });
   return { kind: "ok", version: g.version, id: input.id };
+}
+
+// ---- whole funnels (the ⋯ menu on the list) ----
+
+// Each bumps the site version, so an editor open on a stale copy gets a
+// conflict instead of overwriting.
+async function siteOp(viewer: Viewer, siteId: string, what: string, fn: (sql: Sql) => Promise<object>) {
+  await guard(viewer, what, true);
+  return withTransaction(async () => {
+    const sql = db();
+    const [s] = await sql`SELECT id FROM sales.site WHERE id = ${siteId} FOR UPDATE`;
+    if (!s) throw new Error("No such funnel.");
+    const detail = await fn(sql);
+    await sql`UPDATE sales.site SET version = version + 1, updated_at = now(), updated_by = ${viewer.id} WHERE id = ${siteId}`;
+    await audit(viewer, "update", "site", siteId, null, { what, ...detail });
+  });
+}
+
+export async function renameSite(viewer: Viewer, siteId: string, name: string) {
+  const n = cleanName(name);
+  await siteOp(viewer, siteId, "rename funnel", async (sql) => {
+    await sql`UPDATE sales.site SET name = ${n} WHERE id = ${siteId}`;
+    return { name: n };
+  });
+}
+
+// folderId null = no folder.
+export async function moveSiteToFolder(viewer: Viewer, siteId: string, folderId: string | null) {
+  await siteOp(viewer, siteId, "move funnel", async (sql) => {
+    if (folderId) {
+      const [f] = await sql`
+        SELECT f.id FROM sales.site_folder f JOIN sales.site s ON s.kind = f.kind
+        WHERE f.id = ${folderId} AND s.id = ${siteId}`;
+      if (!f) throw new Error("No such folder.");
+    }
+    await sql`UPDATE sales.site SET folder_id = ${folderId} WHERE id = ${siteId}`;
+    return { folderId };
+  });
+}
+
+// A copy with every step's draft, under "<base path>-copy" (or -copy-2, ...),
+// in the same folder. Nothing in it is live.
+export async function duplicateSite(viewer: Viewer, siteId: string): Promise<{ siteId: string }> {
+  await guard(viewer, "duplicate funnel", true);
+  return withTransaction(async () => {
+    const sql = db();
+    const [s] = await sql`SELECT * FROM sales.site WHERE id = ${siteId}`;
+    if (!s) throw new Error("No such funnel.");
+    const base = s.base_path as string;
+    const taken = new Set(
+      (await sql`SELECT base_path FROM sales.site WHERE domain = ${s.domain}`).map((r) => r.base_path as string),
+    );
+    const stem = base === "/" ? "/funnel" : base;
+    let nb = `${stem}-copy`;
+    for (let i = 2; taken.has(nb); i++) nb = `${stem}-copy-${i}`;
+    nb = cleanPath(nb);
+    const [c] = await sql`
+      INSERT INTO sales.site (kind, name, folder_id, domain, base_path, language, settings, created_by, updated_by)
+      VALUES (${s.kind}, ${`${s.name} copy`.slice(0, 120)}, ${s.folder_id}, ${s.domain}, ${nb}, ${s.language},
+              ${sql.json(s.settings as never)}, ${viewer.id}, ${viewer.id})
+      RETURNING id`;
+    const pages = await sql`SELECT * FROM sales.site_page WHERE site_id = ${siteId} ORDER BY position`;
+    for (const p of pages) {
+      const path = p.path as string;
+      const rest = base === "/" ? (path === "/" ? "" : path) : path.startsWith(base) ? path.slice(base.length) : path;
+      const [np] = await sql`
+        INSERT INTO sales.site_page (site_id, position, name, path, kind)
+        VALUES (${c.id}, ${p.position}, ${p.name}, ${cleanPath(sub(nb, rest))}, ${p.kind}) RETURNING id`;
+      await sql`
+        INSERT INTO sales.page_version (page_id, variant, project, html, css)
+        SELECT ${np.id}, variant, project, html, css FROM sales.page_version
+        WHERE page_id = ${p.id} AND status = 'draft'`;
+    }
+    await audit(viewer, "create", "site", c.id, null, { duplicateOf: siteId, basePath: nb });
+    return { siteId: c.id as string };
+  });
+}
+
+// Only a funnel with nothing live can be deleted, so a delete never takes a
+// page away from visitors: unpublish its steps first.
+export async function deleteSite(viewer: Viewer, siteId: string) {
+  await guard(viewer, "delete funnel", true);
+  await withTransaction(async () => {
+    const sql = db();
+    const [s] = await sql`SELECT id, name FROM sales.site WHERE id = ${siteId} FOR UPDATE`;
+    if (!s) throw new Error("No such funnel.");
+    const [live] = await sql`
+      SELECT 1 FROM sales.site_page WHERE site_id = ${siteId} AND active_version_id IS NOT NULL LIMIT 1`;
+    if (live) throw new Error("This funnel has live steps. Unpublish them first, then delete it.");
+    await sql`DELETE FROM sales.site WHERE id = ${siteId}`;
+    await audit(viewer, "delete", "site", siteId, { name: s.name }, null);
+  });
 }
