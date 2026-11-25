@@ -150,7 +150,7 @@ export default async function FunnelPage({
         </div>
       </div>
       <nav
-        className="border-line mt-5 flex gap-5 overflow-x-auto border-b text-sm"
+        className="border-line mt-5 flex gap-5 border-b text-sm"
         aria-label="Funnel sections"
       >
         {TABS.map(([t, label]) => (

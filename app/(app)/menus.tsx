@@ -1,7 +1,7 @@
 "use client";
 
 import { Ellipsis } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 // A ⋯ button that opens a short list of actions. Items are buttons or links
 // (style them with `menuItem` from ui.tsx); a button can submit a form kept
@@ -17,15 +17,29 @@ export function Menu({
 }) {
   const [open, setOpen] = useState(false);
   // Fixed to the window, so a menu inside a scrolling table isn't cut off.
-  const [at, setAt] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+  const [at, setAt] = useState<{ top: number; right: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  // Below the button if it fits, else above, else as high as the window allows.
+  useLayoutEffect(() => {
+    if (!open || !panel.current || !button.current) return;
+    const r = button.current.getBoundingClientRect();
+    const h = panel.current.offsetHeight;
+    const vh = window.innerHeight;
+    const top =
+      r.bottom + 6 + h <= vh - 8 ? r.bottom + 6 : r.top - 6 - h >= 8 ? r.top - 6 - h : Math.max(8, vh - h - 8);
+    setAt({ top, right: window.innerWidth - r.right });
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    const shut = () => setOpen(false);
+    const shut = (e: Event) => {
+      if (!panel.current?.contains(e.target as Node)) setOpen(false);
+    };
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
     window.addEventListener("scroll", shut, true);
@@ -45,12 +59,9 @@ export function Menu({
         title={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          // Opens upwards when there's no room below.
-          const below = window.innerHeight - r.bottom > 340;
-          const right = window.innerWidth - r.right;
-          setAt(below ? { top: r.bottom + 6, right } : { bottom: window.innerHeight - r.top + 6, right });
+        ref={button}
+        onClick={() => {
+          setAt(null);
           setOpen((o) => !o);
         }}
         className="bg-surface text-ink ring-line hover:bg-surface-muted inline-flex size-[38px] cursor-pointer items-center justify-center rounded-lg ring-1 ring-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
@@ -58,14 +69,15 @@ export function Menu({
         <Ellipsis className="size-[18px]" aria-hidden="true" />
       </button>
       <div
+        ref={panel}
         role="menu"
         hidden={!open}
         onClick={(e) => {
           const t = e.target as HTMLElement;
           if (t.closest("button:not(:disabled), a")) setOpen(false);
         }}
-        style={at ?? undefined}
-        className="border-line bg-surface fixed z-30 w-60 rounded-xl border p-1.5 text-left font-normal shadow-[0_10px_30px_rgba(0,0,0,.12)]"
+        style={at ?? { top: 0, right: 0, visibility: "hidden" }}
+        className="border-line bg-surface fixed z-30 max-h-[calc(100vh-16px)] w-60 overflow-y-auto rounded-xl border p-1.5 text-left font-normal shadow-[0_10px_30px_rgba(0,0,0,.12)]"
       >
         {children}
       </div>
