@@ -63,6 +63,10 @@ export default function SelectionChrome({ doc, page, sel, hov, tick, layoutKey, 
     const label = nodeLabel(n);
     const c = KIND_COLOR[n.kind];
     const inside = box.y < 30; // no room above the page top: toolbars sit inside the box
+    // An element's toolbars stack in one column just right of it, in the
+    // gutter, so they don't cover the line of text above it. Sections, rows
+    // and columns keep theirs on top.
+    const side = n.kind === "el";
     const col = n.kind === "col"; // columns come from the row layout: no move, copy or delete
     const plusLabel = n.kind === "sec" ? "Add a section below" : n.kind === "row" ? "Add a row below" : "Add an element";
     return (
@@ -79,8 +83,8 @@ export default function SelectionChrome({ doc, page, sel, hov, tick, layoutKey, 
           </button>
         )}
         {selected && !readOnly && (
-          <>
-            <div className={`tb l${inside ? " in" : ""}`} role="toolbar" aria-label={`${label} tools`}>
+          <Wrap side={side}>
+            <div className={`tb l${side ? "" : inside ? " in" : ""}`} role="toolbar" aria-label={`${label} tools`}>
               {!col && (
                 <>
                   <button type="button" data-drag={id} title="Drag to move" aria-label="Drag to move" onPointerDown={(e) => actions.dragStart?.(id, e)}>
@@ -99,7 +103,7 @@ export default function SelectionChrome({ doc, page, sel, hov, tick, layoutKey, 
               </button>
             </div>
             {!col && (
-              <div className={`tb r${inside ? " in" : ""}`} role="toolbar" aria-label={`${label} actions`}>
+              <div className={`tb r${side ? "" : inside ? " in" : ""}`} role="toolbar" aria-label={`${label} actions`}>
                 <button type="button" title="Duplicate" aria-label="Duplicate" onClick={() => actions.duplicate(id)}>
                   ⧉
                 </button>
@@ -108,7 +112,7 @@ export default function SelectionChrome({ doc, page, sel, hov, tick, layoutKey, 
                 </button>
               </div>
             )}
-          </>
+          </Wrap>
         )}
       </div>
     );
@@ -120,4 +124,9 @@ export default function SelectionChrome({ doc, page, sel, hov, tick, layoutKey, 
       {one(sel, boxes.sel, true)}
     </div>
   );
+}
+
+// Beside an element, both toolbars share one column; elsewhere they sit apart.
+function Wrap({ side, children }: { side: boolean; children: React.ReactNode }) {
+  return side ? <div className="tbs">{children}</div> : <>{children}</>;
 }
