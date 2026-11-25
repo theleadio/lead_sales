@@ -6,8 +6,14 @@ import assert from "node:assert/strict";
 import { closeDb, db } from "../lib/sql.ts";
 import {
   audienceSize,
+  duplicateCampaign,
+  getCampaign,
   processEmailQueue,
   queueCampaign,
+  queueDueCampaigns,
+  saveCampaign,
+  scheduleCampaign,
+  unscheduleCampaign,
   unsubscribe,
   EmailError,
   type MailConfig,
@@ -161,4 +167,117 @@ it("unsubscribe withdraws consent once, raises the event, and is safe to repeat"
     SELECT count(*)::int AS n FROM event_outbox
     WHERE aggregate_id = ${a} AND type = 'ConsentChanged'`;
   assert.equal(e.n, 1);
+});
+
+const MIN = 60 * 1000;
+
+it("schedules a draft, refuses a time too soon, and cancels back to draft", async () => {
+  const tag = await newTag();
+  await person({ consent: true, tagId: tag });
+  const c = await draft([tag]);
+  const now = new Date();
+  await assert.rejects(
+    scheduleCampaign(c.actor, c.id, new Date(now.getTime() + 2 * MIN), now),
+    /10 minutes/,
+  );
+  await scheduleCampaign(
+    c.actor,
+    c.id,
+    new Date(now.getTime() + 60 * MIN),
+    now,
+  );
+  let row = await getCampaign(c.id);
+  assert.equal(row?.status, "scheduled");
+  // Scheduled campaigns can't be edited or sent now.
+  await assert.rejects(queueCampaign(c.actor, c.id), EmailError);
+  await unscheduleCampaign(c.actor, c.id);
+  row = await getCampaign(c.id);
+  assert.equal(row?.status, "draft");
+  assert.equal(row?.scheduledAt, null);
+});
+
+it("the job queues a due campaign with the audience at that time, and leaves a future one", async () => {
+  const tag = await newTag();
+  await person({ consent: true, tagId: tag });
+  const due = await draft([tag]);
+  const later = await draft([tag]);
+  const t0 = new Date();
+  await scheduleCampaign(
+    due.actor,
+    due.id,
+    new Date(t0.getTime() + 15 * MIN),
+    t0,
+  );
+  await scheduleCampaign(
+    later.actor,
+    later.id,
+    new Date(t0.getTime() + 120 * MIN),
+    t0,
+  );
+  // Someone who agrees after it was scheduled is still included.
+  await person({ consent: true, tagId: tag });
+  const r = await queueDueCampaigns(new Date(t0.getTime() + 20 * MIN));
+  assert.equal(r.queued, 1);
+  assert.equal((await getCampaign(due.id))?.status, "sending");
+  assert.equal((await getCampaign(due.id))?.recipientCount, 2);
+  assert.equal((await getCampaign(later.id))?.status, "scheduled");
+});
+
+it("the job returns a campaign to draft with a note when no one matches or it is 12 hours late", async () => {
+  const tag = await newTag();
+  const empty = await draft([tag]);
+  const late = await draft([]);
+  await person({ consent: true });
+  const t0 = new Date();
+  await scheduleCampaign(
+    empty.actor,
+    empty.id,
+    new Date(t0.getTime() + 15 * MIN),
+    t0,
+  );
+  await scheduleCampaign(
+    late.actor,
+    late.id,
+    new Date(t0.getTime() + 15 * MIN),
+    t0,
+  );
+  const r = await queueDueCampaigns(
+    new Date(t0.getTime() + 15 * MIN + 13 * 60 * MIN),
+  );
+  assert.equal(r.returned, 2);
+  const e = await getCampaign(empty.id);
+  const l = await getCampaign(late.id);
+  assert.equal(e?.status, "draft");
+  assert.match(e?.note ?? "", /12 hours/);
+  assert.equal(l?.status, "draft");
+  // Nothing was queued for either.
+  const [n] = await db()`
+    SELECT count(*)::int AS n FROM sales.email_send
+    WHERE campaign_id IN (${empty.id}, ${late.id})`;
+  assert.equal(n.n, 0);
+});
+
+it("duplicates any campaign into a new draft with the same email and audience", async () => {
+  const tag = await newTag();
+  await person({ consent: true, tagId: tag });
+  const c = await draft([tag], "en");
+  await saveCampaign(c.actor, {
+    id: c.id,
+    name: "November newsletter",
+    subject: "Hello",
+    language: "en",
+    bodyHtml: "",
+    blocks: [{ id: "h", type: "heading", text: "Hi", align: "left" }],
+    tagIds: [tag],
+  });
+  await queueCampaign(c.actor, c.id);
+  const copy = await duplicateCampaign(c.actor, c.id);
+  const d = await getCampaign(copy);
+  assert.equal(d?.status, "draft");
+  assert.equal(d?.name, "Copy of November newsletter");
+  assert.deepEqual(d?.tagIds, [tag]);
+  assert.equal(d?.blocks?.[0]?.type, "heading");
+  assert.match(d?.bodyHtml ?? "", /<h2[^>]*>Hi<\/h2>/);
+  const sales = await newUser("sales");
+  await assert.rejects(duplicateCampaign(sales, c.id), EmailError);
 });
