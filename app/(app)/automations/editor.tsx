@@ -656,9 +656,10 @@ function StepFields({
             </select>
           </label>
           <p className="text-ink-muted text-xs sm:col-span-2">
-            WhatsApp goes out through WATI once WATI_API_HOST and WATI_API_TOKEN
-            are set; email isn&apos;t connected yet. Until a channel is, this
-            step stops the run with a clear message in its log.
+            {s.kind === "send_email"
+              ? "Email goes out through Resend once RESEND_API_KEY and EMAIL_FROM are set for the scheduled automations job."
+              : "WhatsApp goes out through WATI once WATI_API_HOST and WATI_API_TOKEN are set for the scheduled automations job."}{" "}
+            Until then, this step stops the run with a clear message in its log.
           </p>
           {s.kind === "send_email" && (
             <p className="text-ink-muted text-xs sm:col-span-2">
