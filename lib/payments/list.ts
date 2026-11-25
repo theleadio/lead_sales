@@ -45,7 +45,9 @@ export type PaymentRow = {
 
 export type PaymentSummary = {
   receivedThisMonthMyr: string;
+  receivedThisMonthCount: number;
   refundedThisMonthMyr: string;
+  refundedThisMonthCount: number;
   unmatchedCount: number;
   unmatchedMyr: string;
 };
@@ -150,7 +152,9 @@ export async function paymentSummary(
 ): Promise<PaymentSummary> {
   const empty = {
     receivedThisMonthMyr: "0.00",
+    receivedThisMonthCount: 0,
     refundedThisMonthMyr: "0.00",
+    refundedThisMonthCount: 0,
     unmatchedCount: 0,
     unmatchedMyr: "0.00",
   };
@@ -172,6 +176,12 @@ export async function paymentSummary(
           AND coalesce(paid_at, created_at) >= (SELECT start FROM bounds)
           AND coalesce(paid_at, created_at) <= ${now}), 0)::numeric(12,2)::text
         AS received,
+      count(*) FILTER (
+        WHERE status IN ('succeeded','refunded','partially_refunded')
+          AND coalesce(paid_at, created_at) >= (SELECT start FROM bounds)
+          AND coalesce(paid_at, created_at) <= ${now})::int AS received_count,
+      count(*) FILTER (WHERE refunded_at >= (SELECT start FROM bounds)
+          AND refunded_at <= ${now})::int AS refunded_count,
       coalesce(sum(refunded_amount_myr) FILTER (
         WHERE refunded_at >= (SELECT start FROM bounds)
           AND refunded_at <= ${now}), 0)::numeric(12,2)::text AS refunded,
@@ -183,7 +193,9 @@ export async function paymentSummary(
     FROM scoped`;
   return {
     receivedThisMonthMyr: s.received as string,
+    receivedThisMonthCount: s.received_count as number,
     refundedThisMonthMyr: s.refunded as string,
+    refundedThisMonthCount: s.refunded_count as number,
     unmatchedCount: s.unmatched_count as number,
     unmatchedMyr: s.unmatched_myr as string,
   };
@@ -195,7 +207,7 @@ export async function receivedByDay(
   viewer: Viewer,
   days = 7,
   now: Date = new Date(),
-): Promise<{ day: string; myr: number }[]> {
+): Promise<{ day: string; myr: number; count: number }[]> {
   if (!canSeePayments(viewer.role)) return [];
   const sql = db();
   const rows = await sql`
@@ -216,8 +228,13 @@ export async function receivedByDay(
             >= ${new Date(now.getTime() - (days + 1) * 86_400_000)}
         ${scope(viewer)}
     )
-    SELECT d.day::text AS day, coalesce(sum(paid.amount_myr), 0)::float8 AS myr
+    SELECT d.day::text AS day, coalesce(sum(paid.amount_myr), 0)::float8 AS myr,
+           count(paid.amount_myr)::int AS count
     FROM d LEFT JOIN paid ON paid.day = d.day
     GROUP BY d.day ORDER BY d.day`;
-  return rows.map((r) => ({ day: r.day as string, myr: r.myr as number }));
+  return rows.map((r) => ({
+    day: r.day as string,
+    myr: r.myr as number,
+    count: r.count as number,
+  }));
 }

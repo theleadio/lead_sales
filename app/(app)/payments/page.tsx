@@ -12,11 +12,15 @@ import {
 import {
   Badge,
   EmptyState,
-  field,
   myt,
+  page as pageWidth,
   PageHeader,
+  searchField,
+  Segmented,
   StatTile,
   table as t,
+  tiles,
+  Toolbar,
   type Tone,
 } from "../ui";
 
@@ -93,16 +97,16 @@ function Who({ row }: { row: PaymentRow }) {
   if (!row.matched)
     return (
       <span>
-        <span className="text-danger font-medium">Unmatched</span>
-        {row.openMatchTaskId ? (
-          <span className="text-ink-muted">
-            {" "}
-            ·{" "}
+        <b className="text-danger">Unmatched</b>
+        <span className="text-ink-muted block text-xs">
+          {row.openMatchTaskId ? (
             <CrmLink path="/tasks?mine=false&type=match_payment">
-              match in CRM
+              Match in CRM
             </CrmLink>
-          </span>
-        ) : null}
+          ) : (
+            "Match in CRM"
+          )}
+        </span>
       </span>
     );
   if (!row.personId) return <span className="text-ink-muted">No person</span>;
@@ -146,66 +150,63 @@ export default async function PaymentsPage({
   };
 
   return (
-    <section className="max-w-6xl">
+    <section className={pageWidth}>
       <PageHeader
         title="Payments"
         lede={
           <>
-            Every payment in the CRM, newest first. Record a manual payment on
-            the enrolment in the CRM; match an unmatched Stripe payment from
-            its CRM task.
+            Every payment the CRM holds. Read-only; record and match payments
+            in the CRM.
             {user.role === "sales" && " You see payments on your own deals."}
           </>
         }
       />
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className={tiles}>
         <StatTile
-          label="Received this month"
+          label="Paid this month"
           value={rm(summary.receivedThisMonthMyr)}
-          note="Malaysia time"
+          note={`${summary.receivedThisMonthCount.toLocaleString("en-MY")} payment${summary.receivedThisMonthCount === 1 ? "" : "s"}`}
+        />
+        <StatTile
+          label="Unmatched"
+          value={String(summary.unmatchedCount)}
+          alert={summary.unmatchedCount > 0}
+          href={view === "unmatched" ? undefined : hrefFor({ view: "unmatched" })}
+          note={
+            summary.unmatchedCount
+              ? `${rm(summary.unmatchedMyr)} waiting for a person`
+              : "Nothing to match"
+          }
         />
         <StatTile
           label="Refunded this month"
           value={rm(summary.refundedThisMonthMyr)}
-        />
-        <StatTile
-          label="Unmatched, waiting"
-          value={String(summary.unmatchedCount)}
-          alert={summary.unmatchedCount > 0}
-          href={view === "unmatched" ? undefined : hrefFor({ view: "unmatched" })}
-          note={summary.unmatchedCount ? rm(summary.unmatchedMyr) : "Nothing to match"}
+          note={`${summary.refundedThisMonthCount} refund${summary.refundedThisMonthCount === 1 ? "" : "s"}`}
         />
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <nav
-          className="bg-surface-muted flex gap-0.5 rounded-xl p-1"
-          aria-label="Payment views"
-        >
-          {(Object.keys(VIEW_LABEL) as PaymentView[]).map((v) => (
-            <Link
-              key={v}
-              href={hrefFor({ view: v })}
-              aria-current={v === view ? "page" : undefined}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${v === view ? "bg-surface text-ink shadow-xs" : "text-ink-muted hover:text-ink"}`}
-            >
-              {VIEW_LABEL[v]}
-            </Link>
-          ))}
-        </nav>
-        <form action="/payments" className="flex max-w-full gap-2">
+      <Toolbar>
+        <Segmented
+          label="View"
+          options={(Object.keys(VIEW_LABEL) as PaymentView[]).map((v) => ({
+            label: VIEW_LABEL[v],
+            href: hrefFor({ view: v }),
+            current: v === view,
+          }))}
+        />
+        <form action="/payments" className="contents">
           {view !== "all" && <input type="hidden" name="view" value={view} />}
           <input
             type="search"
             name="q"
             defaultValue={search}
-            placeholder="Name, email, class, reference"
+            placeholder="Search name, email or reference"
             aria-label="Search payments"
-            className={`${field} w-64 max-w-full`}
+            className={searchField}
           />
         </form>
-      </div>
+      </Toolbar>
 
       {rows.length === 0 ? (
         <EmptyState
@@ -224,11 +225,10 @@ export default async function PaymentsPage({
               <tr>
                 <th className={t.th}>Paid</th>
                 <th className={t.th}>Who</th>
-                <th className={t.th}>Class</th>
-                <th className={`${t.th} text-right`}>Amount</th>
+                <th className={t.th}>For</th>
                 <th className={t.th}>Method</th>
                 <th className={t.th}>Status</th>
-                <th className={t.th}>Reference</th>
+                <th className={`${t.th} text-right`}>Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -246,25 +246,27 @@ export default async function PaymentsPage({
                         {r.classCode}
                       </CrmLink>
                     ) : (
-                      <span className="text-ink-muted">–</span>
+                      <span className="text-ink-muted">—</span>
                     )}
                   </td>
-                  <td className={`${t.td} ${t.num} font-medium`}>
-                    {rm(r.amountMyr)}
-                    {Number(r.refundedMyr) > 0 && (
-                      <span className="text-ink-muted block text-xs font-normal">
-                        {rm(r.refundedMyr)} refunded
+                  <td className={t.td}>
+                    {METHOD_LABEL[r.method] ?? r.method}
+                    {(r.reference ?? (r.matched ? null : r.notes)) && (
+                      <span className={`${t.sub} max-w-56 break-words`}>
+                        {r.reference ?? r.notes}
                       </span>
                     )}
                   </td>
-                  <td className={t.td}>{METHOD_LABEL[r.method] ?? r.method}</td>
                   <td className={t.td}>
                     <Badge tone={STATUS_TONE[r.status] ?? "grey"}>
                       {STATUS_LABEL[r.status] ?? r.status}
                     </Badge>
                   </td>
-                  <td className={`${t.td} text-ink-muted max-w-64 text-xs break-words`}>
-                    {r.reference ?? (r.matched ? "" : r.notes)}
+                  <td className={`${t.td} ${t.num}`}>
+                    {rm(r.amountMyr)}
+                    {Number(r.refundedMyr) > 0 && (
+                      <span className={t.sub}>{rm(r.refundedMyr)} refunded</span>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -22,9 +22,21 @@ import {
   type Post,
 } from "@/lib/social/social";
 import { RowLink } from "../row-link";
-import { button, EmptyState, field, myt, PageHeader, table as t } from "../ui";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import {
+  button,
+  EmptyState,
+  field,
+  ghostButton,
+  myt,
+  page,
+  PageHeader,
+  Segmented,
+  table as t,
+} from "../ui";
 import { markPostedAction, newPostAction, retryAction } from "./actions";
 import {
+  ChannelChips,
   channelList,
   PostChip,
   preview,
@@ -105,35 +117,19 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
     byDay.set(k, [...(byDay.get(k) ?? []), p]);
   }
   const href = (v: View, dd: string) => `/social?view=${v}&d=${dd}`;
-  const tab = (v: View, label: string) => (
-    <Link
-      href={href(v, day)}
-      aria-current={view === v ? "page" : undefined}
-      className={`rounded-lg px-3 py-1.5 text-sm ${view === v ? "bg-surface-muted font-medium" : "text-ink-muted"}`}
-    >
-      {label}
-    </Link>
-  );
-
   return (
-    <section className="max-w-6xl">
+    <section className={page}>
       <PageHeader
         title="Social planner"
-        lede={
-          <>
-            Facebook Page posts go out on their own once auto-posting is set
-            up; until then, or if one isn&apos;t out 15 minutes after its
-            time, it joins the other channels under &quot;Needs you&quot; to
-            post by hand. All times are Malaysia time.
-          </>
-        }
+        lede="Posts on a calendar, in Malaysia time. Facebook Page posts go out on their own; other channels show under Needs you when it's time to post them."
         action={
           <>
-            <Link href="/social/library" className="text-sm hover:underline">
+            <Link href="/social/library" className={ghostButton}>
               Image library
             </Link>
             <form action={newPostAction}>
               <button type="submit" className={button}>
+                <Plus className="size-[18px]" aria-hidden="true" />
                 New post
               </button>
             </form>
@@ -144,24 +140,29 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
 
       {needs.length > 0 && <NeedsYou posts={needs} />}
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-[18px] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={href(view, prev)} className="border-line rounded-lg border px-3 py-1.5 text-sm" aria-label="Earlier">
-            ‹
+          <Link href={href(view, prev)} className={`${ghostButton} px-2`} aria-label="Earlier">
+            <ChevronLeft className="size-4" aria-hidden="true" />
           </Link>
-          <Link href={href(view, today)} className="border-line rounded-lg border px-3 py-1.5 text-sm">
+          <Link href={href(view, today)} className={ghostButton}>
             Today
           </Link>
-          <Link href={href(view, next)} className="border-line rounded-lg border px-3 py-1.5 text-sm" aria-label="Later">
-            ›
+          <Link href={href(view, next)} className={`${ghostButton} px-2`} aria-label="Later">
+            <ChevronRight className="size-4" aria-hidden="true" />
           </Link>
-          <h2 className="ml-2 font-medium">{title}</h2>
+          <h2 className="ml-2 text-[15px] font-semibold">{title}</h2>
         </div>
-        <nav aria-label="View" className="border-line flex gap-1 rounded-xl border p-1">
-          {tab("month", "Month")}
-          {tab("week", "Week")}
-          {tab("list", "List")}
-        </nav>
+        <Segmented
+          label="View"
+          options={(
+            [
+              ["month", "Month"],
+              ["week", "Week"],
+              ["list", "List"],
+            ] as const
+          ).map(([v, l]) => ({ label: l, href: href(v, day), current: view === v }))}
+        />
       </div>
 
       {view === "month" && (
@@ -217,27 +218,27 @@ function Month({
 }) {
   const month = day.slice(0, 7);
   return (
-    <div className="mt-4 overflow-x-auto">
-      <div className="grid min-w-[56rem] grid-cols-7 gap-px">
+    <div className="mt-3.5 overflow-x-auto">
+      <div className="grid min-w-[700px] grid-cols-7 gap-1.5">
         {WEEKDAYS.map((w) => (
-          <div key={w} className="text-ink-muted px-2 pb-1 text-xs font-medium">
+          <div key={w} className="text-ink-muted px-1 text-xs font-medium">
             {w}
           </div>
         ))}
         {monthGrid(day).flat().map((dd) => (
           <div
             key={dd}
-            className={`border-line min-h-28 rounded-lg border p-1.5 ${dd.slice(0, 7) === month ? "" : "bg-surface-muted/60"}`}
+            className={`border-line flex min-h-[108px] flex-col gap-1 rounded-[10px] border p-1.5 ${dd.slice(0, 7) === month ? "" : "bg-surface-muted"}`}
           >
             <div className="flex items-center justify-between">
               <span
-                className={`text-xs ${dd === today ? "bg-lead-yellow rounded-full px-1.5 font-semibold" : "text-ink-muted"}`}
+                className={`text-xs ${dd === today ? "bg-lead-yellow text-ink rounded-full px-1.5 font-semibold" : "text-ink-muted"}`}
               >
                 {Number(dd.slice(8))}
               </span>
               {dd >= today && <NewOnDay day={dd} />}
             </div>
-            <div className="mt-1 space-y-1">
+            <div className="space-y-1">
               {(byDay.get(dd) ?? []).map((p) => (
                 <PostChip key={p.id} p={p} />
               ))}
@@ -261,9 +262,9 @@ function Week({
   const days = Array.from({ length: 7 }, (_, i) => addDays(first, i));
   return (
     <div className="mt-4 overflow-x-auto">
-      <div className="grid min-w-[56rem] grid-cols-7 gap-2">
+      <div className="grid min-w-[700px] grid-cols-7 gap-1.5">
         {days.map((dd) => (
-          <div key={dd} className="border-line min-h-64 rounded-xl border p-2">
+          <div key={dd} className="border-line min-h-64 rounded-[10px] border p-1.5">
             <div className="flex items-center justify-between">
               <span
                 className={`text-sm ${dd === today ? "bg-lead-yellow rounded-full px-2 font-semibold" : "font-medium"}`}
@@ -309,11 +310,16 @@ function List({ posts }: { posts: Post[] }) {
                 {p.scheduledAt ? myt(p.scheduledAt) : "—"}
               </td>
               <td className={t.td}>
-                <Link href={`/social/${p.id}`} className="font-medium hover:underline">
+                <Link href={`/social/${p.id}`} className="font-medium">
                   {preview(p, 80)}
                 </Link>
               </td>
-              <td className={t.td}>{channelList(p)}</td>
+              <td className={t.td}>
+                <span className="flex items-center gap-2">
+                  <ChannelChips p={p} />
+                  <span className="text-ink-muted text-xs">{channelList(p)}</span>
+                </span>
+              </td>
               <td className={t.td}>
                 <StateBadge state={p.state} />
               </td>
@@ -330,7 +336,7 @@ function List({ posts }: { posts: Post[] }) {
 function NeedsYou({ posts }: { posts: Post[] }) {
   const now = new Date();
   return (
-    <div className="border-lead-yellow mt-6 rounded-2xl border-2 p-4">
+    <div className="border-[#f3dfa0] bg-warn-soft/50 mt-[22px] rounded-[14px] border p-4">
       <h2 className="font-medium">Needs you</h2>
       <ul className="mt-2 space-y-4">
         {posts.map((p) => (

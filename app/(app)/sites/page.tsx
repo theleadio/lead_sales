@@ -5,7 +5,19 @@ import { listFolders, listSites, listTemplates } from "@/lib/sites/admin";
 import { klDay, siteSummaries } from "@/lib/sites/stats";
 import { canEditSites, canViewSites } from "@/lib/sites/permissions";
 import { RowLink } from "../row-link";
-import { button, EmptyState, field, myt, PageHeader, table as t } from "../ui";
+import { Plus } from "lucide-react";
+import {
+  Badge,
+  button,
+  EmptyState,
+  field,
+  page,
+  PageHeader,
+  searchField,
+  Segmented,
+  table as t,
+  Toolbar,
+} from "../ui";
 import { ActionForm, Field } from "./action-form";
 import { createFolderAction, createFunnelAction } from "./funnel/[id]/actions";
 
@@ -34,66 +46,65 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
   );
 
   return (
-    <section className="max-w-5xl">
+    <section className={page}>
       <PageHeader
         title="Sites & funnels"
-        lede="Your funnels, with their views and opt-ins over the last 7 days."
+        lede="Your funnels, their views and opt-ins over the last 7 days."
+        action={
+          edit && (
+            <a href="#new-funnel" className={button}>
+              <Plus className="size-[18px]" aria-hidden="true" />
+              New funnel
+            </a>
+          )
+        }
       />
-      <nav
-        className="border-line mt-4 flex gap-4 border-b text-sm"
-        aria-label="Site type"
-      >
-        <span className="border-action border-b-2 px-1 pb-2 font-medium">
-          Funnels
-        </span>
-        <span className="text-ink-muted px-1 pb-2" aria-disabled="true">
-          Websites{" "}
-          <span className="bg-surface-muted ml-1 rounded-full px-2 py-0.5 text-xs">
-            Coming soon
-          </span>
-        </span>
-        <Link
-          href="/sites/templates"
-          className="text-ink-muted ml-auto px-1 pb-2 underline"
-        >
-          Templates
-        </Link>
-        <Link
-          href="/sites/sections"
-          className="text-ink-muted px-1 pb-2 underline"
-        >
-          Global sections
-        </Link>
-      </nav>
 
-      <form method="get" className="mt-4 flex flex-wrap items-center gap-2">
-        <input
-          name="q"
-          defaultValue={one("q")}
-          placeholder="Search funnels"
-          aria-label="Search funnels"
-          className={field}
+      <Toolbar>
+        <Segmented
+          label="Type"
+          options={[
+            { label: "Funnels", href: "/sites", current: true },
+            { label: "Websites", disabled: true, title: "Coming soon" },
+          ]}
         />
-        <select
-          name="folder"
-          defaultValue={folder}
-          aria-label="Folder"
-          className={field}
-        >
-          <option value="">All folders</option>
-          {folders.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="border-line hover:bg-surface-muted cursor-pointer rounded-lg border px-3 py-2 text-sm"
-        >
-          Filter
-        </button>
-      </form>
+        <form method="get" className="contents">
+          <input
+            type="search"
+            name="q"
+            defaultValue={one("q")}
+            placeholder="Search funnels"
+            aria-label="Search funnels"
+            className={searchField}
+          />
+          {folders.length > 0 && (
+            <select
+              name="folder"
+              defaultValue={folder}
+              aria-label="Folder"
+              className={field}
+            >
+              <option value="">All folders</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <button type="submit" className="sr-only">
+            Search
+          </button>
+        </form>
+        <span className="ml-auto flex gap-4 text-sm">
+          <Link href="/sites/templates" className="text-ink-muted hover:text-ink">
+            Templates
+          </Link>
+          <Link href="/sites/sections" className="text-ink-muted hover:text-ink">
+            Global sections
+          </Link>
+        </span>
+      </Toolbar>
 
       {sites.length === 0 ? (
         <EmptyState title={`No funnels ${search || folder ? "match" : "yet"}`} />
@@ -107,7 +118,7 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
                 <th className={`${t.th} text-right`}>Steps</th>
                 <th className={`${t.th} text-right`}>Views, 7 days</th>
                 <th className={`${t.th} text-right`}>Opt-ins, 7 days</th>
-                <th className={t.th}>Updated</th>
+                <th className={t.th}>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -116,15 +127,13 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
                   <td className={t.td}>
                     <Link
                       href={`/sites/funnel/${s.id}`}
-                      className="font-medium hover:underline"
+                      className="font-medium"
                     >
                       {s.name}
                     </Link>
-                    {s.liveUrl && (
-                      <span className="text-ink-muted block text-xs break-all">
-                        {s.liveUrl}
-                      </span>
-                    )}
+                    <span className={`${t.sub} break-all`}>
+                      {s.live ? s.liveUrl.replace(/^https:\/\//, "") : "Not published"}
+                    </span>
                   </td>
                   <td className={t.td}>{s.folderName ?? "—"}</td>
                   <td className={`${t.td} ${t.num}`}>{s.steps}</td>
@@ -134,7 +143,11 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
                   <td className={`${t.td} ${t.num}`}>
                     {(summary.get(s.id)?.optins ?? 0).toLocaleString("en-MY")}
                   </td>
-                  <td className={`${t.td} whitespace-nowrap`}>{myt(s.updatedAt)}</td>
+                  <td className={t.td}>
+                    <Badge tone={s.live ? "green" : "grey"}>
+                      {s.live ? "Live" : "Draft"}
+                    </Badge>
+                  </td>
                 </RowLink>
               ))}
             </tbody>
@@ -143,10 +156,10 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
       )}
 
       {edit && (
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <div id="new-funnel" className="mt-8 grid scroll-mt-6 gap-6 md:grid-cols-2">
           <ActionForm
             action={createFunnelAction}
-            className="border-line flex flex-col gap-3 rounded-2xl border p-4"
+            className="border-line flex flex-col gap-3 rounded-[14px] border p-4"
           >
             <h2 className="font-semibold">New funnel</h2>
             <Field label="Name" name="name" required />
@@ -192,7 +205,7 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
           </ActionForm>
           <ActionForm
             action={createFolderAction}
-            className="border-line flex flex-col gap-3 self-start rounded-2xl border p-4"
+            className="border-line flex flex-col gap-3 self-start rounded-[14px] border p-4"
           >
             <h2 className="font-semibold">New folder</h2>
             <Field label="Name" name="name" required />

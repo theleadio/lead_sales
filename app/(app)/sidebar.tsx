@@ -76,7 +76,7 @@ export function Sidebar({
 
   return (
     <>
-      <div className="border-line bg-surface sticky top-0 z-30 flex items-center gap-2 border-b px-3 py-2 md:hidden">
+      <div className="border-line bg-surface sticky top-0 z-30 flex items-center gap-2 border-b py-2 pr-4 pl-3 md:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -100,9 +100,9 @@ export function Sidebar({
 
       <aside
         id="app-sidebar"
-        className={`border-line bg-surface-muted fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r px-3 py-4 transition-transform md:sticky md:top-0 md:z-auto md:h-screen md:w-60 md:translate-x-0 md:shadow-none ${open ? "translate-x-0 shadow-2xl" : "-translate-x-full max-md:invisible"}`}
+        className={`border-line bg-surface-muted fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col border-r px-3 py-[18px] transition-transform md:sticky md:top-0 md:z-auto md:h-screen md:w-[232px] md:translate-x-0 md:shadow-none ${open ? "translate-x-0 shadow-2xl" : "-translate-x-full max-md:invisible"}`}
       >
-        <div className="mb-5 flex items-center justify-between px-2">
+        <div className="flex items-center justify-between px-2 pb-5">
           <LeadProductLogo name="Sales" height={30} />
           <button
             type="button"
@@ -114,14 +114,14 @@ export function Sidebar({
           </button>
         </div>
 
-        <nav aria-label="Main" className="flex flex-1 flex-col gap-0.5 overflow-y-auto text-sm">
+        <nav aria-label="Main" className="flex flex-col gap-0.5 overflow-y-auto text-sm">
           {groups.map((g) => {
             const inGroup = items.filter((i) => i.group === g);
             if (!inGroup.length) return null;
             return (
               <div key={g ?? "top"} className="flex flex-col gap-0.5">
                 {g && (
-                  <p className="text-ink-muted px-2.5 pt-4 pb-1.5 text-[11px] font-medium tracking-wider uppercase">
+                  <p className="px-2.5 pt-3.5 pb-1.5 text-[11px] tracking-[0.06em] text-[#8a8a90] uppercase">
                     {g}
                   </p>
                 )}
@@ -150,7 +150,7 @@ export function Sidebar({
                       className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 font-medium transition-colors ${
                         active
                           ? "bg-surface text-ink ring-line shadow-xs ring-1"
-                          : "text-ink-muted hover:text-ink hover:bg-black/[0.04]"
+                          : "text-ink-muted hover:text-ink hover:bg-hover-nav"
                       }`}
                     >
                       <Icon
@@ -167,15 +167,15 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="border-line mt-3 flex items-center gap-2.5 border-t px-1.5 pt-3">
+        <div className="border-line mt-auto flex items-center gap-2.5 border-t p-2.5">
           <span
             aria-hidden="true"
-            className="bg-lead-blue text-ink grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold"
+            className="bg-lead-blue text-ink grid size-[30px] shrink-0 place-items-center rounded-full text-xs font-semibold"
           >
             {initials(user.fullName)}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium">{user.fullName}</span>
+            <span className="block truncate text-[13px] font-semibold">{user.fullName}</span>
             <span className="text-ink-muted block truncate text-xs">{user.roleLabel}</span>
           </span>
           <form action={signOut}>
@@ -183,7 +183,7 @@ export function Sidebar({
               type="submit"
               title="Sign out"
               aria-label="Sign out"
-              className="text-ink-muted hover:text-ink hover:bg-black/[0.04] cursor-pointer rounded-lg p-2"
+              className="text-ink-muted hover:text-ink hover:bg-hover-nav cursor-pointer rounded-md p-1.5"
             >
               <LogOut className="size-[18px]" aria-hidden="true" />
             </button>
