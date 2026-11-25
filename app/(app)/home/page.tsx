@@ -13,9 +13,13 @@ import { getCurrentUser, type CurrentUser } from "@/lib/auth/current-user";
 import { canEditAutomations } from "@/lib/automations/admin";
 import { canEditEmail, consentSummary, listCampaigns } from "@/lib/email/marketing";
 import { failedRunCount } from "@/lib/home/attention";
-import { canSeePayments, paymentSummary } from "@/lib/payments/list";
+import {
+  canSeePayments,
+  paymentSummary,
+  receivedByDay,
+} from "@/lib/payments/list";
 import { canViewSites } from "@/lib/sites/permissions";
-import { klDay, siteSummaries } from "@/lib/sites/stats";
+import { klDay, siteSummaries, viewsByDay } from "@/lib/sites/stats";
 import { CHANNEL_LABEL, mytDay, mytTime } from "@/lib/social/planner";
 import {
   canUseSocial,
@@ -76,7 +80,9 @@ export default async function HomePage() {
       <h1 className="text-2xl font-semibold tracking-tight">
         {greeting(now)}, {first}
       </h1>
-      <p className="text-ink-muted mt-1 text-sm">{today}, Malaysia time.</p>
+      <p className="text-ink-muted mt-1 text-sm">
+        {today}. Here is what needs you today.
+      </p>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {canSeePayments(r) && (
@@ -120,7 +126,7 @@ export default async function HomePage() {
 
 function TileSkeleton({ count }: { count: number }) {
   return Array.from({ length: count }, (_, i) => (
-    <div key={i} className="skeleton h-[104px] rounded-2xl" />
+    <div key={i} className="skeleton h-[148px] rounded-2xl" />
   ));
 }
 
@@ -153,22 +159,21 @@ function Panel({
 }
 
 async function PaymentTiles({ user }: { user: CurrentUser }) {
-  const s = await safe("payments", () => paymentSummary(user));
+  const [s, days] = await Promise.all([
+    safe("payments", () => paymentSummary(user)),
+    safe("payment trend", () => receivedByDay(user, 7)),
+  ]);
   if (!s) return null;
+  const week = days?.reduce((a, d) => a + d.myr, 0) ?? null;
   return (
     <>
       <StatTile
         href="/payments"
         icon={<CreditCard className={icon} aria-hidden="true" />}
-        label="Received this month"
-        value={rm(s.receivedThisMonthMyr)}
-        note={
-          Number(s.refundedThisMonthMyr) > 0
-            ? `${rm(s.refundedThisMonthMyr)} refunded`
-            : user.role === "sales"
-              ? "On your deals"
-              : "All payments"
-        }
+        label={week == null ? "Received this month" : "Received, last 7 days"}
+        value={rm(week ?? s.receivedThisMonthMyr)}
+        note={`${rm(s.receivedThisMonthMyr)} this month${user.role === "sales" ? ", your deals" : ""}`}
+        trend={days?.map((d) => d.myr)}
       />
       <StatTile
         href="/payments?view=unmatched"
@@ -206,9 +211,10 @@ async function SitesTile({ user }: { user: CurrentUser }) {
   const from = klDay(
     new Date(new Date(`${to}T00:00:00+08:00`).getTime() - 6 * 86_400_000),
   );
-  const sums = await safe("site stats", () =>
-    siteSummaries(user, "funnel", from, to),
-  );
+  const [sums, days] = await Promise.all([
+    safe("site stats", () => siteSummaries(user, "funnel", from, to)),
+    safe("view trend", () => viewsByDay(user, from, to)),
+  ]);
   if (!sums) return null;
   let views = 0;
   let optins = 0;
@@ -223,6 +229,7 @@ async function SitesTile({ user }: { user: CurrentUser }) {
       label="Opt-ins, last 7 days"
       value={n(optins)}
       note={`${n(views)} page views across ${n(sums.size)} funnel${sums.size === 1 ? "" : "s"}`}
+      trend={days?.map((d) => d.views)}
     />
   );
 }
@@ -251,9 +258,12 @@ async function SocialPanel() {
         </Link>
       )}
       {upcoming.length === 0 ? (
-        <p className="text-ink-muted py-6 text-center text-sm">
-          Nothing planned for the next 7 days.
-        </p>
+        <Empty
+          icon={<CalendarDays className="size-5" aria-hidden="true" />}
+          text="Nothing planned for the next 7 days."
+          href="/social"
+          action="Plan a post"
+        />
       ) : (
         <ul>
           {upcoming.slice(0, 5).map((p) => (
@@ -348,7 +358,12 @@ async function EmailPanel() {
           </span>
         </Link>
       ) : (
-        <p className="text-ink-muted py-4 text-sm">No campaign has gone out yet.</p>
+        <Empty
+          icon={<Mail className="size-5" aria-hidden="true" />}
+          text="No campaign has gone out yet."
+          href="/email"
+          action="Start a campaign"
+        />
       )}
       {next?.scheduledAt && (
         <p className="border-line mt-2 border-t pt-2 text-sm">
@@ -383,5 +398,32 @@ function Figure({
         {value}
       </span>
     </span>
+  );
+}
+
+function Empty({
+  icon,
+  text,
+  href,
+  action,
+}: {
+  icon: React.ReactNode;
+  text: string;
+  href: string;
+  action: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6 text-center">
+      <span className="bg-surface-muted text-ink-muted grid size-10 place-items-center rounded-full">
+        {icon}
+      </span>
+      <p className="text-ink-muted text-sm">{text}</p>
+      <Link
+        href={href}
+        className="border-line hover:bg-surface-muted rounded-lg border px-3 py-1.5 text-sm font-medium"
+      >
+        {action}
+      </Link>
+    </div>
   );
 }

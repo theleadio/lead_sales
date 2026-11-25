@@ -92,6 +92,7 @@ export function StatTile({
   href,
   alert,
   icon,
+  trend,
 }: {
   label: string;
   value: string;
@@ -99,6 +100,7 @@ export function StatTile({
   href?: string;
   alert?: boolean;
   icon?: React.ReactNode;
+  trend?: number[];
 }) {
   const body = (
     <>
@@ -112,6 +114,7 @@ export function StatTile({
         {value}
       </span>
       {note && <span className="text-ink-muted mt-0.5 block text-xs">{note}</span>}
+      {trend && trend.length > 1 && <Sparkline values={trend} />}
     </>
   );
   const cls = `block rounded-2xl border p-4 ${alert ? "border-danger/30 bg-danger-soft" : "border-line"}`;
@@ -137,3 +140,37 @@ export const table = {
   num: "text-right tabular-nums whitespace-nowrap",
   row: "hover:bg-surface-muted/70 transition-colors [&:first-child>td]:border-t-0",
 };
+
+// A small trend line, oldest value first, scaled to its own highest value.
+// All zeros draw a flat line along the bottom.
+export function Sparkline({ values }: { values: number[] }) {
+  const w = 160;
+  const h = 30;
+  const max = Math.max(...values, 0);
+  const pts = values.map((v, i) => [
+    (i * w) / (values.length - 1),
+    h - 3 - (max > 0 ? (v / max) * (h - 8) : 0),
+  ]);
+  const d = pts
+    .map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`)
+    .join(" ");
+  const [lx, ly] = pts[pts.length - 1];
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      className="mt-2 block h-[30px] w-full"
+    >
+      <path d={`${d} L${w} ${h} L0 ${h} Z`} className="fill-info-soft" />
+      <path
+        d={d}
+        fill="none"
+        strokeWidth={1.6}
+        vectorEffect="non-scaling-stroke"
+        className="stroke-info"
+      />
+      <circle cx={lx} cy={ly} r={2.5} className="fill-info" />
+    </svg>
+  );
+}
