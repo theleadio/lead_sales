@@ -29,7 +29,7 @@ import {
 } from "@/lib/social/social";
 import { STATUS_LABEL as EMAIL_STATUS, emailTone } from "../email/shared";
 import { preview, stateTone } from "../social/shared";
-import { Badge, myt, page, StatTile, tiles } from "../ui";
+import { Badge, button, myt, page, StatTile, tiles } from "../ui";
 
 // Home: today's snapshot, laid out as in the reviewed UI demo (25 Nov). Each
 // tile and panel shows only to the roles that can open the screen behind it,
@@ -195,6 +195,7 @@ async function PaymentTiles({ user }: { user: CurrentUser }) {
       <StatTile
         href="/payments?view=unmatched"
         alert={s.unmatchedCount > 0}
+        ok={s.unmatchedCount === 0}
         icon={icon(CircleAlert)}
         label="Unmatched payments"
         value={n(s.unmatchedCount)}
@@ -211,6 +212,7 @@ async function AutomationTile() {
     <StatTile
       href="/automations"
       alert={f.count > 0}
+      ok={f.count === 0}
       icon={icon(Zap)}
       label="Failed automation runs"
       value={n(f.count)}
@@ -263,6 +265,7 @@ async function SocialPanel() {
       {shown.length === 0 ? (
         <Empty
           icon={<CalendarDays className="size-5" aria-hidden="true" />}
+          tone="blue"
           text="Nothing planned for the next 7 days."
           href="/social"
           action="Plan a post"
@@ -347,6 +350,7 @@ async function EmailPanel() {
       ) : (
         <Empty
           icon={<Mail className="size-5" aria-hidden="true" />}
+          tone="yellow"
           text="No campaign has gone out yet."
           href="/email"
           action="Start a campaign"
@@ -381,27 +385,34 @@ function Figure({
   );
 }
 
+// The demo's thumbnail gradients, used for the empty-state badge.
+const EMPTY_TONE = {
+  blue: "from-lead-blue to-info text-white",
+  yellow: "from-lead-yellow to-[#f29d38] text-ink",
+};
+
 function Empty({
   icon,
+  tone,
   text,
   href,
   action,
 }: {
   icon: React.ReactNode;
+  tone: keyof typeof EMPTY_TONE;
   text: string;
   href: string;
   action: string;
 }) {
   return (
     <div className="flex flex-col items-center gap-2 py-6 text-center">
-      <span className="bg-surface-muted text-ink-muted grid size-10 place-items-center rounded-full">
+      <span
+        className={`grid size-[38px] place-items-center rounded-lg bg-gradient-to-br ${EMPTY_TONE[tone]}`}
+      >
         {icon}
       </span>
       <p className="text-ink-muted text-sm">{text}</p>
-      <Link
-        href={href}
-        className="bg-surface ring-line hover:bg-surface-muted rounded-lg px-3 py-1.5 text-sm font-medium ring-1 ring-inset"
-      >
+      <Link href={href} className={button}>
         {action}
       </Link>
     </div>
