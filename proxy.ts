@@ -49,9 +49,13 @@ export async function proxy(request: NextRequest) {
   }
 
   // No public pages: the help form moved to lead_crm with its migration 019.
+  // getClaims() checks the access token's signature locally against the
+  // project's cached public key (ES256), refreshing the session first if it
+  // has expired; getUser() asked Supabase Auth over the network on every
+  // request. Pages still check app_user (lib/auth/current-user.ts).
   const path = request.nextUrl.pathname;
-  const { data } = await supabase.auth.getUser();
-  if (!data.user && path !== "/sign-in") {
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub && path !== "/sign-in") {
     const signIn = new URL("/sign-in", request.url);
     signIn.searchParams.set("next", path);
     return NextResponse.redirect(signIn);
