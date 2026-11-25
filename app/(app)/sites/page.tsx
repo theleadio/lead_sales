@@ -5,7 +5,7 @@ import { listFolders, listSites, listTemplates } from "@/lib/sites/admin";
 import { klDay, siteSummaries } from "@/lib/sites/stats";
 import { canEditSites, canViewSites } from "@/lib/sites/permissions";
 import { RowLink } from "../row-link";
-import { FolderPlus, Plus } from "lucide-react";
+import { Copy, FolderInput, FolderPlus, Plus, SquareArrowOutUpRight, Trash2, Type } from "lucide-react";
 import { PUBLIC_HOST } from "@/lib/sites/host";
 import {
   Badge,
@@ -20,10 +20,18 @@ import {
   table as t,
   Toolbar,
   ghostButton,
+  menuItem,
 } from "../ui";
-import { CloseDialog, Dialog, OpenDialog } from "../menus";
+import { CloseDialog, Dialog, Menu, MenuSeparator, OpenDialog } from "../menus";
 import { ActionForm, Field, FieldError } from "./action-form";
-import { createFolderAction, createFunnelAction } from "./funnel/[id]/actions";
+import {
+  createFolderAction,
+  createFunnelAction,
+  deleteSiteAction,
+  duplicateSiteAction,
+  moveSiteAction,
+  renameSiteAction,
+} from "./funnel/[id]/actions";
 
 // Sites & funnels: the funnel list, with folders and search. Websites come in
 // phase 2, so that tab is shown but off.
@@ -140,6 +148,7 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
                 <th className={`${t.th} text-right`}>Views, 7 days</th>
                 <th className={`${t.th} text-right`}>Opt-ins, 7 days</th>
                 <th className={t.th}>Status</th>
+                {edit && <th className={t.th}><span className="sr-only">Actions</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -169,12 +178,88 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
                       {s.live ? "Live" : "Draft"}
                     </Badge>
                   </td>
+                  {edit && (
+                    <td className={`${t.td} w-px py-1.5 text-right`}>
+                      <Menu label={`More actions for ${s.name}`}>
+                        <Link href={`/sites/funnel/${s.id}`} role="menuitem" className={menuItem}>
+                          <SquareArrowOutUpRight aria-hidden="true" /> Open
+                        </Link>
+                        <OpenDialog target={`rename-${s.id}`} role="menuitem" className={menuItem}>
+                          <Type aria-hidden="true" /> Rename
+                        </OpenDialog>
+                        <OpenDialog target={`move-${s.id}`} role="menuitem" className={menuItem}>
+                          <FolderInput aria-hidden="true" /> Move to folder
+                        </OpenDialog>
+                        <button type="submit" form={`dup-${s.id}`} role="menuitem" className={menuItem}>
+                          <Copy aria-hidden="true" /> Duplicate
+                        </button>
+                        <MenuSeparator />
+                        <button
+                          type="submit"
+                          form={`del-${s.id}`}
+                          role="menuitem"
+                          disabled={s.live}
+                          title={s.live ? "Unpublish its steps first" : undefined}
+                          className={`${menuItem} text-danger [&_svg]:text-danger`}
+                        >
+                          <Trash2 aria-hidden="true" /> {s.live ? "Delete (unpublish first)" : "Delete…"}
+                        </button>
+                      </Menu>
+                      <ActionForm action={duplicateSiteAction} id={`dup-${s.id}`} className="text-left text-xs">
+                        <input type="hidden" name="siteId" value={s.id} />
+                      </ActionForm>
+                      <ActionForm
+                        action={deleteSiteAction}
+                        id={`del-${s.id}`}
+                        confirm={`Delete the funnel "${s.name}" and all its steps? This cannot be undone.`}
+                        className="text-left text-xs"
+                      >
+                        <input type="hidden" name="siteId" value={s.id} />
+                      </ActionForm>
+                    </td>
+                  )}
                 </RowLink>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {edit &&
+        sites.map((s) => (
+          <div key={s.id}>
+            <Dialog id={`rename-${s.id}`} title="Rename funnel">
+              <ActionForm action={renameSiteAction} className="flex flex-col gap-3">
+                <input type="hidden" name="siteId" value={s.id} />
+                <Field label="Name" name="name" defaultValue={s.name} required />
+                <div className="mt-1 flex justify-end gap-2">
+                  <CloseDialog className={ghostButton}>Cancel</CloseDialog>
+                  <button type="submit" className={button}>Save</button>
+                </div>
+              </ActionForm>
+            </Dialog>
+            <Dialog id={`move-${s.id}`} title="Move to folder" lede={s.name}>
+              <ActionForm action={moveSiteAction} className="flex flex-col gap-3">
+                <input type="hidden" name="siteId" value={s.id} />
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="font-medium">Folder</span>
+                  <select name="folderId" defaultValue={s.folderId ?? ""} className={field}>
+                    <option value="">No folder</option>
+                    {folders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="mt-1 flex justify-end gap-2">
+                  <CloseDialog className={ghostButton}>Cancel</CloseDialog>
+                  <button type="submit" className={button}>Move</button>
+                </div>
+              </ActionForm>
+            </Dialog>
+          </div>
+        ))}
 
       {edit && (
         <>

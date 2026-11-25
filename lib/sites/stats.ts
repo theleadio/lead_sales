@@ -84,19 +84,38 @@ export async function checkView(r: {
   return { kind: "ok", page: { path: page.path, domain: page.domain, settings: page.settings } };
 }
 
-// First sighting of a visitor on a page that KL day bumps `uniques`. The hash
-// is salted per deployment and per day, so it can't follow a visitor across
-// days. No salt (or a short one) = nothing recorded.
+// Whether migration 011 (page_view_seen.stable) is applied. Code and
+// migration can go out in either order: until it is, views are counted the
+// old way (hash salted per day) and Stats adds up daily uniques. Only a yes
+// is remembered, so applying the migration takes effect without a restart.
+let stableReady = false;
+async function hasStable(): Promise<boolean> {
+  if (stableReady) return true;
+  const [r] = await db()`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'sales' AND table_name = 'page_view_seen' AND column_name = 'stable'`;
+  return (stableReady = !!r);
+}
+
+// First sighting of a visitor on a page that KL day bumps `uniques`. Since
+// migration 011 the hash is salted per deployment only (not per day) and kept
+// 90 days, so siteStats can count a visitor once over a range. No salt (or a
+// short one) = nothing recorded.
 export async function recordView(pageId: string, variant: string, visitorId: string, now: Date): Promise<void> {
   const salt = process.env.PAGE_VIEW_SALT ?? "";
   if (salt.length < 16) return;
   const day = klDay(now);
-  const hash = createHash("sha256").update(salt + visitorId + day).digest("hex");
+  const stable = await hasStable();
+  const hash = createHash("sha256").update(salt + visitorId + (stable ? "" : day)).digest("hex");
   await withTransaction(async () => {
     const sql = db();
-    const fresh = await sql`
-      INSERT INTO sales.page_view_seen (page_id, day, visitor_hash) VALUES (${pageId}, ${day}, ${hash})
-      ON CONFLICT DO NOTHING RETURNING 1`;
+    const fresh = stable
+      ? await sql`
+          INSERT INTO sales.page_view_seen (page_id, day, visitor_hash, stable) VALUES (${pageId}, ${day}, ${hash}, true)
+          ON CONFLICT DO NOTHING RETURNING 1`
+      : await sql`
+          INSERT INTO sales.page_view_seen (page_id, day, visitor_hash) VALUES (${pageId}, ${day}, ${hash})
+          ON CONFLICT DO NOTHING RETURNING 1`;
     await sql`
       INSERT INTO sales.page_view_day (page_id, variant, day, views, uniques) VALUES (${pageId}, ${variant}, ${day}, 1, ${fresh.length})
       ON CONFLICT (page_id, variant, day)
@@ -169,9 +188,11 @@ export type StepStats = {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-// `from`/`to` are KL days (YYYY-MM-DD), inclusive. `uniques` over a range is
-// the sum of daily uniques (a visitor on two days counts twice); optinRate is
-// optins / uniques.
+// `from`/`to` are KL days (YYYY-MM-DD), inclusive. `uniques` counts each
+// visitor once over the range, from the stable hashes in page_view_seen; days
+// before a page's first stable hash (older data, past the 90 days kept, or
+// migration 011 not applied yet) add their daily uniques instead. optinRate
+// is optins / uniques.
 export async function siteStats(viewer: Viewer, siteId: string, from: string, to: string): Promise<StepStats[]> {
   await guard(viewer, "view site stats", false);
   const sql = db();
@@ -184,10 +205,27 @@ export async function siteStats(viewer: Viewer, siteId: string, from: string, to
     WHERE p.site_id = ${siteId} ORDER BY p.position`;
   const views = new Map(
     (
-      await sql`
-        SELECT d.page_id, sum(d.views)::int AS views, sum(d.uniques)::int AS uniques
-        FROM sales.page_view_day d JOIN sales.site_page p ON p.id = d.page_id
-        WHERE p.site_id = ${siteId} AND d.day BETWEEN ${from}::date AND ${to}::date GROUP BY d.page_id`
+      (await hasStable())
+        ? await sql`
+            WITH cut AS (
+              SELECT p.id AS page_id,
+                     (SELECT min(s.day) FROM sales.page_view_seen s WHERE s.page_id = p.id AND s.stable) AS since
+              FROM sales.site_page p WHERE p.site_id = ${siteId}
+            )
+            SELECT c.page_id,
+                   (SELECT coalesce(sum(d.views), 0) FROM sales.page_view_day d
+                    WHERE d.page_id = c.page_id AND d.day BETWEEN ${from}::date AND ${to}::date)::int AS views,
+                   ((SELECT coalesce(sum(d.uniques), 0) FROM sales.page_view_day d
+                     WHERE d.page_id = c.page_id AND d.day BETWEEN ${from}::date AND ${to}::date
+                       AND (c.since IS NULL OR d.day < c.since))
+                    + (SELECT count(DISTINCT s.visitor_hash) FROM sales.page_view_seen s
+                       WHERE s.page_id = c.page_id AND s.stable
+                         AND s.day BETWEEN ${from}::date AND ${to}::date))::int AS uniques
+            FROM cut c`
+        : await sql`
+            SELECT d.page_id, sum(d.views)::int AS views, sum(d.uniques)::int AS uniques
+            FROM sales.page_view_day d JOIN sales.site_page p ON p.id = d.page_id
+            WHERE p.site_id = ${siteId} AND d.day BETWEEN ${from}::date AND ${to}::date GROUP BY d.page_id`
     ).map((r) => [r.page_id, r]),
   );
 

@@ -3,7 +3,7 @@ import { after } from "node:test";
 import assert from "node:assert/strict";
 import { SitesPermissionError } from "../lib/sites/admin.ts";
 import { checkView, clientIp, klDay, recordView, resetViewWarnings, siteStats, siteSummaries } from "../lib/sites/stats.ts";
-import { closeDb } from "../lib/sql.ts";
+import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
 import { buyer, liveFunnel } from "./sites-seed.ts";
 
@@ -21,6 +21,34 @@ it("two views by one visitor on one day = 2 views, 1 unique", async () => {
   const [s0] = await siteStats(m, siteId, day, day);
   assert.equal(s0.views, 3);
   assert.equal(s0.uniques, 2);
+});
+
+it("a visitor who comes back on another day counts once over the range", async () => {
+  process.env.PAGE_VIEW_SALT = "x".repeat(20);
+  const { m, siteId, steps } = await liveFunnel({ formName: `F ${crypto.randomUUID()}` });
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 86_400_000);
+  const v = crypto.randomUUID();
+  await recordView(steps[0].id, "A", v, yesterday);
+  await recordView(steps[0].id, "A", v, today);
+  await recordView(steps[0].id, "A", crypto.randomUUID(), today);
+  const [s0] = await siteStats(m, siteId, klDay(yesterday), klDay(today));
+  assert.equal(s0.views, 3);
+  assert.equal(s0.uniques, 2);
+  // Each day on its own still counts that visitor.
+  assert.equal((await siteStats(m, siteId, klDay(yesterday), klDay(yesterday)))[0].uniques, 1);
+});
+
+it("days before the first stable hash add their daily uniques", async () => {
+  process.env.PAGE_VIEW_SALT = "x".repeat(20);
+  const { m, siteId, steps } = await liveFunnel({ formName: `F ${crypto.randomUUID()}` });
+  const today = new Date();
+  const old = klDay(new Date(today.getTime() - 5 * 86_400_000));
+  await db()`INSERT INTO sales.page_view_day (page_id, variant, day, views, uniques) VALUES (${steps[0].id}, 'A', ${old}, 10, 7)`;
+  await recordView(steps[0].id, "A", crypto.randomUUID(), today);
+  const [s0] = await siteStats(m, siteId, old, klDay(today));
+  assert.equal(s0.views, 11);
+  assert.equal(s0.uniques, 8);
 });
 
 it("a missing or short salt records nothing", async () => {

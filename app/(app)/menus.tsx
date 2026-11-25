@@ -16,6 +16,8 @@ export function Menu({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  // Fixed to the window, so a menu inside a scrolling table isn't cut off.
+  const [at, setAt] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -23,11 +25,16 @@ export function Menu({
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const shut = () => setOpen(false);
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
+    window.addEventListener("scroll", shut, true);
+    window.addEventListener("resize", shut);
     return () => {
       document.removeEventListener("mousedown", away);
       document.removeEventListener("keydown", esc);
+      window.removeEventListener("scroll", shut, true);
+      window.removeEventListener("resize", shut);
     };
   }, [open]);
   return (
@@ -38,7 +45,14 @@ export function Menu({
         title={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          // Opens upwards when there's no room below.
+          const below = window.innerHeight - r.bottom > 340;
+          const right = window.innerWidth - r.right;
+          setAt(below ? { top: r.bottom + 6, right } : { bottom: window.innerHeight - r.top + 6, right });
+          setOpen((o) => !o);
+        }}
         className="bg-surface text-ink ring-line hover:bg-surface-muted inline-flex size-[38px] cursor-pointer items-center justify-center rounded-lg ring-1 ring-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
         <Ellipsis className="size-[18px]" aria-hidden="true" />
@@ -50,7 +64,8 @@ export function Menu({
           const t = e.target as HTMLElement;
           if (t.closest("button:not(:disabled), a")) setOpen(false);
         }}
-        className="border-line bg-surface absolute top-[calc(100%+6px)] right-0 z-30 w-60 rounded-xl border p-1.5 shadow-[0_10px_30px_rgba(0,0,0,.12)]"
+        style={at ?? undefined}
+        className="border-line bg-surface fixed z-30 w-60 rounded-xl border p-1.5 text-left font-normal shadow-[0_10px_30px_rgba(0,0,0,.12)]"
       >
         {children}
       </div>

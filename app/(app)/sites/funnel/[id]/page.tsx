@@ -818,8 +818,8 @@ async function Stats({
         </div>
       )}
       <p className="text-ink-muted mt-2 text-xs">
-        Visitors are counted once a day per step, so someone who comes back on another day counts
-        again. Days are Malaysia time.
+        Each visitor is counted once per step over the dates shown, from 25 Nov 2026. Days are
+        Malaysia time.
       </p>
     </div>
   );
