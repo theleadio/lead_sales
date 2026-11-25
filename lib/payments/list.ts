@@ -188,3 +188,36 @@ export async function paymentSummary(
     unmatchedMyr: s.unmatched_myr as string,
   };
 }
+
+// Money received per Malaysia day over the last `days` days (today last), for
+// the trend line on Home. Same rule as "received" above, same scope.
+export async function receivedByDay(
+  viewer: Viewer,
+  days = 7,
+  now: Date = new Date(),
+): Promise<{ day: string; myr: number }[]> {
+  if (!canSeePayments(viewer.role)) return [];
+  const sql = db();
+  const rows = await sql`
+    WITH d AS (
+      SELECT generate_series(
+        (${now}::timestamptz AT TIME ZONE 'Asia/Kuala_Lumpur')::date - ${days - 1}::int,
+        (${now}::timestamptz AT TIME ZONE 'Asia/Kuala_Lumpur')::date,
+        interval '1 day')::date AS day
+    ), paid AS (
+      SELECT (coalesce(p.paid_at, p.created_at) AT TIME ZONE 'Asia/Kuala_Lumpur')::date AS day,
+             p.amount_myr
+      FROM payment p
+      LEFT JOIN enrolment e ON e.id = p.enrolment_id
+      LEFT JOIN deal d ON d.id = coalesce(p.deal_id, e.deal_id)
+      WHERE p.status IN ('succeeded','refunded','partially_refunded')
+        AND coalesce(p.paid_at, p.created_at) <= ${now}
+        AND coalesce(p.paid_at, p.created_at)
+            >= ${new Date(now.getTime() - (days + 1) * 86_400_000)}
+        ${scope(viewer)}
+    )
+    SELECT d.day::text AS day, coalesce(sum(paid.amount_myr), 0)::float8 AS myr
+    FROM d LEFT JOIN paid ON paid.day = d.day
+    GROUP BY d.day ORDER BY d.day`;
+  return rows.map((r) => ({ day: r.day as string, myr: r.myr as number }));
+}

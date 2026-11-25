@@ -292,3 +292,25 @@ export async function siteSummaries(
   }
   return out;
 }
+
+// Funnel page views per Malaysia day over [from, to], every day present (0
+// when none), for the trend line on Home.
+export async function viewsByDay(
+  viewer: Viewer,
+  from: string,
+  to: string,
+): Promise<{ day: string; views: number }[]> {
+  await guard(viewer, "view site stats", false);
+  const rows = await db()`
+    WITH d AS (
+      SELECT generate_series(${from}::date, ${to}::date, interval '1 day')::date AS day
+    )
+    SELECT d.day::text AS day, coalesce(sum(v.views), 0)::int AS views
+    FROM d
+    LEFT JOIN sales.page_view_day v ON v.day = d.day
+      AND v.page_id IN (SELECT p.id FROM sales.site_page p
+                        JOIN sales.site s ON s.id = p.site_id
+                        WHERE s.kind = 'funnel')
+    GROUP BY d.day ORDER BY d.day`;
+  return rows.map((r) => ({ day: r.day as string, views: r.views as number }));
+}
