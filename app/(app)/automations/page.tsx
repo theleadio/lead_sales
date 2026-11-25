@@ -6,6 +6,7 @@ import { TRIGGER_LABEL } from "@/lib/automations/model";
 import { RowLink } from "../row-link";
 import { Plus } from "lucide-react";
 import { Badge, button, EmptyState, page, PageHeader, table as t } from "../ui";
+import { SubmitButton } from "../social/submit-button";
 import { toggleAutomationAction } from "./actions";
 import { ResultNote } from "./shared";
 
@@ -28,8 +29,8 @@ export default async function AutomationsPage({
         title="Automations"
         lede={
           <>
-            &ldquo;When this happens, do that.&rdquo; Switch one off to stop
-            new runs and hold the ones waiting.
+            &ldquo;When this happens, do that.&rdquo; Switch one off to stop new
+            runs and hold the ones waiting.
           </>
         }
         action={
@@ -60,16 +61,19 @@ export default async function AutomationsPage({
             </thead>
             <tbody>
               {automations.map((a) => (
-                <RowLink key={a.id} href={`/automations/${a.id}`} className={t.row}>
+                <RowLink
+                  key={a.id}
+                  href={`/automations/${a.id}`}
+                  className={t.row}
+                >
                   <td className={t.td}>
-                    <Link
-                      href={`/automations/${a.id}`}
-                      className="font-medium"
-                    >
+                    <Link href={`/automations/${a.id}`} className="font-medium">
                       {a.name}
                     </Link>
                   </td>
-                  <td className={t.td}>{TRIGGER_LABEL[a.trigger] ?? a.trigger}</td>
+                  <td className={t.td}>
+                    {TRIGGER_LABEL[a.trigger] ?? a.trigger}
+                  </td>
                   <td className={`${t.td} ${t.num}`}>{a.steps}</td>
                   <td className={`${t.td} ${t.num}`}>{a.inProgress}</td>
                   <td
@@ -86,16 +90,20 @@ export default async function AutomationsPage({
                         value={a.active ? "off" : "on"}
                       />
                       <input type="hidden" name="from" value="list" />
-                      <button
-                        type="submit"
-                        title={a.active ? "Click to switch off" : "Click to switch on"}
+                      <SubmitButton
+                        pending={<Badge tone="grey">Saving…</Badge>}
+                        title={
+                          a.active
+                            ? "Click to switch off"
+                            : "Click to switch on"
+                        }
                         aria-label={`${a.name} is ${a.active ? "on" : "off"}. Switch ${a.active ? "off" : "on"}`}
                         className="cursor-pointer rounded-full hover:opacity-80"
                       >
                         <Badge tone={a.active ? "green" : "grey"}>
                           {a.active ? "On" : "Off"}
                         </Badge>
-                      </button>
+                      </SubmitButton>
                     </form>
                   </td>
                 </RowLink>

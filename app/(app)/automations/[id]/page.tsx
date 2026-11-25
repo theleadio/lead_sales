@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { automationDetail, canEditAutomations } from "@/lib/automations/admin";
 import { button, myt } from "../../ui";
+import { SubmitButton } from "../../social/submit-button";
 import { retryRunAction, toggleAutomationAction } from "../actions";
 import {
   AutomationEditor,
@@ -44,12 +45,12 @@ export default async function AutomationPage({
           >
             {a.active ? "On" : "Off"}
           </span>
-          <button
-            type="submit"
+          <SubmitButton
+            pending={a.active ? "Switching off…" : "Switching on…"}
             className="border-line hover:bg-surface-muted cursor-pointer rounded-lg border px-3 py-1.5 text-sm"
           >
             {a.active ? "Switch off" : "Switch on"}
-          </button>
+          </SubmitButton>
         </form>
       </div>
       <ResultNote code={result} />
@@ -93,9 +94,9 @@ export default async function AutomationPage({
                   <form action={retryRunAction} className="ml-auto">
                     <input type="hidden" name="automationId" value={a.id} />
                     <input type="hidden" name="runId" value={r.id} />
-                    <button type="submit" className={button}>
+                    <SubmitButton pending="Starting…" className={button}>
                       Run again
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
               </div>
