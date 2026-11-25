@@ -289,6 +289,82 @@ it("a partial then full refund updates the payment and gives Ops a task, without
   assert.equal((await enrolmentRow(enrolmentId)).status, "confirmed");
 });
 
+it("a full refund of an unmatched payment withdraws its match_payment task; a partial one leaves it open", async () => {
+  await newUser("super_admin");
+  const classId = await newClass({ courseId: await newCourse() });
+  const enrolmentId = await enrol(classId, "cancelled");
+  const paid = paidSession(enrolmentId); // RM 3,200 for a cancelled seat: unmatched
+  await processStripeEvent(paid, deps());
+  const pi = paid.data.object.payment_intent as string;
+  const [p] = await db()`
+    SELECT id FROM payment WHERE stripe_payment_intent_id = ${pi}`;
+  const refund = (amount: number): StripeEvent => ({
+    id: uid("evt"),
+    type: "charge.refunded",
+    data: {
+      object: {
+        id: uid("ch"),
+        payment_intent: pi,
+        amount: 320000,
+        amount_refunded: amount,
+      },
+    },
+  });
+  const matchTask = async () =>
+    (
+      await db()`SELECT done_at, is_cancelled FROM task WHERE payment_id = ${p.id} AND type = 'match_payment'`
+    )[0];
+
+  // Partial: money is still there to match.
+  await processStripeEvent(refund(100000), deps());
+  assert.equal((await matchTask()).done_at, null);
+
+  // Full: nothing left to match. Withdrawn, so it doesn't read as done.
+  await processStripeEvent(refund(320000), deps());
+  const t = await matchTask();
+  assert.ok(t.done_at);
+  assert.equal(t.is_cancelled, true);
+  const audit = await db()`
+    SELECT after FROM audit_log
+    WHERE entity = 'task' AND action = 'update' AND after->>'paymentId' = ${p.id}`;
+  assert.equal(audit.length, 1);
+  assert.equal(audit[0].after.is_cancelled, true);
+});
+
+it("a full refund of a matched payment leaves other match_payment tasks alone", async () => {
+  await newUser("super_admin");
+  const { enrolmentId } = await reservedEnrolment();
+  const paid = paidSession(enrolmentId);
+  await processStripeEvent(paid, deps());
+  const pi = paid.data.object.payment_intent as string;
+  // An unrelated open match task, on another payment.
+  const other = await db()`
+    INSERT INTO payment (method, status, amount_myr, paid_at, match_status, stripe_checkout_session_id)
+    VALUES ('stripe_card', 'succeeded', '100.00', now(), 'unmatched', ${uid("cs")})
+    RETURNING id`;
+  await db()`
+    INSERT INTO task (type, title, payment_id, due_at)
+    VALUES ('match_payment', 'Match a Stripe payment', ${other[0].id}, now())`;
+  await processStripeEvent(
+    {
+      id: uid("evt"),
+      type: "charge.refunded",
+      data: {
+        object: {
+          id: uid("ch"),
+          payment_intent: pi,
+          amount: 320000,
+          amount_refunded: 320000,
+        },
+      },
+    },
+    deps(),
+  );
+  const [t] =
+    await db()`SELECT done_at FROM task WHERE payment_id = ${other[0].id}`;
+  assert.equal(t.done_at, null);
+});
+
 it("a refund for a payment the CRM never recorded is ignored", async () => {
   const event: StripeEvent = {
     id: uid("evt"),

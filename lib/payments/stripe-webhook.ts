@@ -33,7 +33,8 @@ import { db, withTransaction } from "../sql.ts";
 //     → update the payment's refunded amount and status (migration 009's
 //       rules), and give Ops a task to decide the enrolment. The webhook does
 //       not move the enrolment itself: a refund can be a goodwill partial
-//       refund as easily as a cancellation.
+//       refund as easily as a cancellation. A full refund of an `unmatched`
+//       payment withdraws its `match_payment` task: nothing is left to match.
 //   anything else → acknowledged and ignored.
 //
 // Idempotency: each Stripe event id is claimed once in `integration_event`
@@ -534,6 +535,34 @@ async function onRefund(event: StripeEvent): Promise<StripeResult> {
       SET refunded_amount_myr = ${myr(newSen)}, status = ${status},
           refunded_at = now()
       WHERE id = ${payment.id}`;
+
+    // A fully refunded payment nobody matched has nothing left to match: its
+    // match_payment task (§11.3) is withdrawn, like an HRDC reminder whose
+    // deadline went (lead_crm lib/deals/hrdc-task.ts), so it neither stays open
+    // forever nor reads as done. A partial refund leaves it open: money is
+    // still there to match.
+    if (!payment.enrolment_id && status === "refunded") {
+      const [closed] = await sql`
+        UPDATE task SET done_at = now(), is_cancelled = true
+        WHERE payment_id = ${payment.id} AND type = 'match_payment'
+          AND done_at IS NULL
+        RETURNING id, due_at`;
+      if (closed)
+        await writeAudit({
+          userId: null,
+          action: "update",
+          entity: "task",
+          entityId: closed.id as string,
+          before: { due_at: closed.due_at, done_at: null },
+          after: {
+            type: "match_payment",
+            paymentId: payment.id,
+            closed: "payment refunded in Stripe",
+            is_cancelled: true,
+            source: "stripe_webhook",
+          },
+        });
+    }
 
     if (payment.enrolment_id)
       await sql`
