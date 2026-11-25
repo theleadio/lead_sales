@@ -215,7 +215,9 @@ export default async function PaymentsPage({
               ? "No payments match that search"
               : view === "unmatched"
                 ? "Nothing to match"
-                : "No payments yet"
+                : view === "refunds"
+                  ? "No refunds yet"
+                  : "No payments yet"
           }
         />
       ) : (
