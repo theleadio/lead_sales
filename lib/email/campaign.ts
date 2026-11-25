@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import sanitizeHtml from "sanitize-html";
+import { escapeHtml, FOOTER, wrapEmail } from "./blocks.ts";
 
 // The pure parts of email marketing: the unsubscribe token, the email body,
 // and the Resend batch call. No database here, so tests run without one.
@@ -80,6 +81,18 @@ const ALLOWED = {
       "background-color": [/^#[0-9a-f]{3,8}$/i],
       "text-align": [/^(left|right|center)$/],
       "font-size": [/^\d{1,2}px$/],
+      // What the block editor (lib/email/blocks.ts) writes.
+      "font-weight": [/^(400|600|700|bold|normal)$/],
+      "line-height": [/^\d(\.\d)?$/],
+      margin: [/^\d{1,2}(px)?( \d{1,2}(px)?){0,3}$/],
+      padding: [/^\d{1,2}(px)?( \d{1,2}(px)?){0,3}$/],
+      "border-radius": [/^\d{1,2}px$/],
+      border: [/^none$/],
+      "border-top": [/^1px solid #[0-9a-f]{3,8}$/i],
+      display: [/^(block|inline-block)$/],
+      "text-decoration": [/^(none|underline)$/],
+      "max-width": [/^100%$/],
+      height: [/^auto$/],
     },
   },
   transformTags: {
@@ -92,21 +105,7 @@ export function cleanBody(html: string): string {
   return sanitizeHtml(html, ALLOWED);
 }
 
-const escapeHtml = (s: string) =>
-  s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-
 const FALLBACK_NAME: Record<Language, string> = { en: "there", zh: "您" };
-const FOOTER: Record<Language, { why: string; link: string }> = {
-  en: {
-    why: "You are receiving this because you agreed to hear from LEAD.",
-    link: "Unsubscribe",
-  },
-  zh: { why: "您收到此邮件是因为您同意接收 LEAD 的资讯。", link: "退订" },
-};
 
 export type Rendered = { html: string; text: string };
 
@@ -121,16 +120,22 @@ export function renderCampaign(opts: {
   const name = escapeHtml(opts.name?.trim() || FALLBACK_NAME[opts.language]);
   const body = cleanBody(opts.bodyHtml).replace(/\{\{\s*name\s*\}\}/g, name);
   const f = FOOTER[opts.language];
-  const url = escapeHtml(opts.unsubscribeUrl);
-  const html =
-    `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#1d1d1f">${body}` +
-    `<hr style="border:none;border-top:1px solid #e5e5e5;margin:32px 0 16px">` +
-    `<p style="font-size:12px;color:#6e6e73">${f.why} <a href="${url}">${f.link}</a></p></div>`;
+  const html = wrapEmail(body, { ...f, url: opts.unsubscribeUrl });
   const text =
-    sanitizeHtml(body.replace(/<\/(p|div|h[1-3]|li)>|<br\s*\/?>/gi, "\n"), {
-      allowedTags: [],
-      allowedAttributes: {},
-    })
+    sanitizeHtml(
+      body
+        // A link keeps its address in the text version: "Register (https://…)".
+        .replace(
+          /<a\b[^>]*\bhref="(https:[^"]+)"[^>]*>([^<]*)<\/a>/gi,
+          (_m, href: string, words: string) =>
+            words.trim() && words.trim() !== href ? `${words} (${href})` : href,
+        )
+        .replace(/<\/(p|div|h[1-3]|li)>|<br\s*\/?>/gi, "\n"),
+      {
+        allowedTags: [],
+        allowedAttributes: {},
+      },
+    )
       .replace(/\n{3,}/g, "\n\n")
       .trim() + `\n\n--\n${f.why}\n${f.link}: ${opts.unsubscribeUrl}\n`;
   return { html, text };

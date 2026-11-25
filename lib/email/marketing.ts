@@ -16,6 +16,12 @@ import {
   type Language,
   type OutgoingEmail,
 } from "./campaign.ts";
+import {
+  blocksSchema,
+  renderBlocks,
+  STARTER_BLOCKS,
+  type Block,
+} from "./blocks.ts";
 
 // Email marketing: newsletter campaigns to people who agreed to hear from
 // LEAD. The rule that matters (spec §7.12, PDPA): a campaign only ever goes to
@@ -149,6 +155,8 @@ export async function listTags(): Promise<{ id: string; name: string }[]> {
 
 // ---- Campaigns --------------------------------------------------------------
 
+export type CampaignStatus = "draft" | "scheduled" | "sending" | "sent";
+
 export type CampaignRow = {
   id: string;
   name: string;
@@ -156,13 +164,26 @@ export type CampaignRow = {
   language: Language | null;
   bodyHtml: string;
   tagIds: string[];
-  status: "draft" | "sending" | "sent";
+  // Editor blocks; null for a campaign written as raw HTML.
+  blocks: Block[] | null;
+  status: CampaignStatus;
   createdAt: Date;
+  scheduledAt: Date | null;
+  // Why a scheduled campaign came back to draft.
+  note: string | null;
   queuedAt: Date | null;
   sentAt: Date | null;
   recipientCount: number | null;
   counts: { queued: number; sent: number; failed: number; skipped: number };
 };
+
+// Stored blocks that no longer pass the schema open as HTML instead of
+// failing the page.
+function parseBlocks(v: unknown): Block[] | null {
+  if (v == null) return null;
+  const p = blocksSchema.safeParse(v);
+  return p.success ? p.data : null;
+}
 
 const toCampaign = (r: postgres.Row): CampaignRow => ({
   id: r.id,
@@ -171,8 +192,11 @@ const toCampaign = (r: postgres.Row): CampaignRow => ({
   language: r.language,
   bodyHtml: r.body_html,
   tagIds: r.tag_ids,
+  blocks: parseBlocks(r.blocks),
   status: r.status,
   createdAt: r.created_at,
+  scheduledAt: r.scheduled_at ?? null,
+  note: r.note ?? null,
   queuedAt: r.queued_at,
   sentAt: r.sent_at,
   recipientCount: r.recipient_count,
@@ -215,9 +239,11 @@ export async function getCampaign(id: string): Promise<CampaignRow | null> {
 
 export async function createDraft(actor: Actor): Promise<string> {
   await guard(actor, "create campaign");
+  const starter = STARTER_BLOCKS();
   const [r] = await db()`
-    INSERT INTO sales.email_campaign (created_by, name, subject)
-    VALUES (${actor.id}, 'Untitled campaign', 'Subject')
+    INSERT INTO sales.email_campaign (created_by, name, subject, blocks, body_html)
+    VALUES (${actor.id}, 'Untitled campaign', 'Subject',
+            ${db().json(starter as never)}::jsonb, ${cleanBody(renderBlocks(starter))})
     RETURNING id`;
   await writeAudit({
     userId: actor.id,
@@ -236,6 +262,8 @@ export type CampaignInput = {
   subject: string;
   language: Language | null;
   bodyHtml: string;
+  // When set, the email is made from these and bodyHtml is ignored.
+  blocks: Block[] | null;
   tagIds: string[];
 };
 
@@ -258,14 +286,26 @@ export async function saveCampaign(
     throw new EmailError("invalid", "Unknown language.");
   if (!input.tagIds.every(isUuid))
     throw new EmailError("invalid", "Unknown tag.");
-  const bodyHtml = cleanBody(input.bodyHtml);
+  let blocks: Block[] | null = null;
+  if (input.blocks !== null) {
+    const p = blocksSchema.safeParse(input.blocks);
+    if (!p.success)
+      throw new EmailError(
+        "invalid",
+        p.error.issues[0]?.message ?? "A block isn't valid.",
+      );
+    blocks = p.data;
+  }
+  const bodyHtml = cleanBody(blocks ? renderBlocks(blocks) : input.bodyHtml);
   if (bodyHtml.length > 200000)
     throw new EmailError("invalid", "The email is too long.");
-  const [r] = await db()`
+  const sql = db();
+  const [r] = await sql`
     UPDATE sales.email_campaign
     SET name = ${name}, subject = ${subject}, language = ${input.language},
         body_html = ${bodyHtml}, tag_ids = ${input.tagIds}::uuid[],
-        updated_at = now()
+        blocks = ${blocks ? sql.json(blocks as never) : null}::jsonb,
+        note = NULL, updated_at = now()
     WHERE id = ${input.id} AND status = 'draft'
     RETURNING id`;
   if (!r)
@@ -287,15 +327,26 @@ export async function saveCampaign(
 
 // Queues the campaign: one email_send row per person in the audience right
 // now, and the campaign moves to "sending". The background job sends them.
-// Only a draft can be queued, and only once.
+// Only a draft can be queued this way, and only once.
 export async function queueCampaign(actor: Actor, id: string): Promise<number> {
   await guard(actor, "send campaign");
+  return queueFrom(id, "draft", actor.id);
+}
+
+// Moves a campaign from `from` to "sending" and queues its audience as it is
+// at this moment (so consent and tags are read at send time, also for a
+// scheduled campaign). Throws, and changes nothing, when it can't.
+async function queueFrom(
+  id: string,
+  from: "draft" | "scheduled",
+  userId: string | null,
+): Promise<number> {
   return withTransaction(async () => {
     const sql = db();
     const [c] = await sql`
       UPDATE sales.email_campaign
-      SET status = 'sending', queued_at = now(), updated_at = now()
-      WHERE id = ${id} AND status = 'draft'
+      SET status = 'sending', queued_at = now(), updated_at = now(), note = NULL
+      WHERE id = ${id} AND status = ${from}
       RETURNING tag_ids, language, body_html`;
     if (!c)
       throw new EmailError(
@@ -327,15 +378,174 @@ export async function queueCampaign(actor: Actor, id: string): Promise<number> {
       UPDATE sales.email_campaign SET recipient_count = ${people.length}
       WHERE id = ${id}`;
     await writeAudit({
-      userId: actor.id,
+      userId,
       action: "update",
       entity: "email_campaign",
       entityId: id,
-      before: { status: "draft" },
+      before: { status: from },
       after: { status: "sending", recipients: people.length },
     });
     return people.length;
   });
+}
+
+// ---- Scheduling -------------------------------------------------------------
+
+// A scheduled send must be at least this far ahead (the job runs every 5
+// minutes, so "in 2 minutes" would only mislead) and at most a year out.
+export const MIN_SCHEDULE_AHEAD_MS = 10 * 60 * 1000;
+const MAX_SCHEDULE_AHEAD_MS = 366 * 24 * 60 * 60 * 1000;
+// A scheduled campaign the job reaches more than this late (the job was off)
+// is not sent on its own: what it says may no longer be true.
+export const MAX_SCHEDULE_LATE_MS = 12 * 60 * 60 * 1000;
+
+// Sets a draft to go out at `at`. The audience is worked out when it goes,
+// not now, so someone who unsubscribes in between isn't emailed. While it is
+// scheduled it can't be changed; cancel the schedule first.
+export async function scheduleCampaign(
+  actor: Actor,
+  id: string,
+  at: Date,
+  now: Date = new Date(),
+): Promise<void> {
+  await guard(actor, "schedule campaign");
+  if (!isUuid(id)) throw new EmailError("not_found", "That campaign is gone.");
+  const ahead = at.getTime() - now.getTime();
+  if (!(ahead >= MIN_SCHEDULE_AHEAD_MS))
+    throw new EmailError(
+      "invalid",
+      "Pick a time at least 10 minutes from now.",
+    );
+  if (ahead > MAX_SCHEDULE_AHEAD_MS)
+    throw new EmailError("invalid", "Pick a time within the next year.");
+  const sql = db();
+  const [c] = await sql`
+    UPDATE sales.email_campaign
+    SET status = 'scheduled', scheduled_at = ${at}, note = NULL,
+        updated_at = now()
+    WHERE id = ${id} AND status = 'draft' AND btrim(body_html) <> ''
+    RETURNING id`;
+  if (!c)
+    throw new EmailError(
+      "not_found",
+      "That campaign is gone, already sent, or has no content yet.",
+    );
+  await writeAudit({
+    userId: actor.id,
+    action: "update",
+    entity: "email_campaign",
+    entityId: id,
+    before: { status: "draft" },
+    after: { status: "scheduled", scheduledAt: at.toISOString() },
+  });
+}
+
+// Back to draft, so it can be changed or sent now.
+export async function unscheduleCampaign(
+  actor: Actor,
+  id: string,
+): Promise<void> {
+  await guard(actor, "cancel scheduled campaign");
+  if (!isUuid(id)) throw new EmailError("not_found", "That campaign is gone.");
+  const [c] = await db()`
+    UPDATE sales.email_campaign
+    SET status = 'draft', scheduled_at = NULL, updated_at = now()
+    WHERE id = ${id} AND status = 'scheduled'
+    RETURNING id`;
+  if (!c)
+    throw new EmailError(
+      "not_found",
+      "That campaign isn't scheduled any more (it may already be sending).",
+    );
+  await writeAudit({
+    userId: actor.id,
+    action: "update",
+    entity: "email_campaign",
+    entityId: id,
+    before: { status: "scheduled" },
+    after: { status: "draft" },
+  });
+}
+
+// For the email job: queues every scheduled campaign whose time has come.
+// One that can't go (no one matches any more, or the job reached it more than
+// 12 hours late) goes back to draft with a note saying why, for a person to
+// look at. Returns what happened, as counts.
+export async function queueDueCampaigns(
+  now: Date = new Date(),
+): Promise<{ queued: number; returned: number }> {
+  const sql = db();
+  const due = await sql`
+    SELECT id, scheduled_at FROM sales.email_campaign
+    WHERE status = 'scheduled' AND scheduled_at <= ${now}
+    ORDER BY scheduled_at
+    LIMIT 50`;
+  const out = { queued: 0, returned: 0 };
+  for (const c of due) {
+    let note: string | null = null;
+    if (now.getTime() - c.scheduled_at.getTime() > MAX_SCHEDULE_LATE_MS) {
+      note =
+        "Not sent: the sending job reached it more than 12 hours after its time. Check it is still right, then send or schedule it again.";
+    } else {
+      try {
+        await queueFrom(c.id, "scheduled", null);
+        out.queued++;
+        continue;
+      } catch (e) {
+        if (!(e instanceof EmailError)) throw e;
+        // Gone or already moved on by someone else: nothing to do.
+        if (e.code === "not_found") continue;
+        note = `Not sent at its scheduled time: ${e.message}`;
+      }
+    }
+    const [r] = await sql`
+      UPDATE sales.email_campaign
+      SET status = 'draft', scheduled_at = NULL, note = ${note},
+          updated_at = now()
+      WHERE id = ${c.id} AND status = 'scheduled'
+      RETURNING id`;
+    if (r) {
+      out.returned++;
+      await writeAudit({
+        userId: null,
+        action: "update",
+        entity: "email_campaign",
+        entityId: c.id,
+        before: { status: "scheduled" },
+        after: { status: "draft", note },
+      });
+    }
+  }
+  return out;
+}
+
+// ---- Duplicate --------------------------------------------------------------
+
+// A new draft with the same words and audience as any campaign (sent ones
+// too), named "Copy of …". Returns the new campaign's id.
+export async function duplicateCampaign(
+  actor: Actor,
+  id: string,
+): Promise<string> {
+  await guard(actor, "duplicate campaign");
+  if (!isUuid(id)) throw new EmailError("not_found", "That campaign is gone.");
+  const [r] = await db()`
+    INSERT INTO sales.email_campaign
+      (created_by, name, subject, language, body_html, blocks, tag_ids)
+    SELECT ${actor.id}, left('Copy of ' || name, 120), subject, language,
+           body_html, blocks, tag_ids
+    FROM sales.email_campaign WHERE id = ${id}
+    RETURNING id`;
+  if (!r) throw new EmailError("not_found", "That campaign is gone.");
+  await writeAudit({
+    userId: actor.id,
+    action: "create",
+    entity: "email_campaign",
+    entityId: r.id,
+    before: null,
+    after: { duplicateOf: id },
+  });
+  return r.id as string;
 }
 
 // ---- The sending job --------------------------------------------------------

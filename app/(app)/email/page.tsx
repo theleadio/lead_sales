@@ -7,8 +7,8 @@ import {
   listCampaigns,
 } from "@/lib/email/marketing";
 import { button, myt } from "../ui";
-import { newCampaignAction } from "./actions";
-import { ResultNote, STATUS_LABEL } from "./shared";
+import { duplicateAction, newCampaignAction } from "./actions";
+import { ResultNote, StatusBadge } from "./shared";
 
 // Email marketing (build plan phase 3): newsletter campaigns. A campaign only
 // goes to people who agreed to marketing email (PDPA), so the first thing
@@ -76,6 +76,9 @@ export default async function EmailPage({ searchParams }: PageProps<"/email">) {
                 <th className="py-2 pr-4 font-medium">Recipients</th>
                 <th className="py-2 pr-4 font-medium">Sent</th>
                 <th className="py-2 pr-4 font-medium">Created</th>
+                <th className="py-2 font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -86,14 +89,33 @@ export default async function EmailPage({ searchParams }: PageProps<"/email">) {
                       {c.name}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4">{STATUS_LABEL[c.status]}</td>
+                  <td className="py-2 pr-4">
+                    <StatusBadge status={c.status} />
+                    {c.status === "scheduled" && c.scheduledAt && (
+                      <span className="text-ink-muted block text-xs">
+                        {myt(c.scheduledAt)}
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 pr-4">{c.recipientCount ?? "—"}</td>
                   <td className="py-2 pr-4">
-                    {c.status === "draft"
+                    {c.status === "draft" || c.status === "scheduled"
                       ? "—"
                       : `${c.counts.sent}${c.counts.failed ? ` (${c.counts.failed} failed)` : ""}`}
                   </td>
                   <td className="py-2 pr-4">{myt(c.createdAt)}</td>
+                  <td className="py-2">
+                    <form action={duplicateAction}>
+                      <input type="hidden" name="id" value={c.id} />
+                      <button
+                        type="submit"
+                        className="text-ink-muted hover:text-ink cursor-pointer text-xs underline"
+                        aria-label={`Duplicate ${c.name}`}
+                      >
+                        Duplicate
+                      </button>
+                    </form>
+                  </td>
                 </tr>
               ))}
             </tbody>

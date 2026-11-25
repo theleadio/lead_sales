@@ -7,15 +7,34 @@ who agreed to marketing email. Screen: **Email marketing** (`/email`), for
 ## How it works
 
 1. **Write** a campaign: name, subject, language (or everyone), optional tags,
-   and the email as HTML. `{{name}}` becomes the person's name. The body is
-   sanitised (no scripts, https links and images only) and an unsubscribe link
-   is always added at the bottom.
+   and the email. The **block editor** builds it from headings, text, images
+   (from the shared image library, the same one as the Social planner, or an
+   https address), buttons and dividers, with a live desktop/phone preview.
+   In text, `**bold**` and `[words](https://link)` work. "Edit as HTML instead"
+   turns the blocks into HTML for hand editing (one way). `{{name}}` becomes
+   the person's name. The body is sanitised (no scripts, https links and
+   images only) and an unsubscribe link is always added at the bottom.
+   Blocks live in `email_campaign.blocks`; `body_html` is generated from them
+   on every save (`lib/email/blocks.ts`).
 2. **Test**: "Save and email me a test" sends one copy to your own address.
 3. **Preview**: the screen shows how many people the saved filters reach.
-4. **Send**: ticking the box and pressing Send queues one row per person in
-   `sales.email_send`. The `email` job in `.github/workflows/schedule.yml`
-   (`npm run email:run`, every 5 minutes) sends them in batches of 100 through
-   Resend's batch API. Large lists therefore take a few runs.
+4. **Send now or schedule**: ticking the box and pressing "Send or schedule"
+   either queues it straight away or schedules it for a Malaysia-time date
+   and time (at least 10 minutes ahead, within a year). A scheduled campaign
+   can't be edited until its schedule is cancelled. At its time the `email`
+   job queues it with the audience **as it is then** (consent is read at send
+   time). If no one matches then, or the job reaches it more than 12 hours
+   late, it goes back to draft with a note saying why instead of sending.
+5. **Sending**: queueing adds one row per person in `sales.email_send`. The
+   `email` job in `.github/workflows/schedule.yml` (`npm run email:run`, every
+   5 minutes) sends them in batches of 100 through Resend's batch API. Large
+   lists therefore take a few runs, and a scheduled send can start up to about
+   5 minutes after its time.
+6. **Duplicate**: any campaign, sent or not, can be copied into a new draft
+   with the same email and audience ("Copy of …").
+
+Migration `010_email_editor_schedule.sql` adds `blocks`, `scheduled_at`,
+`note` and the `scheduled` status.
 
 ## Who is emailed
 
@@ -68,13 +87,13 @@ links stop working.
 Set these in **Netlify** (the app) and in **GitHub Actions secrets** (the job).
 The `email` job skips itself until all are set.
 
-| Name | Value |
-| --- | --- |
-| `RESEND_API_KEY` | Resend API key (already used by automations) |
-| `EMAIL_FROM` | a sender on the verified domain, e.g. `LEAD <hello@thelead.io>` |
-| `APP_BASE_URL` | `https://theleadsales.netlify.app`, no trailing slash |
-| `EMAIL_UNSUBSCRIBE_SECRET` | a long random string |
-| `DATABASE_URL` | already a secret for the other jobs |
+| Name                       | Value                                                           |
+| -------------------------- | --------------------------------------------------------------- |
+| `RESEND_API_KEY`           | Resend API key (already used by automations)                    |
+| `EMAIL_FROM`               | a sender on the verified domain, e.g. `LEAD <hello@thelead.io>` |
+| `APP_BASE_URL`             | `https://theleadsales.netlify.app`, no trailing slash           |
+| `EMAIL_UNSUBSCRIBE_SECRET` | a long random string                                            |
+| `DATABASE_URL`             | already a secret for the other jobs                             |
 
 Then run `npm run db:migrate -- --apply` for migration 008.
 
