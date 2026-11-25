@@ -68,8 +68,12 @@ test("a post's state comes from its channels", () => {
     );
   assert.equal(s("draft", past, [["facebook", "pending"]]), "draft");
   assert.equal(s("scheduled", future, [["facebook", "pending"], ["instagram", "pending"]]), "scheduled");
-  // Facebook alone, time reached: the job will post it, nobody needs to act.
-  assert.equal(s("scheduled", past, [["facebook", "pending"]]), "scheduled");
+  // Facebook alone, time just reached: the job will post it, nobody acts yet.
+  const justNow = new Date(now.getTime() - 5 * 60 * 1000);
+  assert.equal(s("scheduled", justNow, [["facebook", "pending"]]), "scheduled");
+  // Still not posted 15 minutes on (not set up, or the job is behind): a
+  // person posts it by hand.
+  assert.equal(s("scheduled", past, [["facebook", "pending"]]), "due");
   assert.equal(s("scheduled", past, [["facebook", "posted"], ["instagram", "pending"]]), "due");
   assert.equal(s("scheduled", past, [["facebook", "posted"], ["instagram", "posted"]]), "posted");
   assert.equal(s("scheduled", past, [["facebook", "failed"], ["instagram", "posted"]]), "failed");

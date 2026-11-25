@@ -6,7 +6,7 @@ import {
   addMonths,
   CHANNEL_LABEL,
   dayStart,
-  isAuto,
+  needsHand,
   isDay,
   monthGrid,
   monthStart,
@@ -27,6 +27,7 @@ import {
   channelList,
   PostChip,
   preview,
+  HandKit,
   ResultNote,
   StateBadge,
 } from "./shared";
@@ -129,9 +130,10 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
         </div>
       </div>
       <p className="text-ink-muted mt-1 text-sm">
-        Facebook Page posts go out on their own at their time. Other channels
-        are posted by hand: they show under &quot;Needs you&quot; when it&apos;s
-        time. All times are Malaysia time.
+        Facebook Page posts go out on their own once auto-posting is set up;
+        until then, or if one isn&apos;t out 15 minutes after its time, it
+        joins the other channels under &quot;Needs you&quot; to post by hand.
+        All times are Malaysia time.
       </p>
       <ResultNote code={one(q.result)} why={one(q.why)} />
 
@@ -340,17 +342,18 @@ function NeedsYou({ posts }: { posts: Post[] }) {
                 · {p.scheduledAt ? (mytDay(p.scheduledAt) === mytDay(now) ? `today ${mytTime(p.scheduledAt)}` : myt(p.scheduledAt)) : ""}
               </span>
             </p>
-            <ul className="mt-1 space-y-1">
+            <div className="mt-1">
+              <HandKit p={p} />
+            </div>
+            <ul className="mt-2 space-y-1">
               {p.channels
                 .filter(
-                  (c) =>
-                    c.status === "failed" ||
-                    (c.status === "pending" && !isAuto(c.channel)),
+                  (c) => c.status === "failed" || needsHand(c, p.scheduledAt, now),
                 )
                 .map((c) => (
                   <li key={c.channel} className="flex flex-wrap items-center gap-2">
                     <span className="w-28 font-medium">{CHANNEL_LABEL[c.channel]}</span>
-                    {c.status === "failed" ? (
+                    {c.status === "failed" && (
                       <>
                         <span className="text-danger">{c.error ?? "Failed"}</span>
                         <form action={retryAction}>
@@ -362,22 +365,21 @@ function NeedsYou({ posts }: { posts: Post[] }) {
                           </button>
                         </form>
                       </>
-                    ) : (
-                      <form action={markPostedAction} className="flex flex-wrap items-center gap-2">
-                        <input type="hidden" name="id" value={p.id} />
-                        <input type="hidden" name="channel" value={c.channel} />
-                        <input type="hidden" name="back" value="planner" />
-                        <input
-                          name="url"
-                          type="url"
-                          placeholder="Link to the live post (optional)"
-                          className={`${field} w-64 py-1`}
-                        />
-                        <button type="submit" className="cursor-pointer underline">
-                          Mark posted
-                        </button>
-                      </form>
                     )}
+                    <form action={markPostedAction} className="flex flex-wrap items-center gap-2">
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="channel" value={c.channel} />
+                      <input type="hidden" name="back" value="planner" />
+                      <input
+                        name="url"
+                        type="url"
+                        placeholder="Link to the live post (optional)"
+                        className={`${field} w-64 py-1`}
+                      />
+                      <button type="submit" className="cursor-pointer underline">
+                        {c.status === "failed" ? "I posted it by hand" : "Mark posted"}
+                      </button>
+                    </form>
                   </li>
                 ))}
             </ul>

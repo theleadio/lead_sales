@@ -177,18 +177,28 @@ it("a draft can't be marked posted, and an untouched post can be deleted", async
   assert.equal(await getPost(id), null);
 });
 
-it("'Needs you' lists due manual channels and failures, not Facebook waiting for the job", async () => {
+it("'Needs you' lists due manual channels, failures, and Facebook the job hasn't posted in 15 minutes", async () => {
   const a = await marketer();
   const fbOnly = await scheduled(a, ["facebook"]);
   const ig = await scheduled(a, ["instagram"]);
   const later = await scheduled(a, ["linkedin"]);
   await due(fbOnly);
   await due(ig);
-  const ids = (await listNeedsAction()).map((p) => p.id);
+  let ids = (await listNeedsAction()).map((p) => p.id);
   assert.ok(ids.includes(ig));
   assert.ok(!ids.includes(fbOnly));
   assert.ok(!ids.includes(later));
   assert.equal((await getPost(ig))?.state, "due");
+  // Facebook not posted 15 minutes after its time is handed to a person,
+  // who can mark it posted.
+  await db()`
+    UPDATE sales.social_post SET scheduled_at = now() - interval '16 minutes'
+    WHERE id = ${fbOnly}`;
+  ids = (await listNeedsAction()).map((p) => p.id);
+  assert.ok(ids.includes(fbOnly));
+  await markPosted(a, fbOnly, "facebook", "");
+  assert.equal((await channelRow(fbOnly)).status, "posted");
+  assert.equal((await getPost(fbOnly))?.state, "posted");
 });
 
 it("the job posts a due Facebook post once, and leaves future posts alone", async () => {

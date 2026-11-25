@@ -237,8 +237,8 @@ export async function listUntimedDrafts(): Promise<Post[]> {
   return rows.map((r) => toPost(r, now));
 }
 
-// What needs a person now: scheduled posts whose time has come with a manual
-// channel still to post, and any channel that failed. Oldest first.
+// What needs a person now: scheduled posts with a channel to post by hand
+// (planner.ts needsHand), and any channel that failed. Oldest first.
 export async function listNeedsAction(): Promise<Post[]> {
   const sql = db();
   const now = new Date();
@@ -249,7 +249,10 @@ export async function listNeedsAction(): Promise<Post[]> {
       WHERE c.post_id = p.id
         AND (c.status = 'failed'
              OR (c.status = 'pending' AND c.channel <> 'facebook'
-                 AND p.scheduled_at <= now())))
+                 AND p.scheduled_at <= now())
+             -- Facebook the job hasn't posted (planner.ts AUTO_GRACE_MS).
+             OR (c.status = 'pending' AND c.channel = 'facebook'
+                 AND p.scheduled_at <= now() - interval '15 minutes')))
     ORDER BY p.scheduled_at
     LIMIT 100`;
   return rows.map((r) => toPost(r, now));

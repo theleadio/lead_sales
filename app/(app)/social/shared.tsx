@@ -5,8 +5,10 @@ import {
   REASONS,
   STATE_LABEL,
   mytTime,
+  postText,
   type PostState,
 } from "@/lib/social/planner";
+import { CopyButton } from "./copy-button";
 import type { Post } from "@/lib/social/social";
 
 // Pieces shared by the social planner pages.
@@ -106,5 +108,31 @@ export function PostChip({ p }: { p: Post }) {
       </span>
       <span className="text-ink-muted mt-0.5 block truncate">{preview(p, 40)}</span>
     </Link>
+  );
+}
+
+// A public storage link that downloads instead of opening (Supabase Storage
+// takes ?download=<file name>).
+const downloadUrl = (url: string, n: number) =>
+  `${url}${url.includes("?") ? "&" : "?"}download=${encodeURIComponent(`lead-post-${n}${url.match(/\.(jpe?g|png)$/i)?.[0] ?? ""}`)}`;
+
+// What a person needs to post by hand: the text (with the link) to copy, and
+// the images to download, in order.
+export function HandKit({ p }: { p: Post }) {
+  const text = postText(p.body, p.link, true);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {text && <CopyButton text={text} />}
+      {p.media.map((m, i) => (
+        <a
+          key={m.id}
+          href={downloadUrl(m.url, i + 1)}
+          className="border-line rounded-lg border px-3 py-1 text-sm"
+          rel="noopener noreferrer"
+        >
+          Image {i + 1}
+        </a>
+      ))}
+    </div>
   );
 }

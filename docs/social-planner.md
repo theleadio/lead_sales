@@ -13,13 +13,17 @@ for `super_admin`, `management` and `marketing`.
 2. **Schedule** it. "Save draft" keeps it as a draft, and nothing goes out.
 3. At its time:
    - **Facebook Page**: the `social` job in `.github/workflows/schedule.yml`
-     (`npm run social:run`, every 5 minutes) posts it. A post can therefore
-     go out up to about 5 minutes late, or later when GitHub delays a
-     scheduled run.
+     (`npm run social:run`, every 5 minutes) posts it, once the Facebook
+     secrets are set (see Setup). A post can therefore go out up to about 5
+     minutes late, or later when GitHub delays a scheduled run. If it still
+     isn't out **15 minutes** after its time (auto-posting isn't set up yet,
+     or the job is behind), it moves to **Needs you** like any other channel,
+     to post by hand.
    - **Every other channel** (Instagram, LinkedIn, TikTok, YouTube, X): the
-     post shows under **Needs you** on the planner. Someone posts it by hand,
-     then presses **Mark posted** (optionally pasting the link to the live
-     post).
+     post shows under **Needs you** on the planner. **Copy text** copies the
+     words (with the link), and **Image 1, 2, …** download the images in
+     order. Someone posts it by hand, then presses **Mark posted**
+     (optionally pasting the link to the live post).
 4. Once any channel has gone out, the post is locked: it can't be changed or
    deleted.
 
@@ -71,7 +75,11 @@ by hand" for when someone posts it themselves.
      expiring after an hour or two.
    - `META_GRAPH_VERSION` (optional, defaults to `v25.0`).
 
-   Until both are set, the job is skipped and Facebook posts wait.
+   Until both are set, the job is skipped, and Facebook posts are handed to a
+   person 15 minutes after their time.
+
+   On 25 Nov 2026 the token checked had no `pages_manage_posts`, so Facebook
+   is posted by hand for now (Shawn's call).
 
 The existing `META_PAGE_ACCESS_TOKEN` is for reading lead-ad leads. It is
 **not** reused here, because it may not be allowed to publish. If one token

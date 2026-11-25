@@ -25,6 +25,23 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
 // person, who then marks it posted.
 export const AUTO_CHANNELS: readonly Channel[] = ["facebook"];
 export const isAuto = (c: Channel) => AUTO_CHANNELS.includes(c);
+// An automatic channel still waiting this long after its time was not posted
+// by the job (Facebook isn't set up yet, or the job is behind), so it is
+// handed to a person like any other channel.
+export const AUTO_GRACE_MS = 15 * 60 * 1000;
+
+// A channel a person should post now: a manual one whose time has come, or
+// an automatic one the job hasn't posted within the grace period.
+export function needsHand(
+  c: { channel: Channel; status: string },
+  scheduledAt: Date | null,
+  now: Date = new Date(),
+): boolean {
+  if (c.status !== "pending" || !scheduledAt) return false;
+  const late = now.getTime() - scheduledAt.getTime();
+  return isAuto(c.channel) ? late >= AUTO_GRACE_MS : late >= 0;
+}
+
 export const isChannel = (c: string): c is Channel =>
   (CHANNELS as readonly string[]).includes(c);
 
@@ -138,8 +155,8 @@ export const STATE_LABEL: Record<PostState, string> = {
   failed: "Failed",
 };
 
-// One word for the whole post, from its channels. "due" means its time has
-// come and a channel still waits for a person to post it.
+// One word for the whole post, from its channels. "due" means a channel
+// waits for a person to post it (see needsHand).
 export function postState(
   p: { status: "draft" | "scheduled"; scheduledAt: Date | null },
   channels: ChannelState[],
@@ -150,9 +167,7 @@ export function postState(
   if (channels.some((c) => c.status === "publishing")) return "posting";
   const posted = channels.filter((c) => c.status === "posted").length;
   if (channels.length > 0 && posted === channels.length) return "posted";
-  const reached = p.scheduledAt !== null && p.scheduledAt <= now;
-  if (reached && channels.some((c) => c.status === "pending" && !isAuto(c.channel)))
-    return "due";
+  if (channels.some((c) => needsHand(c, p.scheduledAt, now))) return "due";
   return posted > 0 ? "partly_posted" : "scheduled";
 }
 
