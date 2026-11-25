@@ -42,7 +42,7 @@ export const NAV: readonly {
   },
   {
     href: "/sites",
-    label: "Sites & forms",
+    label: "Sites & funnels",
     phase: 4,
     ready: true,
     icon: "sites",
