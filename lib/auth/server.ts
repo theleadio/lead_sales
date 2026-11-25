@@ -30,12 +30,22 @@ export async function createClient() {
   );
 }
 
-// cache(): every auth check is a network round trip to Supabase (~150ms), and
-// a single navigation asks for the session several times — layout, page, and
-// anything they call. React dedupes those to one call per request.
-export const getSession = cache(async () => {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user;
-});
+// The signed-in user's id and email, or null. getClaims() verifies the
+// access token's signature locally with the project's public signing key
+// (fetched once and cached for 10 minutes), so a page no longer waits on a
+// network round trip to Supabase Auth; getUser() made one on every call.
+// A token is trusted until it expires (an hour at most); access is still
+// checked against app_user.is_active on every request (current-user.ts).
+// cache(): one check per request, however many components ask.
+export const getSession = cache(
+  async (): Promise<{ id: string; email: string | null } | null> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.getClaims();
+    const claims = data?.claims;
+    if (error || !claims?.sub) return null;
+    return {
+      id: claims.sub,
+      email: typeof claims.email === "string" ? claims.email : null,
+    };
+  },
+);
