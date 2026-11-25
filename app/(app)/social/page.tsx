@@ -21,7 +21,8 @@ import {
   listUntimedDrafts,
   type Post,
 } from "@/lib/social/social";
-import { button, field, myt } from "../ui";
+import { RowLink } from "../row-link";
+import { button, EmptyState, field, myt, PageHeader, table as t } from "../ui";
 import { markPostedAction, newPostAction, retryAction } from "./actions";
 import {
   channelList,
@@ -116,25 +117,29 @@ export default async function SocialPage({ searchParams }: PageProps<"/social">)
 
   return (
     <section className="max-w-6xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Social planner</h1>
-        <div className="flex items-center gap-3">
-          <Link href="/social/library" className="text-sm underline">
-            Image library
-          </Link>
-          <form action={newPostAction}>
-            <button type="submit" className={button}>
-              New post
-            </button>
-          </form>
-        </div>
-      </div>
-      <p className="text-ink-muted mt-1 text-sm">
-        Facebook Page posts go out on their own once auto-posting is set up;
-        until then, or if one isn&apos;t out 15 minutes after its time, it
-        joins the other channels under &quot;Needs you&quot; to post by hand.
-        All times are Malaysia time.
-      </p>
+      <PageHeader
+        title="Social planner"
+        lede={
+          <>
+            Facebook Page posts go out on their own once auto-posting is set
+            up; until then, or if one isn&apos;t out 15 minutes after its
+            time, it joins the other channels under &quot;Needs you&quot; to
+            post by hand. All times are Malaysia time.
+          </>
+        }
+        action={
+          <>
+            <Link href="/social/library" className="text-sm hover:underline">
+              Image library
+            </Link>
+            <form action={newPostAction}>
+              <button type="submit" className={button}>
+                New post
+              </button>
+            </form>
+          </>
+        }
+      />
       <ResultNote code={one(q.result)} why={one(q.why)} />
 
       {needs.length > 0 && <NeedsYou posts={needs} />}
@@ -282,40 +287,37 @@ function Week({
 function List({ posts }: { posts: Post[] }) {
   if (posts.length === 0)
     return (
-      <div className="border-line bg-surface-muted mt-4 rounded-2xl border p-10 text-center">
-        <p className="font-medium">Nothing planned for these 30 days</p>
-        <p className="text-ink-muted mt-1 text-sm">
-          Start a new post, pick its channels and a time.
-        </p>
-      </div>
+      <EmptyState title="Nothing planned for these 30 days">
+        Start a new post, pick its channels and a time.
+      </EmptyState>
     );
   return (
-    <div className="mt-4 overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead className="text-ink-muted">
+    <div className={t.wrap}>
+      <table className={t.table}>
+        <thead>
           <tr>
-            <th className="py-2 pr-4 font-medium">When</th>
-            <th className="py-2 pr-4 font-medium">Post</th>
-            <th className="py-2 pr-4 font-medium">Channels</th>
-            <th className="py-2 pr-4 font-medium">State</th>
+            <th className={t.th}>When</th>
+            <th className={t.th}>Post</th>
+            <th className={t.th}>Channels</th>
+            <th className={t.th}>State</th>
           </tr>
         </thead>
         <tbody>
           {posts.map((p) => (
-            <tr key={p.id} className="border-line border-t">
-              <td className="py-2 pr-4 whitespace-nowrap">
+            <RowLink key={p.id} href={`/social/${p.id}`} className={t.row}>
+              <td className={`${t.td} whitespace-nowrap`}>
                 {p.scheduledAt ? myt(p.scheduledAt) : "—"}
               </td>
-              <td className="py-2 pr-4">
-                <Link href={`/social/${p.id}`} className="underline">
+              <td className={t.td}>
+                <Link href={`/social/${p.id}`} className="font-medium hover:underline">
                   {preview(p, 80)}
                 </Link>
               </td>
-              <td className="py-2 pr-4">{channelList(p)}</td>
-              <td className="py-2 pr-4">
+              <td className={t.td}>{channelList(p)}</td>
+              <td className={t.td}>
                 <StateBadge state={p.state} />
               </td>
-            </tr>
+            </RowLink>
           ))}
         </tbody>
       </table>

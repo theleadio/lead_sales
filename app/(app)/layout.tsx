@@ -1,57 +1,66 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { getCurrentUser, type CurrentUser } from "@/lib/auth/current-user";
 import { signOutAction } from "@/lib/auth/actions";
-import { LeadProductLogo } from "../logo";
+import { attentionCount, COUNTED } from "@/lib/home/attention";
 import { NAV } from "./nav";
+import { Sidebar } from "./sidebar";
+
+const roleLabel = (role: string) => {
+  const s = role.replace(/_/g, " ");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+// A red count beside a menu item; nothing when there is nothing waiting.
+async function Count({ user, href }: { user: CurrentUser; href: string }) {
+  const n = await attentionCount(user, href);
+  if (!n) return null;
+  return (
+    <span
+      className="bg-danger ml-auto rounded-full px-1.5 text-[11px] leading-[18px] font-semibold text-white tabular-nums"
+      aria-label={`${n} need attention`}
+    >
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
 
 // The signed-in shell. A signed-in Supabase user with no active app_user
 // (lib/auth/current-user.ts) is sent back to sign-in, as in lead_crm.
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
+  const items = NAV.filter((i) => !i.roles || i.roles.includes(user.role)).map(
+    ({ href, label, icon, group, ready, phase }) => ({
+      href,
+      label,
+      icon,
+      group,
+      ready,
+      phase,
+    }),
+  );
+  const counts = Object.fromEntries(
+    items
+      .filter((i) => (COUNTED as readonly string[]).includes(i.href))
+      .map((i) => [
+        i.href,
+        <Suspense key={i.href} fallback={null}>
+          <Count user={user} href={i.href} />
+        </Suspense>,
+      ]),
+  );
   return (
-    <div className="flex min-h-screen">
-      <aside className="border-line bg-surface-muted flex w-56 flex-col border-r p-4">
-        <div className="mb-6">
-          <LeadProductLogo name="Sales" height={30} />
-        </div>
-        <nav aria-label="Main" className="flex flex-col gap-1 text-sm">
-          {NAV.filter((i) => !i.roles || i.roles.includes(user.role)).map(
-            (item) =>
-              item.ready ? (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className="hover:bg-lead-blue/40 rounded-lg px-3 py-2 font-medium"
-                >
-                  {item.label}
-                </a>
-              ) : (
-                <span
-                  key={item.href}
-                  className="text-ink-muted flex justify-between rounded-lg px-3 py-2"
-                >
-                  {item.label}
-                  <span className="bg-lead-yellow text-ink rounded-full px-2 text-[11px]">
-                    Phase {item.phase}
-                  </span>
-                </span>
-              ),
-          )}
-        </nav>
-        <form action={signOutAction} className="mt-auto">
-          <p className="text-ink-muted mb-2 truncate text-xs">
-            {user.fullName}
-          </p>
-          <button
-            type="submit"
-            className="text-ink-muted hover:text-ink cursor-pointer text-sm underline"
-          >
-            Sign out
-          </button>
-        </form>
-      </aside>
-      <main className="flex-1 p-8">{children}</main>
+    <div className="min-h-screen md:flex">
+      <Sidebar
+        items={items}
+        user={{ fullName: user.fullName, roleLabel: roleLabel(user.role) }}
+        counts={counts}
+        signOut={signOutAction}
+      />
+      <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
+        {children}
+      </main>
     </div>
   );
 }

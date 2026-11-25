@@ -6,7 +6,8 @@ import {
   consentSummary,
   listCampaigns,
 } from "@/lib/email/marketing";
-import { button, myt } from "../ui";
+import { RowLink } from "../row-link";
+import { button, EmptyState, myt, PageHeader, StatTile, table as t } from "../ui";
 import { duplicateAction, newCampaignAction } from "./actions";
 import { ResultNote, StatusBadge } from "./shared";
 
@@ -26,97 +27,101 @@ export default async function EmailPage({ searchParams }: PageProps<"/email">) {
 
   return (
     <section className="max-w-5xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Email marketing</h1>
-        <form action={newCampaignAction}>
-          <button type="submit" className={button}>
-            New campaign
-          </button>
-        </form>
-      </div>
-      <p className="text-ink-muted mt-1 text-sm">
-        Newsletters go only to people who agreed to marketing email.
-      </p>
+      <PageHeader
+        title="Email marketing"
+        lede="Newsletters go only to people who agreed to marketing email."
+        action={
+          <form action={newCampaignAction}>
+            <button type="submit" className={button}>
+              New campaign
+            </button>
+          </form>
+        }
+      />
       <ResultNote code={result} />
 
-      <div className="border-line mt-6 rounded-2xl border p-4">
-        <p className="text-ink-muted text-sm">Can be emailed</p>
-        <p className="mt-1 text-2xl font-semibold">
-          {consent.consented.toLocaleString("en-MY")}
-          <span className="text-ink-muted text-sm font-normal">
-            {" "}
-            of {consent.withEmail.toLocaleString("en-MY")} people with an email
-            address
-          </span>
-        </p>
-        {consent.consented === 0 && (
-          <p className="text-ink-muted mt-2 text-sm">
-            No one has agreed to marketing email yet, so a campaign would reach
-            no one. Website and Meta form sign-ups who tick the box are added
-            automatically. For people who already opted in elsewhere, see
-            docs/email-marketing.md (the consent import).
-          </p>
-        )}
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile
+          label="Can be emailed"
+          value={consent.consented.toLocaleString("en-MY")}
+          note={`of ${consent.withEmail.toLocaleString("en-MY")} people with an email address`}
+        />
       </div>
+      {consent.consented === 0 && (
+        <p className="text-ink-muted mt-2 max-w-3xl text-sm">
+          No one has agreed to marketing email yet, so a campaign would reach
+          no one. Website and Meta form sign-ups who tick the box are added
+          automatically. For people who already opted in elsewhere, see
+          docs/email-marketing.md (the consent import).
+        </p>
+      )}
 
       {campaigns.length === 0 ? (
-        <div className="border-line bg-surface-muted mt-6 rounded-2xl border p-10 text-center">
-          <p className="font-medium">No campaigns yet</p>
-          <p className="text-ink-muted mt-1 text-sm">
-            Start a new campaign, pick who it goes to and send yourself a test.
-          </p>
-        </div>
+        <EmptyState title="No campaigns yet">
+          Start a new campaign, pick who it goes to and send yourself a test.
+        </EmptyState>
       ) : (
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-ink-muted">
+        <div className={`${t.wrap} mt-6`}>
+          <table className={t.table}>
+            <thead>
               <tr>
-                <th className="py-2 pr-4 font-medium">Name</th>
-                <th className="py-2 pr-4 font-medium">Status</th>
-                <th className="py-2 pr-4 font-medium">Recipients</th>
-                <th className="py-2 pr-4 font-medium">Sent</th>
-                <th className="py-2 pr-4 font-medium">Created</th>
-                <th className="py-2 font-medium">
+                <th className={t.th}>Name</th>
+                <th className={t.th}>Status</th>
+                <th className={`${t.th} text-right`}>Recipients</th>
+                <th className={`${t.th} text-right`}>Sent</th>
+                <th className={t.th}>Created</th>
+                <th className={t.th}>
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
             <tbody>
               {campaigns.map((c) => (
-                <tr key={c.id} className="border-line border-t">
-                  <td className="py-2 pr-4">
-                    <Link href={`/email/${c.id}`} className="underline">
+                <RowLink key={c.id} href={`/email/${c.id}`} className={t.row}>
+                  <td className={t.td}>
+                    <Link href={`/email/${c.id}`} className="font-medium hover:underline">
                       {c.name}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4">
+                  <td className={t.td}>
                     <StatusBadge status={c.status} />
                     {c.status === "scheduled" && c.scheduledAt && (
-                      <span className="text-ink-muted block text-xs">
+                      <span className="text-ink-muted mt-0.5 block text-xs">
                         {myt(c.scheduledAt)}
                       </span>
                     )}
                   </td>
-                  <td className="py-2 pr-4">{c.recipientCount ?? "—"}</td>
-                  <td className="py-2 pr-4">
-                    {c.status === "draft" || c.status === "scheduled"
-                      ? "—"
-                      : `${c.counts.sent}${c.counts.failed ? ` (${c.counts.failed} failed)` : ""}`}
+                  <td className={`${t.td} ${t.num}`}>
+                    {c.recipientCount?.toLocaleString("en-MY") ?? "—"}
                   </td>
-                  <td className="py-2 pr-4">{myt(c.createdAt)}</td>
-                  <td className="py-2">
+                  <td className={`${t.td} ${t.num}`}>
+                    {c.status === "draft" || c.status === "scheduled" ? (
+                      "—"
+                    ) : (
+                      <>
+                        {c.counts.sent.toLocaleString("en-MY")}
+                        {c.counts.failed > 0 && (
+                          <span className="text-danger block text-xs">
+                            {c.counts.failed} failed
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </td>
+                  <td className={`${t.td} whitespace-nowrap`}>{myt(c.createdAt)}</td>
+                  <td className={`${t.td} text-right`}>
                     <form action={duplicateAction}>
                       <input type="hidden" name="id" value={c.id} />
                       <button
                         type="submit"
-                        className="text-ink-muted hover:text-ink cursor-pointer text-xs underline"
+                        className="text-ink-muted hover:text-ink hover:bg-surface cursor-pointer rounded-md px-2 py-1 text-xs"
                         aria-label={`Duplicate ${c.name}`}
                       >
                         Duplicate
                       </button>
                     </form>
                   </td>
-                </tr>
+                </RowLink>
               ))}
             </tbody>
           </table>
