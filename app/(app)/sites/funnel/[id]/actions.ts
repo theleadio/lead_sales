@@ -91,10 +91,13 @@ export async function setStepPathAction(_: ActionState, f: FormData) {
     (v, p) => setStepPath(v, p.siteId, p.version, p.pageId, p.path),
   );
 }
+// Keeps the moved step selected, wherever it lands.
 export async function moveStepAction(_: ActionState, f: FormData) {
-  return run(f, z.object({ ...step, to: int }), "Moved.", (v, p) =>
+  const r = await run(f, z.object({ ...step, to: int }), "Moved.", (v, p) =>
     moveStep(v, p.siteId, p.version, p.pageId, p.to),
   );
+  if (r.ok) redirect(`/sites/funnel/${str(f, "siteId")}?tab=steps&step=${str(f, "pageId")}`);
+  return r;
 }
 export async function cloneStepAction(_: ActionState, f: FormData) {
   return run(f, z.object(step), "Cloned.", (v, p) =>

@@ -169,8 +169,15 @@ export async function getSite(viewer: Viewer, siteId: string) {
   if (!s) return null;
   const pages = await sql`
     SELECT p.id, p.position, p.name, p.path, p.kind, p.version,
-           (SELECT r.path FROM sales.site_route r WHERE r.page_id = p.id LIMIT 1) AS live_path
+           (SELECT r.path FROM sales.site_route r WHERE r.page_id = p.id LIMIT 1) AS live_path,
+           pub.published_at,
+           (pub.id IS NOT NULL) AS live,
+           -- The draft differs from what visitors see (a save since the last publish).
+           EXISTS (SELECT 1 FROM sales.page_version d
+                   WHERE d.page_id = p.id AND d.variant = 'A' AND d.status = 'draft'
+                     AND d.project IS DISTINCT FROM pub.project) AS changed
     FROM sales.site_page p
+    LEFT JOIN sales.page_version pub ON pub.id = p.active_version_id AND pub.status = 'published'
     WHERE p.site_id = ${siteId} ORDER BY p.position`;
   return {
     id: s.id as string,
@@ -190,6 +197,10 @@ export async function getSite(viewer: Viewer, siteId: string) {
       kind: p.kind as string,
       version: p.version as number,
       livePath: (p.live_path as string | null) ?? null,
+      live: p.live === true,
+      // Only meaningful when live.
+      changed: p.live === true && p.changed === true,
+      publishedAt: (p.published_at as Date | null) ?? null,
     })),
   };
 }

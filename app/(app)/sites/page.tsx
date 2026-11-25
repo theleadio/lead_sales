@@ -5,10 +5,12 @@ import { listFolders, listSites, listTemplates } from "@/lib/sites/admin";
 import { klDay, siteSummaries } from "@/lib/sites/stats";
 import { canEditSites, canViewSites } from "@/lib/sites/permissions";
 import { RowLink } from "../row-link";
-import { Plus } from "lucide-react";
+import { FolderPlus, Plus } from "lucide-react";
+import { PUBLIC_HOST } from "@/lib/sites/host";
 import {
   Badge,
   button,
+  choiceCard,
   EmptyState,
   field,
   page,
@@ -17,8 +19,10 @@ import {
   Segmented,
   table as t,
   Toolbar,
+  ghostButton,
 } from "../ui";
-import { ActionForm, Field } from "./action-form";
+import { CloseDialog, Dialog, OpenDialog } from "../menus";
+import { ActionForm, Field, FieldError } from "./action-form";
 import { createFolderAction, createFunnelAction } from "./funnel/[id]/actions";
 
 // Sites & funnels: the funnel list, with folders and search. Websites come in
@@ -52,10 +56,10 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
         lede="Your funnels, their views and opt-ins over the last 7 days."
         action={
           edit && (
-            <a href="#new-funnel" className={button}>
+            <OpenDialog target="new-funnel" className={button}>
               <Plus className="size-[18px]" aria-hidden="true" />
               New funnel
-            </a>
+            </OpenDialog>
           )
         }
       />
@@ -77,21 +81,7 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
             aria-label="Search funnels"
             className={searchField}
           />
-          {folders.length > 0 && (
-            <select
-              name="folder"
-              defaultValue={folder}
-              aria-label="Folder"
-              className={field}
-            >
-              <option value="">All folders</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-          )}
+          {folder && <input type="hidden" name="folder" value={folder} />}
           <button type="submit" className="sr-only">
             Search
           </button>
@@ -105,6 +95,37 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
           </Link>
         </span>
       </Toolbar>
+
+      {(folders.length > 0 || edit) && (
+        <nav aria-label="Folders" className="mt-3.5 flex flex-wrap gap-1.5 text-[13px]">
+          {[{ id: "", name: "All funnels" }, ...folders].map((f) => {
+            const on = f.id === folder;
+            const qs = new URLSearchParams({
+              ...(f.id ? { folder: f.id } : {}),
+              ...(search ? { q: one("q") } : {}),
+            }).toString();
+            return (
+              <Link
+                key={f.id || "all"}
+                href={`/sites${qs ? `?${qs}` : ""}`}
+                aria-current={on ? "page" : undefined}
+                className={`rounded-full border px-3 py-1 ${on ? "border-action bg-action text-action-ink" : "border-line text-ink-muted hover:text-ink hover:bg-surface-muted"}`}
+              >
+                {f.name}
+              </Link>
+            );
+          })}
+          {edit && (
+            <OpenDialog
+              target="new-folder"
+              className="border-line text-ink-muted hover:text-ink hover:bg-surface-muted inline-flex cursor-pointer items-center gap-1 rounded-full border border-dashed px-3 py-1"
+            >
+              <FolderPlus className="size-3.5" aria-hidden="true" />
+              New folder
+            </OpenDialog>
+          )}
+        </nav>
+      )}
 
       {sites.length === 0 ? (
         <EmptyState title={`No funnels ${search || folder ? "match" : "yet"}`} />
@@ -156,66 +177,87 @@ export default async function SitesPage({ searchParams }: PageProps<"/sites">) {
       )}
 
       {edit && (
-        // Hidden until "New funnel" opens it (#new-funnel in the address), so the
-        // list looks as in the reviewed demo.
-        <div id="new-funnel" className="mt-[22px] hidden scroll-mt-6 gap-6 target:grid md:grid-cols-2">
-          <ActionForm
-            action={createFunnelAction}
-            className="border-line flex flex-col gap-3 rounded-[14px] border p-4"
-          >
-            <h2 className="font-semibold">New funnel</h2>
-            <Field label="Name" name="name" required />
-            <Field
-              label="Base path"
-              name="basePath"
-              defaultValue="/"
-              hint="Steps live under this path, e.g. /ai-workshop"
-              required
-            />
-            <label className="flex flex-col gap-1 text-sm" htmlFor="nf-language">
-              <span className="font-medium">Language</span>
-              <select id="nf-language" name="language" className={field}>
-                <option value="en">English</option>
-                <option value="zh">中文</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm" htmlFor="nf-folder">
-              <span className="font-medium">Folder</span>
-              <select id="nf-folder" name="folderId" className={field}>
-                <option value="">No folder</option>
-                {folders.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm" htmlFor="nf-template">
-              <span className="font-medium">Start from</span>
-              <select id="nf-template" name="templateId" className={field}>
-                <option value="">Blank (Home, Payment Form, Thank You)</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    Template: {t.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className={`${button} self-start`}>
-              Create funnel
-            </button>
-          </ActionForm>
-          <ActionForm
-            action={createFolderAction}
-            className="border-line flex flex-col gap-3 self-start rounded-[14px] border p-4"
-          >
-            <h2 className="font-semibold">New folder</h2>
-            <Field label="Name" name="name" required />
-            <button type="submit" className={`${button} self-start`}>
-              Create folder
-            </button>
-          </ActionForm>
-        </div>
+        <>
+          <Dialog id="new-funnel" title="New funnel" lede="You can change all of this later.">
+            <ActionForm action={createFunnelAction} className="flex flex-col gap-3.5">
+              <Field label="Name" name="name" required />
+              <label className="flex flex-col gap-1 text-sm" htmlFor="nf-path">
+                <span className="font-medium">Web address</span>
+                <span className="flex">
+                  <span className="border-line bg-surface-muted text-ink-muted rounded-l-lg border border-r-0 px-2.5 py-2 text-sm">
+                    {PUBLIC_HOST}
+                  </span>
+                  <input
+                    id="nf-path"
+                    name="basePath"
+                    defaultValue="/"
+                    required
+                    aria-describedby="nf-path-hint"
+                    className={`${field} min-w-0 flex-1 rounded-l-none`}
+                  />
+                </span>
+                <span id="nf-path-hint" className="text-ink-muted text-xs">
+                  The steps live under this, e.g. /ai-workshop
+                </span>
+                <FieldError name="basePath" />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm" htmlFor="nf-language">
+                  <span className="font-medium">Language</span>
+                  <select id="nf-language" name="language" className={field}>
+                    <option value="en">English</option>
+                    <option value="zh">中文</option>
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm" htmlFor="nf-folder">
+                  <span className="font-medium">Folder</span>
+                  <select id="nf-folder" name="folderId" defaultValue={folder} className={field}>
+                    <option value="">No folder</option>
+                    {folders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <fieldset className="flex flex-col text-sm">
+                <legend className="mb-1.5 font-medium">Start from</legend>
+                <div className="grid max-h-[220px] gap-2 overflow-y-auto sm:grid-cols-2">
+                  <label className={choiceCard}>
+                    <input type="radio" name="templateId" value="" defaultChecked className="sr-only" />
+                    <span className="font-medium">Blank</span>
+                    <span className="text-ink-muted text-xs">Home, Payment Form, Thank You</span>
+                  </label>
+                  {templates.map((t) => (
+                    <label key={t.id} className={choiceCard}>
+                      <input type="radio" name="templateId" value={t.id} className="sr-only" />
+                      <span className="font-medium">{t.name}</span>
+                      <span className="text-ink-muted text-xs">Template</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <div className="mt-1 flex justify-end gap-2">
+                <CloseDialog className={ghostButton}>Cancel</CloseDialog>
+                <button type="submit" className={button}>
+                  Create funnel
+                </button>
+              </div>
+            </ActionForm>
+          </Dialog>
+          <Dialog id="new-folder" title="New folder" lede="Folders group funnels in the list.">
+            <ActionForm action={createFolderAction} className="flex flex-col gap-3">
+              <Field label="Name" name="name" required />
+              <div className="mt-1 flex justify-end gap-2">
+                <CloseDialog className={ghostButton}>Cancel</CloseDialog>
+                <button type="submit" className={button}>
+                  Create folder
+                </button>
+              </div>
+            </ActionForm>
+          </Dialog>
+        </>
       )}
     </section>
   );

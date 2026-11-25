@@ -5,7 +5,9 @@ import {
   startTransition,
   useActionState,
   useContext,
+  useEffect,
   useId,
+  useRef,
   type ReactNode,
 } from "react";
 import type { ActionState } from "@/lib/sites/admin-actions";
@@ -21,16 +23,26 @@ export function ActionForm({
   children,
   className,
   confirm,
+  id,
 }: {
   action: (prev: ActionState, f: FormData) => Promise<ActionState>;
   children: ReactNode;
   className?: string;
   confirm?: string;
+  // Lets a button elsewhere (in a ⋯ menu) submit this form with form={id}.
+  id?: string;
 }) {
   const [state, run, pending] = useActionState(action, {});
+  const ref = useRef<HTMLFormElement>(null);
+  // A form in a pop-up closes it once it has worked.
+  useEffect(() => {
+    if (state.ok) ref.current?.closest("dialog")?.close();
+  }, [state]);
   return (
     <Errors.Provider value={state.fields ?? {}}>
       <form
+        ref={ref}
+        id={id}
         className={className}
         onSubmit={(e) => {
           e.preventDefault();
