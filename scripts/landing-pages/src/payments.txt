@@ -11,7 +11,6 @@ intake AI 全栈开发认证课 ⟂ 3200 ⟂ ai-full-stack-building-certificatio
 title LEAD - Professional AI Engineering Certification Payment Form
 sub Fill up personal information & intake
 intake Professional AI Engineering Certification 9-10 Dec 2026 (Wed, Thurs) | 9AM - 5PM | AI365 Hub, Oval Damansara ⟂ 3200 ⟂ professional-ai-engineering-certification-2026-12-09-en
-intake Professional AI Engineering Certification 25-26 Feb 2026 (Thurs, Fri) | 9AM - 5PM | AI365 Hub, Oval Damansara ⟂ 3200
 @pay /ai-vibe-coding-mastery-payment-form
 title LEAD - AI Vibe Coding Mastery Payment Form
 sub Fill up personal information & intake
