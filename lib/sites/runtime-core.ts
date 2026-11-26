@@ -90,8 +90,34 @@ export function cookieValue(all: string, name: string): string | null {
 }
 
 // ---- settings (untrusted JSON from data-settings) ----
-export type FormSettings = { fields: string[]; askCompany: boolean; classCode: string };
+export type CustomKind = "text" | "choice" | "multi" | "address" | "pax";
+export type CustomField = { key: string; label: string; kind: CustomKind; options: string[]; required: boolean };
+export type FormSettings = {
+  fields: string[];
+  askCompany: boolean;
+  classCode: string;
+  // Order blocks: every class on offer (one entry for a single-class block).
+  classCodes: string[];
+  custom: CustomField[];
+};
 const OPTIONAL = ["company", "jobTitle", "message"];
+const KINDS = ["text", "choice", "multi", "address", "pax"];
+const isStr = (v: unknown, max: number): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
+
+// Extra questions: anything malformed is dropped, never trusted.
+export function parseCustom(raw: unknown): CustomField[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CustomField[] = [];
+  for (const f of raw.slice(0, 10)) {
+    if (!f || typeof f !== "object") continue;
+    const o = f as Record<string, unknown>;
+    if (typeof o.key !== "string" || !/^[a-z][a-zA-Z0-9]{0,29}$/.test(o.key) || !isStr(o.label, 120) || !KINDS.includes(o.kind as string)) continue;
+    const options = Array.isArray(o.options) ? o.options.filter((x): x is string => isStr(x, 100)).slice(0, 20) : [];
+    if ((o.kind === "choice" || o.kind === "multi") && !options.length) continue;
+    out.push({ key: o.key, label: o.label, kind: o.kind as CustomKind, options, required: o.required === true });
+  }
+  return out;
+}
 
 export function parseSettings(raw: string | null | undefined, kind: "form" | "order"): FormSettings | null {
   let o: Record<string, unknown>;
@@ -101,22 +127,28 @@ export function parseSettings(raw: string | null | undefined, kind: "form" | "or
     return null;
   }
   if (!o || typeof o !== "object" || Array.isArray(o)) return null;
+  const custom = parseCustom(o.custom);
   if (kind === "order") {
-    if (typeof o.classCode !== "string" || !o.classCode || typeof o.askCompany !== "boolean") return null;
-    return { fields: o.askCompany ? ["company"] : [], askCompany: o.askCompany, classCode: o.classCode };
+    if (typeof o.askCompany !== "boolean") return null;
+    const many = Array.isArray(o.classCodes) && o.classCodes.length > 0;
+    const codes = many ? (o.classCodes as unknown[]) : [o.classCode];
+    if (codes.length > 12 || !codes.every((c) => isStr(c, 60))) return null;
+    return { fields: o.askCompany ? ["company"] : [], askCompany: o.askCompany, classCode: codes[0] as string, classCodes: codes as string[], custom };
   }
   if (!Array.isArray(o.fields)) return null;
-  return { fields: o.fields.filter((f: unknown) => OPTIONAL.includes(f as string)), askCompany: false, classCode: "" };
+  return { fields: o.fields.filter((f: unknown) => OPTIONAL.includes(f as string)), askCompany: false, classCode: "", classCodes: [], custom };
 }
 
 // ---- request / response ----
 export type Values = Record<string, string>;
+export type Extra = { answers?: Record<string, string | string[]>; classCode?: string };
 export function buildPayload(
   s: FormSettings,
   ids: { pageId: string; formId: string; idempotencyKey: string; landingUrl: string; referrer: string },
   v: Values,
   consent: boolean,
   captchaToken?: string,
+  extra: Extra = {},
 ): Record<string, unknown> {
   const p: Record<string, unknown> = {
     ...ids,
@@ -129,6 +161,13 @@ export function buildPayload(
   if (s.fields.includes("jobTitle")) p.jobTitle = v.jobTitle ?? "";
   if (s.fields.includes("message")) p.message = v.message ?? "";
   if (captchaToken) p.captchaToken = captchaToken;
+  // Only answers to questions this block really asks; the server checks them again.
+  if (s.custom.length && extra.answers) {
+    const a: Record<string, string | string[]> = {};
+    for (const f of s.custom) if (f.key in extra.answers) a[f.key] = extra.answers[f.key];
+    p.answers = a;
+  }
+  if (extra.classCode && s.classCodes.length > 1 && s.classCodes.includes(extra.classCode)) p.classCode = extra.classCode;
   return p;
 }
 

@@ -106,3 +106,36 @@ it("an unpublished thank-you step means not_found, not a return to the holding p
   assert.deepEqual(await submitOrder(raw(pay.id), { clientIp: null, crm }), { kind: "not_found" });
   assert.equal(calls.length, 0);
 });
+
+const multi = { classCode: "", classCodes: ["AI-KL-12", "AI-JB-01"], askCompany: false };
+
+it("multi-intake: the visitor's pick is sent when it is one of the block's classes", async () => {
+  const { pay } = await funnel(multi);
+  const { calls, crm } = fakeCrm();
+  const r = await submitOrder(raw(pay.id, { classCode: "AI-JB-01" }), { clientIp: null, crm });
+  assert.equal(r.kind, "redirect");
+  assert.equal(calls[0].classCode, "AI-JB-01");
+  assert.equal(calls[0].formName, "order:AI-JB-01");
+});
+
+it("multi-intake: a missing or foreign class code is refused and never reaches the CRM", async () => {
+  const { pay } = await funnel(multi);
+  const { calls, crm } = fakeCrm();
+  assert.deepEqual(await submitOrder(raw(pay.id), { clientIp: null, crm }), { kind: "invalid", fields: { classCode: "required" } });
+  assert.deepEqual(await submitOrder(raw(pay.id, { classCode: "EVIL" }), { clientIp: null, crm }), { kind: "invalid", fields: { classCode: "invalid" } });
+  assert.equal(calls.length, 0);
+});
+
+it("order answers reach the CRM as message lines; an HRDC choice sets hrdcIntended", async () => {
+  const custom = [
+    { key: "funding", label: "Funding", kind: "choice", options: ["Self-funded", "HRDC"], hrdcOption: "HRDC", required: true },
+    { key: "pax", label: "Pax", kind: "pax" },
+  ];
+  const { pay } = await funnel({ classCode: "C1", askCompany: false, custom });
+  const { calls, crm } = fakeCrm();
+  await submitOrder(raw(pay.id, { answers: { funding: "HRDC", pax: "5" } }), { clientIp: null, crm });
+  assert.equal(calls[0].message, "Funding: HRDC\nPax: 5");
+  assert.equal(calls[0].hrdcIntended, true);
+  assert.deepEqual(await submitOrder(raw(pay.id), { clientIp: null, crm }), { kind: "invalid", fields: { funding: "required" } });
+  assert.equal(calls.length, 1);
+});

@@ -115,3 +115,54 @@ html.lead-anim [data-anim].in{opacity:1;transform:none}
 .lead-pop-dlg{position:relative;box-sizing:border-box;width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;color:#0a0a0a;border-radius:12px;outline:none}
 .lead-pop-x{position:absolute;top:6px;right:6px;z-index:1;width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.9);color:#0a0a0a;font:400 28px/1 system-ui,sans-serif;cursor:pointer}
 .lead-pop-x:focus-visible{outline:2px solid #0a0a0a;outline-offset:2px}
+
+/* Menu items and buttons that link to a section anchor glide there. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+/* Extra questions: groups of radio buttons / tick boxes. */
+:where(.lead-form) fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+:where(.lead-form) legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+:where(.lead-form) fieldset label {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  font-weight: 400;
+}
+:where(.lead-form) fieldset input[type="radio"],
+:where(.lead-form) fieldset input[type="checkbox"] {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  min-height: 0;
+  accent-color: #3d3d3d;
+}
+:where(.lead-form) .lead-intakes label {
+  padding: 10px 12px;
+  border: 1px solid #c7c7cc;
+  border-radius: 8px;
+  background: #ffffff;
+}
+:where(.lead-form) .lead-intakes label:has(input:checked) {
+  border-color: #0a0a0a;
+}
+:where(.lead-form) .lead-intakes label:has(input:disabled) {
+  opacity: 0.55;
+}

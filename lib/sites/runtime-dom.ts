@@ -48,19 +48,80 @@ function mountForm(host: HTMLElement, kind: "form" | "order") {
   const errs: Record<string, HTMLElement> = {};
   const form = el("div", { className: "lead-form" });
 
-  const info = el("div", { className: "lead-class" });
-  if (kind === "order") {
-    form.append(info);
-    fetch("/api/site/class/" + encodeURIComponent(s.classCode))
+  // Order blocks show the class facts (price, dates, seats). With several
+  // intakes the visitor picks one; the server only accepts the block's own.
+  const classInfo = (code: string, into: HTMLElement, label?: HTMLElement) => {
+    fetch("/api/site/class/" + encodeURIComponent(code))
       .then((r) => (r.ok ? r.json() : null))
       .then((c) => {
         if (!c || typeof c !== "object") return;
-        const status = c.status === "full" ? t(lang, "classFull") : t(lang, c.status === "few_seats" ? "few_seats" : "available");
+        const full = c.status === "full";
+        const status = full ? t(lang, "classFull") : t(lang, c.status === "few_seats" ? "few_seats" : "available");
         const lines = [String(c.name ?? ""), `${t(lang, "dates")}: ${c.startDate ?? ""} – ${c.endDate ?? ""}`, `${t(lang, "price")}: RM ${c.priceMyr ?? ""}`, status];
-        info.replaceChildren(...lines.map((l) => el("div", {}, l)));
+        into.replaceChildren(...lines.map((l) => el("div", {}, l)));
+        if (full && label) {
+          const radio = label.querySelector("input");
+          if (radio) {
+            radio.disabled = true;
+            if (radio.checked) {
+              // A full intake cannot be picked: move to the first one still open.
+              radio.checked = false;
+              const open = label.parentElement?.querySelector<HTMLInputElement>("input:not(:disabled)");
+              if (open) open.checked = true;
+              pickedClass = open?.value ?? "";
+            }
+          }
+        }
       })
       .catch(() => {});
+  };
+  let pickedClass = s.classCodes[0] ?? "";
+  if (kind === "order" && s.classCodes.length > 1) {
+    const group = el("fieldset", { className: "lead-intakes" }, el("legend", {}, t(lang, "intake")));
+    s.classCodes.forEach((code, i) => {
+      const radio = el("input", { type: "radio", name: "classCode", value: code, checked: i === 0 });
+      radio.addEventListener("change", () => (pickedClass = code));
+      const info = el("span", { className: "lead-class" }, code);
+      const label = el("label", {}, radio, info);
+      group.append(label);
+      classInfo(code, info, label);
+    });
+    const err = el("div", { role: "alert" });
+    err.style.color = "#b42318";
+    errs.classCode = err;
+    form.append(group, err);
+  } else if (kind === "order") {
+    const info = el("div", { className: "lead-class" });
+    form.append(info);
+    classInfo(s.classCode, info);
   }
+
+  // Extra questions (settings.custom). Each reads its own answer on submit.
+  const readers: Record<string, () => string | string[]> = {};
+  const custom = (f: (typeof s.custom)[number]) => {
+    const err = el("div", { role: "alert" });
+    err.style.color = "#b42318";
+    errs[f.key] = err;
+    if (f.kind === "choice" || f.kind === "multi") {
+      const boxes = f.options.map((o) => {
+        const input = el("input", { type: f.kind === "choice" ? "radio" : "checkbox", name: f.key, value: o });
+        return { o, input, label: el("label", {}, input, " " + o) };
+      });
+      form.append(el("fieldset", { className: "lead-choice" }, el("legend", {}, f.label), ...boxes.map((b) => b.label)), err);
+      readers[f.key] = () => {
+        const on = boxes.filter((b) => b.input.checked).map((b) => b.o);
+        return f.kind === "choice" ? on[0] ?? "" : on;
+      };
+      return;
+    }
+    const input = f.kind === "address" ? el("textarea", { rows: 3 }) : el("input", { type: f.kind === "pax" ? "number" : "text" });
+    input.name = f.key;
+    input.required = f.required;
+    if (f.kind === "pax" && input instanceof HTMLInputElement) Object.assign(input, { min: "1", max: "500", step: "1", inputMode: "numeric" });
+    inputs[f.key] = input;
+    form.append(el("label", {}, f.label, input), err);
+    readers[f.key] = () => input.value.trim();
+  };
 
   const field = (name: string, type: string, area = false) => {
     const input = area ? el("textarea", { rows: 3 }) : el("input", { type });
@@ -78,6 +139,7 @@ function mountForm(host: HTMLElement, kind: "form" | "order") {
   if (s.fields.includes("company")) field("companyName", "text");
   if (s.fields.includes("jobTitle")) field("jobTitle", "text");
   if (s.fields.includes("message")) field("message", "", true);
+  s.custom.forEach(custom);
 
   const consent = el("input", { type: "checkbox", checked: false });
   const consentErr = el("div", { role: "alert" });
@@ -115,7 +177,9 @@ function mountForm(host: HTMLElement, kind: "form" | "order") {
     status.textContent = t(lang, "sending");
     const v: Record<string, string> = {};
     for (const [k, i] of Object.entries(inputs)) v[k] = i.value.trim();
-    const payload = buildPayload(s, { pageId, formId, idempotencyKey: key, landingUrl: location.href, referrer: document.referrer }, v, consent.checked, token || undefined);
+    const answers: Record<string, string | string[]> = {};
+    for (const [k, read] of Object.entries(readers)) answers[k] = read();
+    const payload = buildPayload(s, { pageId, formId, idempotencyKey: key, landingUrl: location.href, referrer: document.referrer }, v, consent.checked, token || undefined, { answers, classCode: pickedClass });
     let out: Outcome;
     try {
       const r = await fetch(kind === "order" ? "/api/site/checkout" : "/api/site/form", {
@@ -146,6 +210,15 @@ function mountForm(host: HTMLElement, kind: "form" | "order") {
     e.preventDefault();
     const bad = Object.values(inputs).find((i) => i.required && !i.checkValidity());
     if (bad) return void bad.reportValidity();
+    // Required choices (radio / tick-boxes) have no browser tooltip: say it under the question.
+    let missing = false;
+    for (const f of s.custom) {
+      const a = readers[f.key]?.();
+      const empty = errs[f.key] && (f.kind === "choice" || f.kind === "multi") && f.required && (Array.isArray(a) ? !a.length : !a);
+      if (errs[f.key] && (f.kind === "choice" || f.kind === "multi")) errs[f.key].textContent = empty ? t(lang, "choose") : "";
+      missing ||= !!empty;
+    }
+    if (missing) return;
     void submit();
   });
   host.replaceChildren(form);

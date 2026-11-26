@@ -1,9 +1,10 @@
 import { db } from "../sql.ts";
 import { trimUrl } from "../crm/attribution.ts";
 import { fbcFrom, queueCapi } from "./capi.ts";
+import { checkAnswers, withAnswers } from "./answers.ts";
 import { crmRegister, type CrmRegisterInput } from "./crm-api.ts";
 import { PUBLIC_HOST } from "./host.ts";
-import { orderFormSettingsSchema, siteSettingsSchema } from "./model.ts";
+import { orderClassCodes, orderFormSettingsSchema, siteSettingsSchema } from "./model.ts";
 import { landingAndAttribution, whatsappFallback } from "./public-request.ts";
 import { components } from "./publish.ts";
 import { isUuid } from "./stats.ts";
@@ -15,6 +16,8 @@ export type OrderRaw = {
   email: string;
   phone: string;
   companyName?: string;
+  classCode?: string;
+  answers?: unknown;
   consentMarketing: boolean;
   idempotencyKey: string;
   captchaToken?: string;
@@ -38,9 +41,10 @@ export type OrderResult =
   | { kind: "not_found" }
   | { kind: "error"; whatsapp: string | null };
 
-// Asks lead_crm for a Stripe Checkout URL. The class comes from the PUBLISHED
-// checkout page's order element and the return URL is the site's own thank-you
-// step; nothing of either comes from the request.
+// Asks lead_crm for a Stripe Checkout URL. The classes on offer come from the
+// PUBLISHED checkout page's order element and the return URL is the site's own
+// thank-you step. A multi-intake block lets the visitor pick, but only among
+// the block's own classes; anything else is refused.
 export async function submitOrder(
   raw: OrderRaw,
   ctx: { clientIp: string | null; crm?: typeof crmRegister },
@@ -57,6 +61,14 @@ export async function submitOrder(
   const parsed = orderFormSettingsSchema.safeParse(order?.settings);
   if (!order || !parsed.success) return { kind: "not_found" };
   const o = parsed.data;
+  const offered = orderClassCodes(o);
+  let classCode = offered[0];
+  if (offered.length > 1) {
+    classCode = (raw.classCode ?? "").trim();
+    if (!offered.includes(classCode)) return { kind: "invalid", fields: { classCode: classCode ? "invalid" : "required" } };
+  }
+  const answers = checkAnswers(o.custom, raw.answers);
+  if (!answers.ok) return { kind: "invalid", fields: answers.fields };
   const [thanks] = await db()`
     SELECT path FROM sales.site_page WHERE site_id = ${page.site_id} AND kind = 'thank_you' AND active_version_id IS NOT NULL
     ORDER BY position LIMIT 1`;
@@ -66,12 +78,14 @@ export async function submitOrder(
   const { landing, q, attribution } = landingAndAttribution(page.path, raw);
   const input: CrmRegisterInput = {
     idempotencyKey: raw.idempotencyKey,
-    formName: `order:${o.classCode}`,
+    formName: `order:${classCode}`,
     fullName: raw.fullName,
     email: raw.email,
     phone: raw.phone,
     companyName: o.askCompany ? raw.companyName : undefined,
-    classCode: o.classCode,
+    classCode,
+    message: withAnswers(undefined, answers.lines),
+    hrdcIntended: answers.hrdc || undefined,
     consentMarketing: raw.consentMarketing,
     captchaToken: raw.captchaToken,
     returnUrl: `https://${PUBLIC_HOST}${thanks.path}`,

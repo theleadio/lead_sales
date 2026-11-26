@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       companyName: str(b.companyName, 200),
       jobTitle: str(b.jobTitle, 200),
       message: str(b.message, 5000),
+      answers: b.answers,
       consentMarketing: b.consentMarketing === true,
       idempotencyKey: b.idempotencyKey.slice(0, 100),
       captchaToken: str(b.captchaToken, 4000),

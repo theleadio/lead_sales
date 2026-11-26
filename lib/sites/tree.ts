@@ -72,6 +72,11 @@ const sectionSchema = z.object({
   id,
   kind: z.literal("sec"),
   name,
+  // Link target for menu items and buttons: "#pricing" scrolls to this section.
+  anchor: z
+    .string()
+    .regex(/^[a-z][a-z0-9-]{0,39}$/, "use lowercase letters, digits and dashes, starting with a letter")
+    .optional(),
   width: z.enum(["full", "wide", "medium", "small"]),
   bg: color,
   bgImage: safeUrl.optional(),
@@ -102,8 +107,13 @@ export const pageSchema = z
       if (seen.has(id)) ctx.addIssue({ code: "custom", message: `duplicate id ${id}`, path: ["sections"] });
       seen.add(id);
     };
+    const anchors = new Set<string>();
     const walk = (s: z.infer<typeof sectionSchema>) => {
       dup(s.id);
+      if (s.anchor) {
+        if (anchors.has(s.anchor)) ctx.addIssue({ code: "custom", message: `duplicate anchor #${s.anchor}`, path: ["sections"] });
+        anchors.add(s.anchor);
+      }
       for (const r of s.rows) {
         dup(r.id);
         for (const c of r.cols) {

@@ -53,7 +53,7 @@ test("settings parsing rejects malformed JSON and wrong shapes", () => {
   assert.equal(parseSettings('{"askCompany":true}', "order"), null);
   assert.equal(parseSettings('{"classCode":"","askCompany":true}', "order"), null);
   assert.deepEqual(parseSettings('{"fields":["company","evil","message"]}', "form")?.fields, ["company", "message"]);
-  assert.deepEqual(parseSettings('{"classCode":"C1","askCompany":true}', "order"), { fields: ["company"], askCompany: true, classCode: "C1" });
+  assert.deepEqual(parseSettings('{"classCode":"C1","askCompany":true}', "order"), { fields: ["company"], askCompany: true, classCode: "C1", classCodes: ["C1"], custom: [] });
 });
 
 const ids = { pageId: "p", formId: "f", idempotencyKey: "k", landingUrl: "https://ai.thelead.io/x", referrer: "" };

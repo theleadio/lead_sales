@@ -1,6 +1,7 @@
 import { db } from "../sql.ts";
 import { trimUrl } from "../crm/attribution.ts";
 import { fbcFrom, queueCapi } from "./capi.ts";
+import { checkAnswers, withAnswers } from "./answers.ts";
 import { crmLead, type CrmLeadInput } from "./crm-api.ts";
 import { PUBLIC_HOST } from "./host.ts";
 import { formNameFor, leadFormSettingsSchema, pageSlug, siteSettingsSchema, type LeadFormSettings } from "./model.ts";
@@ -17,6 +18,7 @@ export type FormRaw = {
   companyName?: string;
   jobTitle?: string;
   message?: string;
+  answers?: unknown;
   consentMarketing: boolean;
   idempotencyKey: string;
   captchaToken?: string;
@@ -56,6 +58,8 @@ export async function submitForm(
   if (!form || !parsed.success) return { kind: "not_found" };
   const f = parsed.data;
   const site = siteSettingsSchema.safeParse(page.settings);
+  const answers = checkAnswers(f.custom, raw.answers);
+  if (!answers.ok) return { kind: "invalid", fields: answers.fields };
 
   const { landing, q, attribution } = landingAndAttribution(page.path, raw);
 
@@ -67,7 +71,8 @@ export async function submitForm(
     phone: raw.phone,
     companyName: f.fields.includes("company") ? raw.companyName : undefined,
     jobTitle: f.fields.includes("jobTitle") ? raw.jobTitle : undefined,
-    message: f.fields.includes("message") ? raw.message : undefined,
+    message: withAnswers(f.fields.includes("message") ? raw.message : undefined, answers.lines),
+    hrdcIntended: answers.hrdc || undefined,
     preferredLanguage: f.workshop?.language,
     courseInterest: f.courseCode,
     classCode: f.classCode,

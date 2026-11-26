@@ -28,6 +28,18 @@ export const safeUrl = z
   .refine((v) => v === "" || /^(https:|mailto:|tel:|#)/i.test(v) || /^\/(?![/\\])/.test(v), "unsafe URL");
 const img = safeUrl; // image URL, "" = none
 const url = safeUrl;
+// An embedded page must be https (no http:, data: or javascript:).
+const httpsUrl = z
+  .string()
+  .max(2048)
+  .refine((v) => {
+    if (v === "") return true;
+    try {
+      return new URL(v).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "must be an https:// address");
 const imgItem = z.object({ src: img, alt: z.string().max(300) });
 
 const schemas = {
@@ -62,7 +74,22 @@ const schemas = {
     align,
     size: rSchema,
   }),
-  logos: z.object({ items: z.array(imgItem).max(30), height: rSchema }),
+  logos: z.object({
+    items: z.array(imgItem).max(30),
+    height: rSchema,
+    // Scrolls the strip sideways, endlessly. `speed` = seconds per full turn.
+    marquee: z.boolean().optional(),
+    speed: z.number().int().min(10).max(120).optional(),
+  }),
+  // Another page ("url") or a snippet of HTML/JS ("html") shown in a sandboxed
+  // frame that cannot reach this site's cookies, forms or scripts.
+  embed: z.object({
+    mode: z.enum(["url", "html"]),
+    url: httpsUrl,
+    html: z.string().max(100_000),
+    height: z.number().int().min(50).max(3000),
+    title: z.string().max(200),
+  }),
   counter: z.object({
     to: z.number(),
     prefix: z.string().max(20),
@@ -99,6 +126,7 @@ const defaults: Record<ElementType, () => unknown> = {
   "icon-text": () => ({ icon: "check", text: "[Text]", color: "", size: R1(17) }),
   social: () => ({ items: [], align: "center", size: R1(24) }),
   logos: () => ({ items: [], height: R1(40) }),
+  embed: () => ({ mode: "url", url: "", html: "", height: 480, title: "" }),
   counter: () => ({ to: 0, prefix: "", suffix: "", label: "[Label]", size: R1(48, 36), color: "" }),
   slider: () => ({ items: [], autoplay: false }),
   nav: () => ({ items: [], align: "right", color: "" }),

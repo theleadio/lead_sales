@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
       email: str(b.email, 320) ?? "",
       phone: str(b.phone, 50) ?? "",
       companyName: str(b.companyName, 200),
+      classCode: str(b.classCode, 60),
+      answers: b.answers,
       consentMarketing: b.consentMarketing === true,
       idempotencyKey: b.idempotencyKey.slice(0, 100),
       captchaToken: str(b.captchaToken, 4000),

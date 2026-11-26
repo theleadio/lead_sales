@@ -28,6 +28,8 @@ few_seats: "Few seats left",
 classFull: "Full",
 price: "Fee",
 dates: "Dates",
+choose: "Please choose an option.",
+intake: "Choose your intake",
 },
 zh: {
 fullName: "姓名",
@@ -56,6 +58,8 @@ few_seats: "名额不多",
 classFull: "已满",
 price: "费用",
 dates: "日期",
+choose: "请选择一个选项。",
+intake: "请选择梯次",
 },
 };
 
@@ -141,6 +145,25 @@ return p.slice(i + 1).trim();
 return null;
 }
 const OPTIONAL = ["company", "jobTitle", "message"];
+const KINDS = ["text", "choice", "multi", "address", "pax"];
+const isStr = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
+function parseCustom(raw) {
+if (!Array.isArray(raw))
+return [];
+const out = [];
+for (const f of raw.slice(0, 10)) {
+if (!f || typeof f !== "object")
+continue;
+const o = f;
+if (typeof o.key !== "string" || !/^[a-z][a-zA-Z0-9]{0,29}$/.test(o.key) || !isStr(o.label, 120) || !KINDS.includes(o.kind))
+continue;
+const options = Array.isArray(o.options) ? o.options.filter((x) => isStr(x, 100)).slice(0, 20) : [];
+if ((o.kind === "choice" || o.kind === "multi") && !options.length)
+continue;
+out.push({ key: o.key, label: o.label, kind: o.kind, options, required: o.required === true });
+}
+return out;
+}
 function parseSettings(raw, kind) {
 let o;
 try {
@@ -151,16 +174,21 @@ return null;
 }
 if (!o || typeof o !== "object" || Array.isArray(o))
 return null;
+const custom = parseCustom(o.custom);
 if (kind === "order") {
-if (typeof o.classCode !== "string" || !o.classCode || typeof o.askCompany !== "boolean")
+if (typeof o.askCompany !== "boolean")
 return null;
-return { fields: o.askCompany ? ["company"] : [], askCompany: o.askCompany, classCode: o.classCode };
+const many = Array.isArray(o.classCodes) && o.classCodes.length > 0;
+const codes = many ? o.classCodes : [o.classCode];
+if (codes.length > 12 || !codes.every((c) => isStr(c, 60)))
+return null;
+return { fields: o.askCompany ? ["company"] : [], askCompany: o.askCompany, classCode: codes[0], classCodes: codes, custom };
 }
 if (!Array.isArray(o.fields))
 return null;
-return { fields: o.fields.filter((f) => OPTIONAL.includes(f)), askCompany: false, classCode: "" };
+return { fields: o.fields.filter((f) => OPTIONAL.includes(f)), askCompany: false, classCode: "", classCodes: [], custom };
 }
-function buildPayload(s, ids, v, consent, captchaToken) {
+function buildPayload(s, ids, v, consent, captchaToken, extra = {}) {
 var _a, _b, _c, _d, _e, _f;
 const p = {
 ...ids,
@@ -177,6 +205,15 @@ if (s.fields.includes("message"))
 p.message = (_f = v.message) !== null && _f !== void 0 ? _f : "";
 if (captchaToken)
 p.captchaToken = captchaToken;
+if (s.custom.length && extra.answers) {
+const a = {};
+for (const f of s.custom)
+if (f.key in extra.answers)
+a[f.key] = extra.answers[f.key];
+p.answers = a;
+}
+if (extra.classCode && s.classCodes.length > 1 && s.classCodes.includes(extra.classCode))
+p.classCode = extra.classCode;
 return p;
 }
 const STRIPE = "https://checkout.stripe.com/";
@@ -280,7 +317,7 @@ const s = el("script", { src: "https://challenges.cloudflare.com/turnstile/v0/ap
 document.head.append(s);
 })));
 function mountForm(host, kind) {
-var _a;
+var _a, _b;
 const s = parseSettings(host.dataset.settings, kind);
 if (!s)
 return;
@@ -291,21 +328,81 @@ const siteKey = host.dataset.turnstile || document.documentElement.dataset.turns
 const inputs = {};
 const errs = {};
 const form = el("div", { className: "lead-form" });
-const info = el("div", { className: "lead-class" });
-if (kind === "order") {
-form.append(info);
-fetch("/api/site/class/" + encodeURIComponent(s.classCode))
+const classInfo = (code, into, label) => {
+fetch("/api/site/class/" + encodeURIComponent(code))
 .then((r) => (r.ok ? r.json() : null))
 .then((c) => {
-var _a, _b, _c, _d;
+var _a, _b, _c, _d, _e, _f;
 if (!c || typeof c !== "object")
 return;
-const status = c.status === "full" ? t(lang, "classFull") : t(lang, c.status === "few_seats" ? "few_seats" : "available");
+const full = c.status === "full";
+const status = full ? t(lang, "classFull") : t(lang, c.status === "few_seats" ? "few_seats" : "available");
 const lines = [String((_a = c.name) !== null && _a !== void 0 ? _a : ""), `${t(lang, "dates")}: ${(_b = c.startDate) !== null && _b !== void 0 ? _b : ""} – ${(_c = c.endDate) !== null && _c !== void 0 ? _c : ""}`, `${t(lang, "price")}: RM ${(_d = c.priceMyr) !== null && _d !== void 0 ? _d : ""}`, status];
-info.replaceChildren(...lines.map((l) => el("div", {}, l)));
+into.replaceChildren(...lines.map((l) => el("div", {}, l)));
+if (full && label) {
+const radio = label.querySelector("input");
+if (radio) {
+radio.disabled = true;
+if (radio.checked) {
+radio.checked = false;
+const open = (_e = label.parentElement) === null || _e === void 0 ? void 0 : _e.querySelector("input:not(:disabled)");
+if (open)
+open.checked = true;
+pickedClass = (_f = open === null || open === void 0 ? void 0 : open.value) !== null && _f !== void 0 ? _f : "";
+}
+}
+}
 })
 .catch(() => { });
+};
+let pickedClass = (_b = s.classCodes[0]) !== null && _b !== void 0 ? _b : "";
+if (kind === "order" && s.classCodes.length > 1) {
+const group = el("fieldset", { className: "lead-intakes" }, el("legend", {}, t(lang, "intake")));
+s.classCodes.forEach((code, i) => {
+const radio = el("input", { type: "radio", name: "classCode", value: code, checked: i === 0 });
+radio.addEventListener("change", () => (pickedClass = code));
+const info = el("span", { className: "lead-class" }, code);
+const label = el("label", {}, radio, info);
+group.append(label);
+classInfo(code, info, label);
+});
+const err = el("div", { role: "alert" });
+err.style.color = "#b42318";
+errs.classCode = err;
+form.append(group, err);
 }
+else if (kind === "order") {
+const info = el("div", { className: "lead-class" });
+form.append(info);
+classInfo(s.classCode, info);
+}
+const readers = {};
+const custom = (f) => {
+const err = el("div", { role: "alert" });
+err.style.color = "#b42318";
+errs[f.key] = err;
+if (f.kind === "choice" || f.kind === "multi") {
+const boxes = f.options.map((o) => {
+const input = el("input", { type: f.kind === "choice" ? "radio" : "checkbox", name: f.key, value: o });
+return { o, input, label: el("label", {}, input, " " + o) };
+});
+form.append(el("fieldset", { className: "lead-choice" }, el("legend", {}, f.label), ...boxes.map((b) => b.label)), err);
+readers[f.key] = () => {
+var _a;
+const on = boxes.filter((b) => b.input.checked).map((b) => b.o);
+return f.kind === "choice" ? (_a = on[0]) !== null && _a !== void 0 ? _a : "" : on;
+};
+return;
+}
+const input = f.kind === "address" ? el("textarea", { rows: 3 }) : el("input", { type: f.kind === "pax" ? "number" : "text" });
+input.name = f.key;
+input.required = f.required;
+if (f.kind === "pax" && input instanceof HTMLInputElement)
+Object.assign(input, { min: "1", max: "500", step: "1", inputMode: "numeric" });
+inputs[f.key] = input;
+form.append(el("label", {}, f.label, input), err);
+readers[f.key] = () => input.value.trim();
+};
 const field = (name, type, area = false) => {
 const input = area ? el("textarea", { rows: 3 }) : el("input", { type });
 input.name = name;
@@ -325,6 +422,7 @@ if (s.fields.includes("jobTitle"))
 field("jobTitle", "text");
 if (s.fields.includes("message"))
 field("message", "", true);
+s.custom.forEach(custom);
 const consent = el("input", { type: "checkbox", checked: false });
 const consentErr = el("div", { role: "alert" });
 errs.consentMarketing = consentErr;
@@ -362,7 +460,10 @@ status.textContent = t(lang, "sending");
 const v = {};
 for (const [k, i] of Object.entries(inputs))
 v[k] = i.value.trim();
-const payload = buildPayload(s, { pageId, formId, idempotencyKey: key, landingUrl: location.href, referrer: document.referrer }, v, consent.checked, token || undefined);
+const answers = {};
+for (const [k, read] of Object.entries(readers))
+answers[k] = read();
+const payload = buildPayload(s, { pageId, formId, idempotencyKey: key, landingUrl: location.href, referrer: document.referrer }, v, consent.checked, token || undefined, { answers, classCode: pickedClass });
 let out;
 try {
 const r = await fetch(kind === "order" ? "/api/site/checkout" : "/api/site/form", {
@@ -392,10 +493,21 @@ btn.click();
 }
 });
 btn.addEventListener("click", (e) => {
+var _a;
 e.preventDefault();
 const bad = Object.values(inputs).find((i) => i.required && !i.checkValidity());
 if (bad)
 return void bad.reportValidity();
+let missing = false;
+for (const f of s.custom) {
+const a = (_a = readers[f.key]) === null || _a === void 0 ? void 0 : _a.call(readers);
+const empty = errs[f.key] && (f.kind === "choice" || f.kind === "multi") && f.required && (Array.isArray(a) ? !a.length : !a);
+if (errs[f.key] && (f.kind === "choice" || f.kind === "multi"))
+errs[f.key].textContent = empty ? t(lang, "choose") : "";
+missing || (missing = !!empty);
+}
+if (missing)
+return;
 void submit();
 });
 host.replaceChildren(form);

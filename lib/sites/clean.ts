@@ -24,12 +24,26 @@ const TAG_ATTRS: Record<string, string[]> = {
 const URL_ATTRS = new Set(["href", "src"]);
 const SCHEMES = ["https", "mailto", "tel"];
 
+// Video and map players keep the old sandbox (they need their own origin).
 const IFRAME_PREFIXES = [
   "https://www.youtube.com/embed/",
   "https://www.youtube-nocookie.com/embed/",
   "https://player.vimeo.com/video/",
   "https://www.google.com/maps/embed",
 ];
+// Every other frame is an Embed block: any https page, or this site's own
+// embed route (author-written HTML). Those frames get a sandbox WITHOUT
+// allow-same-origin, so the framed page is a stranger to this site: it cannot
+// read cookies, forms or the DOM, and cannot navigate the top page.
+export const EMBED_SANDBOX = "allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation";
+const EMBED_ROUTE = /^\/api\/site\/embed\/[0-9a-f-]{36}\/[A-Za-z0-9_-]{1,80}$/i;
+const hrefOf = (src: string | undefined): string => {
+  try {
+    return new URL(src ?? "").href; // lowercases scheme/host, resolves ..
+  } catch {
+    return "";
+  }
+};
 
 // Strip whitespace/control chars browsers ignore inside a scheme, then check it.
 function urlAllowed(raw: string): boolean {
@@ -103,7 +117,7 @@ export function cleanPage(html: string, css: string): { html: string; css: strin
     ...({ allowedEmptyAttributes: ["alt", "hidden"] } as object), // popups are published as <div hidden>; typings lack this option
     allowedSchemesAppliedToAttributes: ["href", "src"],
     allowProtocolRelative: false,
-    allowedIframeHostnames: ["www.youtube.com", "www.youtube-nocookie.com", "player.vimeo.com", "www.google.com"],
+    allowIframeRelativeUrls: true, // narrowed to the embed route by exclusiveFilter below
     disallowedTagsMode: "discard",
     textFilter: (text, tagName) => (tagName === "iframe" ? "" : text),
     transformTags: {
@@ -128,7 +142,8 @@ export function cleanPage(html: string, css: string): { html: string; css: strin
         }
         if (tag === "a" && out.target) out.rel = "noopener noreferrer";
         if (tag === "iframe") {
-          out.sandbox = "allow-scripts allow-same-origin allow-presentation allow-popups";
+          const player = IFRAME_PREFIXES.some((p) => hrefOf(out.src).startsWith(p));
+          out.sandbox = player ? "allow-scripts allow-same-origin allow-presentation allow-popups" : EMBED_SANDBOX;
           out.referrerpolicy = "strict-origin-when-cross-origin";
         }
         return { tagName, attribs: out };
@@ -136,11 +151,8 @@ export function cleanPage(html: string, css: string): { html: string; css: strin
     },
     exclusiveFilter: (f) => {
       if (f.tag !== "iframe") return false;
-      let href = "";
-      try {
-        href = new URL(f.attribs.src ?? "").href; // lowercases scheme/host, resolves ..
-      } catch {}
-      const ok = IFRAME_PREFIXES.some((p) => href.startsWith(p));
+      const src = f.attribs.src ?? "";
+      const ok = hrefOf(src).startsWith("https://") || EMBED_ROUTE.test(src);
       if (!ok) removed.push("iframe with disallowed src");
       return !ok;
     },

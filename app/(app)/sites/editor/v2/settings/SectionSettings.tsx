@@ -15,6 +15,16 @@ export function SectionGeneral({ sec, dispatch }: Omit<P, "dev">) {
       <Group title="Element">
         <TextField label="Element name" value={sec.name} onCommit={(name) => up({ name })} validate={nameError} />
       </Group>
+      <Group title="Link target">
+        <TextField
+          label="Anchor name"
+          value={sec.anchor ?? ""}
+          onCommit={(v) => up({ anchor: v === "" ? undefined : v })}
+          validate={(v) => (v === "" || /^[a-z][a-z0-9-]{0,39}$/.test(v) ? null : "Use lowercase letters, digits and dashes, starting with a letter")}
+          placeholder="pricing"
+          hint={sec.anchor ? `Menu items and buttons can link here with #${sec.anchor}` : "Name this section so a menu item or button can scroll to it, e.g. #pricing."}
+        />
+      </Group>
       <Group title="Layout">
         <Chips label="Section width" value={sec.width} options={[["full", "Full"], ["wide", "Wide"], ["medium", "Medium"], ["small", "Small"]]} onPick={(width) => up({ width })} />
         <div className="f" role="group" aria-label="Hide on">

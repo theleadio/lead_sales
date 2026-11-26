@@ -14,7 +14,8 @@ import {
 } from "../lib/sites/publish.ts";
 import { closeDb, db } from "../lib/sql.ts";
 import { it, newUser } from "./seed.ts";
-import { el, formPage, orderPage, pageOf, paraPage, setDraftTree } from "./sites-fixtures.ts";
+import { handleEmbed } from "../lib/sites/embed.ts";
+import { col, el, formPage, orderPage, pageOf, paraPage, row, sec, setDraftTree } from "./sites-fixtures.ts";
 
 after(closeDb);
 
@@ -242,4 +243,45 @@ it("getSite says when a live step has draft changes visitors don't see yet", asy
   await setDraftTree(page.id, paraPage("edited"));
   s = (await getSite(m, siteId))!.steps[0];
   assert.deepEqual([s.live, s.changed], [true, true]);
+});
+
+it("a multi-intake order form publishes only when every intake has a class, once each", async () => {
+  const bad = (s: object) => orderPage("o1", { classCode: "", askCompany: false, ...s });
+  for (const [tree, why] of [
+    [bad({ classCodes: ["A", ""] }), /intake with no class/],
+    [bad({ classCodes: ["A", "A"] }), /same class twice/],
+    [bad({ classCodes: ["", ""] }), /no class/],
+  ] as const) {
+    const { m, page } = await setup(true, tree);
+    const r = await publishPage(m, page.id, page.version);
+    assert.equal(r.kind, "refused");
+    assert.match((r as { reasons: string[] }).reasons.join(), why);
+  }
+  const { m, page } = await setup(true, bad({ classCodes: ["A", "B"] }));
+  assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
+});
+
+it("a link to #anchor needs a section with that anchor", async () => {
+  const link = el("nav", { items: [{ label: "Pricing", href: "#pricing" }] });
+  const { m, page } = await setup(true, pageOf(link));
+  const r = await publishPage(m, page.id, page.version);
+  assert.equal(r.kind, "refused");
+  assert.match((r as { reasons: string[] }).reasons.join(), /#pricing/);
+  const withAnchor = { version: 2, popups: [], sections: [sec([row([col([link])])]), sec([row([col()])], { anchor: "pricing" })] };
+  await setDraftTree(page.id, withAnchor);
+  assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
+});
+
+it("an embed publishes as a sandboxed frame, and its html is served from the embed route only", async () => {
+  const { m, page } = await setup(true, pageOf(el("embed", { mode: "html", html: "<script>document.title='x'</script>" }, "e_demo")));
+  assert.equal((await publishPage(m, page.id, page.version)).kind, "ok");
+  const [live] = await db()`SELECT v.html FROM sales.site_page p JOIN sales.page_version v ON v.id = p.active_version_id WHERE p.id = ${page.id}`;
+  assert.match(live.html, new RegExp(`<iframe [^>]*src="/api/site/embed/${page.id}/e_demo"`));
+  assert.doesNotMatch(live.html, /document\.title|allow-same-origin/);
+  const ok = await handleEmbed("ai.thelead.io", page.id, "e_demo");
+  assert.equal(ok.status, 200);
+  assert.match(await ok.text(), /document\.title/);
+  assert.match(ok.headers.get("Content-Security-Policy") ?? "", /^sandbox allow-scripts/);
+  assert.equal((await handleEmbed("ai.thelead.io", page.id, "nope")).status, 404);
+  assert.equal((await handleEmbed("app.thelead.io", page.id, "e_demo")).status, 404);
 });

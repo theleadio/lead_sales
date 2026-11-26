@@ -162,3 +162,21 @@ it("an after-step form returns the live path of the target step, or the message 
   const r = await submitForm({ ...raw(page.id), idempotencyKey: "second-key-12345" }, ctx(fakeCrm().crm));
   assert.deepEqual(r, { kind: "ok", after: { kind: "step", path: steps[2].path } });
 });
+
+it("answers to extra questions are checked against the published form and sent in the message", async () => {
+  const custom = [
+    { key: "funding", label: "Funding", kind: "choice", options: ["Self-funded", "HRDC"], hrdcOption: "HRDC", required: true },
+    { key: "sessions", label: "Sessions", kind: "multi", options: ["Sat", "Sun"] },
+  ];
+  const { page } = await funnel({ form: { type: "interest", fields: ["message"], custom, createDeal: false, after: { kind: "message", text: "ok" } } });
+  const { calls, crm } = fakeCrm();
+  const r = await submitForm(raw(page.id, { message: "Hi", answers: { funding: "HRDC", sessions: ["Sun"], extra: "ignored" } }), { clientIp: null, crm });
+  assert.equal(r.kind, "ok");
+  assert.equal(calls[0].message, "Hi\nFunding: HRDC\nSessions: Sun");
+  assert.equal(calls[0].hrdcIntended, true);
+  for (const answers of [{}, { funding: "Free" }, { funding: "Self-funded", sessions: ["Mon"] }]) {
+    assert.equal((await submitForm(raw(page.id, { answers }), { clientIp: null, crm })).kind, "invalid");
+  }
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].hrdcIntended, true);
+});

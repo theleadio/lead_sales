@@ -21,16 +21,16 @@ const HTML_ATTACKS: [string, string, RegExp, string][] = [
   ["svg script", `<svg><script>alert(1)</script></svg>`, /svg|script|alert/i, "svg tag"],
   ["svg onload", `<svg onload=alert(1)></svg>`, /svg|onload|alert/i, "svg tag"],
   ["math tag", `<math><mi xlink:href="javascript:alert(1)">x</mi></math>`, /math|javascript/i, "math tag"],
-  ["evil iframe", `<iframe src="https://evil.com/x"></iframe>`, /iframe|evil/i, "iframe with disallowed src"],
+  ["iframe http", `<iframe src="http://evil.com/x"></iframe>`, /iframe|evil/i, "iframe with disallowed src"],
+  ["iframe other relative path", `<iframe src="/api/site/checkout"></iframe>`, /iframe|checkout/i, "iframe with disallowed src"],
+  ["iframe protocol-relative", `<iframe src="//evil.com/x"></iframe>`, /iframe|evil/i, "iframe"],
   ["iframe javascript", `<iframe src="javascript:alert(1)"></iframe>`, /iframe|javascript/i, "iframe"],
-  ["iframe lookalike host", `<iframe src="https://www.youtube.com.evil.com/embed/x"></iframe>`, /iframe|evil/i, "iframe"],
   [
     "iframe srcdoc",
     `<iframe src="https://www.youtube.com/embed/x" srcdoc="<script>alert(1)</script>"></iframe>`,
     /srcdoc|alert/i,
     "srcdoc attribute on iframe",
   ],
-  ["iframe wrong path", `<iframe src="https://www.google.com/search?q=x"></iframe>`, /iframe|google/i, "iframe"],
   ["object", `<object data="https://evil/x.swf"></object>`, /object|evil/i, "object tag"],
   ["embed", `<embed src="https://evil/x.swf">`, /embed|evil/i, "embed tag"],
   ["base href", `<base href="https://evil/">`, /base|evil/i, "base tag"],
@@ -135,6 +135,28 @@ test("iframes: forced sandbox/referrerpolicy, children dropped, mixed-case host 
     r.html,
     `<iframe src="https://WWW.YOUTUBE.com/embed/x" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
   );
+});
+
+test("Embed block frames: any https page or the embed route, always without allow-same-origin", () => {
+  const strict = "allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation";
+  const id = "0b1c2d3e-0000-4000-8000-000000000001";
+  for (const src of [
+    "https://example.com/demo",
+    "https://www.youtube.com.evil.com/embed/x", // lookalike of a player host: no player privileges
+    "https://www.google.com/search?q=x",
+    `/api/site/embed/${id}/e_abc123`,
+  ]) {
+    const r = cleanPage(`<iframe src="${src}" sandbox="allow-same-origin allow-top-navigation" srcdoc="<script>1</script>"></iframe>`, "");
+    assert.ok(r.html.includes(`src="${src}"`), r.html);
+    assert.ok(r.html.includes(`sandbox="${strict}"`), r.html);
+    assert.doesNotMatch(r.html, /allow-same-origin|top-navigation|srcdoc/);
+  }
+});
+
+test("Embed route address must be exactly page id + element id", () => {
+  for (const src of ["/api/site/embed/x/y", "/api/site/embed/0b1c2d3e-0000-4000-8000-000000000001/a/b", "/api/site/embed/0b1c2d3e-0000-4000-8000-000000000001/e?x=1"]) {
+    assert.doesNotMatch(cleanPage(`<iframe src="${src}"></iframe>`, "").html, /iframe/, src);
+  }
 });
 
 test("backslash protocol-relative URLs are refused", () => {
