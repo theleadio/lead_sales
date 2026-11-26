@@ -1,0 +1,120 @@
+@/cn/courses/ai-full-stack-building-certification
+~AI 全栈开发认证课｜2027 年 1 月 16 至 17 日（周六、周日）｜9:00am 至 5:00pm｜JB（地点待定）
+~两天实战课程，带你用 AI Vibe Coding 把一个想法做成可以上线的系统。
+~M/6af591729b3d448d8081bd9d.png
+#
+img M/6af591729b3d448d8081bd9d.png
+h1 AI 全栈开发认证课
+h1 AI Full-Stack Building Certification
+h1 有了系统的想法，不必再等工程师排期。
+p 两天动手实操，从设计、开发到部署，带你用 AI Vibe Coding 做出一套能上线的系统。从想法到可以实际使用的网站，过程以小时计算，不用等上几个星期。
+h1 🕘 9:00am 至 5:00pm
+h1 📍 AI365 Hub, Oval Damansara（线下课程）
+h1 2026 年 12 月 14 至 15 日（周一、周二）｜9:00am 至 5:00pm｜Vouk Hotel Suites, Penang（英文班）
+h1 2027 年 1 月 16 至 17 日（周六、周日）｜9:00am 至 5:00pm｜JB (venue TBC) / 新山（地点待定）（中文班 Chinese Class）
+btn 立即报名 https://ai.thelead.io/cn/ai-full-stack-building-certification-payment-form
+#
+h1 这堂课适合谁
+img M/6a36c1f11c5d711b35afdfc8.png
+p <b>创业者与老板</b>
+h2 想做数码产品，却没有技术团队。找服务公司报价不低，等技术合伙人也不知道要等多久。上完这两天，你可以自己做出原型，让客户开始试用。
+p <b>产品经理与业务主管</b>
+h2 你最清楚业务怎么运作，项目却常常卡在排不到工程师。课上会带你动手做内部工具、数据仪表板和应用，让产品进度掌握在自己手上。
+p <b>营销、设计与运营人员</b>
+h2 你知道用户需要什么，也看得出工作流程哪里可以改进。课程会带你用 AI 从设计做到部署，把想法变成客户互动工具或数据追踪表。
+p <b>上班族与专业人士</b>
+h2 想做实用的 AI 产品，又不打算花几年时间学写代码。课程会提供提示词、工具和工作流程，带你把想法做成一个可以打开的网址。
+h2 动手做出来，而不是只听讲
+h2 <b>从零开始做</b>
+p 第一天，你会从空白页面开始制作仪表板，并接上真实数据库。没有现成模板可以套用，你会先设计画面，再用提示词生成初版，接着在下课前连上 Supabase。课程会留出时间让你亲手操作。
+h2 <b>手机版也可以用</b>
+p 你会制作适配手机屏幕的应用和内部工具，设定互动逻辑、接入 API，让产品可以实际使用。成果展示时，同学也能直接拿手机试一试。
+h2 <b>完成线上部署</b>
+p 你会学习使用 React 或 NuxtJS 等框架，把想法做成可以运行的系统；也会接触 API、域名注册、DNS 和 SSL 设置。平时向 IT 申请后可能要等几个月的内部系统，这次可以在周末亲手部署出来。
+#
+h2 两天，从第一个作品到正式上线
+h1 <b>第一天：巩固基础，做出第一个作品</b>
+ul <b><i>AI Agentic Engineering 入门：</i></b><i>了解 Vibe Coding 的基本思路、大语言模型（LLM）能做什么，以及如何选择合适的工具。</i>‖<i>实战制作仪表板：制作一个连接数据库、能适应不同屏幕的仪表板，例如销售追踪表。</i>‖<i>UI / UX 与数据库基础：用 AI 工具调整界面设计，学习 SQL，并把 Supabase 接成后台数据库。</i>‖<i>内部小工具：开发处理特定任务的小工具，并制作一个供营销团队使用的客户互动工具。</i>‖<i>手机版应用：用 Vibe Coding 以手机优先的方式开发应用，例如面向客户的询问表单。</i>‖<i>互动小产品：为产品加入互动逻辑和游戏化机制。</i>
+img M/6a36bea70a683b64fe2d9153.png
+h1 <b>第二天：把作品部署上线</b>
+ul <b><i>认识开发框架：学习如何用 Vibe Coding 运用 NextJS、ReactJS 等生产级框架。</i></b>‖<b><i>API、域名与正式上线：创建并测试 API，注册域名、设置 DNS 和 SSL，再把系统部署到正式环境。</i></b>‖<b><i>进阶网格布局：学习 CSS Grid 和复杂内容版面的处理方式，并升级第一天做出的作品。</i></b>‖<b><i>示范与教练指导：学习进阶内容，包括生成式视觉效果，以及 Three.js 3D 入门。</i></b>‖<b><i>Hyperframe 界面：把多个系统整合到同一个界面中。</i></b>‖<b><i>成果展示：展示已经部署的系统，听取同学反馈和讲师点评。</i></b>
+h2 你会学到什么
+img M/69d3d28d5540c736d001087d.png
+p <b>把想法变成工具</b>
+p <b>仅用提示词，把想法一步步做出来。借助 AI Vibe Coding 工具和集成开发环境，即使不手写代码，也能开发前端、后端和数据库。</b>
+img M/69d3d338ab6eae3626766be1.png
+p <b>连接数据库和 API</b>
+p <b>学习 SQL，把 Supabase 接成实时后台；再搭建和测试 API，让应用能处理真实数据、开放实际功能。</b>
+img M/69d3d399fa2dde97427fdbe6.png
+p <b>使用常见开发框架</b>
+p <b>接触 React、NuxtJS 等主流框架和 CSS Grid，制作能互动、适用于手机和电脑的应用。</b>
+img M/69d3d33fbec7abdef1100ab3.png
+p <b>把系统部署上线</b>
+p <b>注册域名、设置 DNS 和 SSL，再通过 Netlify 等托管服务部署系统。课程结束时，你做出的全栈系统会有自己的网址，并能在线运行。</b>
+#
+h1 学员作品
+media https://autocare-seheduler-v2.netlify.app/
+h3 AutoCare Scheduler
+p A car service booking and customer data collection system that automatically generates appointment confirmations, greatly reducing manual communication overhead.
+media https://rsvp-form-kenny.netlify.app/
+h3 L'Ambroisie RSVP
+p A reservation and customer request management page that supports WhatsApp instant bookings, making it easy for restaurants to manage daily guests.
+media https://customteequoter.netlify.app/
+h3 PrintPro Express
+p An automated custom apparel quoting and ordering tool that quickly generates price proposals so customers get quotes instantly and businesses save time.
+media https://menu-decoder-nine.vercel.app/
+h3 Menu Decoder
+p An AI menu scanning and translation app — take a photo to understand dishes, so you never have to worry about unreadable menus when traveling abroad.
+#
+h2 课程详情
+h2 主要使用工具
+logos https://storage.googleapis.com/msgsndr/szVYTdKpbjBJvbLHEDmm/media/69871c862dd985f908a5fec0.png,https://storage.googleapis.com/msgsndr/szVYTdKpbjBJvbLHEDmm/media/69871c865f9399617eb27db8.png,https://storage.googleapis.com/msgsndr/szVYTdKpbjBJvbLHEDmm/media/69871c860708e4c94840d09d.png,https://files.leadconnectorhq.com/file/6af402eebd36322ae2247d10/claude-logo.png
+h2 选择适合你的报名方案
+h3 <b>自费报名</b>
+p 与 LEAD 一起，开启你的 AI 全栈开发之旅
+price RM 3,200
+h2 另加 8% SST
+ul 两天线下密集培训‖完整课程资料、工具与模板‖结业证书‖课后三个月 WhatsApp 群，帮助解答疑惑‖可回来参加复习课
+btn 立即报名 https://ai.thelead.io/cn/ai-full-stack-building-certification-payment-form
+h3 <b>HRDC 津贴报名</b>
+p 用公司的 HRDC 津贴提升技能
+price RM 3,500
+h2 另加 8% SST
+ul 两天线下密集培训‖完整课程资料、工具与模板‖结业证书‖课后三个月 WhatsApp 群，帮助解答疑惑‖可回来参加复习课
+h3 <b>认证课 + 一对一教练</b>
+p 在个人化辅导下加速进步
+price RM 9,250
+h2 +8% SST
+ul 认证课的全部内容‖为你制定职业与 AI 技能发展路线图‖4 节 30 分钟的一对一教练课，由 Dr. Lau 刘哲涵博士或 Edmund 许哲东亲自带领‖一整年的实战落地指导
+btn 电邮咨询 mailto:support@thelead.io
+#
+h1 常见问题
+faq 我需要编程背景吗？ 不需要。该课程专为从未编写过代码的人设计。你将学习如何使用自然语言与 AI 协作来描述你想要构建的内容，AI 会承担技术实现。重要的是你有清晰的想法和愿意尝试的态度。
+faq 我需要带什么？ 请携带一台可上网的笔记本电脑（Mac 或 Windows）和充电器。我们会在研讨会前提供完整的工具清单，确保你的账户在第一天开始前已准备就绪。其余事项由我们安排。
+faq 研讨会结束后我会有可展示的真实项目吗？ 当然可以。你将带走多个已部署并在互联网上可访问的真实项目，拥有真实的网址。这些不是仅存在于本地的模型或练习，而是你亲自构建的可运行产品，可以从第二天起与雇主、客户或相关方分享。
+faq 此课程可以通过 HRDC 报销吗？ 是的，本课程对于所有符合条件的马来西亚公司可 100% 申报 HRDC。我们会提供所有必要的文件。如需更多 HRDC 咨询，欢迎通过 WhatsApp 联系我们： <a href="https://wa.me/60182777989">+6018-2777 989</a>
+faq 会颁发证书吗？ 会的，评估将基于你在课堂中的参与度以及你在最终小组陈述中的贡献。
+faq 研讨会结束后有后续支持吗？ 会的。每位参与者在研讨会结束后可获得为期三个月的专属 WhatsApp 社区访问权限。你可以在社区中提问、验证想法、获得培训师和协助员的反馈，并与经历过同一课程的更多建设者一起学习。
+#
+h1 LEAD 科技学院培训师
+img M/69b3b3d8277ba0de57c105d3.png
+h3 <b>刘哲涵博士 Dr. Lau Cher Han</b>
+p 本AI 氛围编程认证课是由刘哲涵博士（AI工程师、首席数据科学家及LEAD 科技学院创始人）设计并主导。
+p 刘博士是深受欢迎的AI、数据科学与新兴技术培训师，拥有为OCBC Bank、TNB、Intel、IBM、Dell、PLUS、Shell及F&amp;N等机构与个人培训的丰富经验。
+p 仅在2025年，他就为200多家机构培训了超过1,200名专业人士，帮助他们采用AI技术并实施实际的自动化解决方案。
+p 了解更多关于刘哲涵博士的信息： <a href="https://www.linkedin.com/in/drhanlau/">LinkedIn</a> · <a href="https://www.facebook.com/drhanlau">Facebook</a>
+img M/69b3b562bfc81f5e38dffbf9.png
+h3 许哲东 <b>Edmund Hee</b>
+p Edmund 是一位兼具首席技术官（CTO）与数据科学家身份的专业人士，在 AirAsia 及多家科技创业公司拥有丰富经验。
+p 在 LEAD，他设计并提供实践导向的课程，包括 Data Science 360、AI Engineering、AI Automation 以及 AI Analytics Certification，与 Dr. Lau 共同授课。
+p 凭借企业与创业公司的丰富经验，Edmund 为每堂课带来实用的真实案例与见解。他曾为 JPAN Sabah、MaGIC、Hitachi 和 UTHM 等组织培训团队。
+p 了解更多关于 Edmund 的信息： LinkedIn
+#
+form AI 全栈开发登记表
+p 提交表格后，课程协调员会通过 WhatsApp 联系你。
+p 请提供以下信息以便进行 HRDC 申请处理。
+h2 <b>两天，从想法开始，做出可以上线的 AI 产品。</b>
+p 有了点子，却一直没开始？这两天就从实际操作开始，逐步把系统做出来并部署上线。离开教室时，你会带着一个已经在线运行的全栈应用。
+p 这两天你会亲手完成：
+ul 仅用提示词，把想法一步步做出来。‖用 AI Vibe Coding 工具搭建前端、后端和数据库。‖连接 Supabase 等真实数据库，并编写 API 处理真实数据‖使用 Netlify 和自己的域名部署系统，让别人也能使用。‖向全班展示已经部署好的全栈系统。
+p 你会亲手走过 Vibe Coding 的开发流程，带走已部署的项目和结业证书，也会更清楚下一步可以怎么继续做。

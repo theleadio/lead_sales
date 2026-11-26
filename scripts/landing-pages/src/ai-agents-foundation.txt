@@ -1,0 +1,108 @@
+@/ai-agents-foundation
+~AI Agents Foundation | 9AM – 5PM | HRDC Claimable
+~Build your AI team in 2 days. HRDC-claimable AI course for beginners in Kuala Lumpur: content, data, automation and vibe coding. No coding needed.
+~M/6accb817412f76b52682e23d.png
+#
+p <b>AI AGENTS FOUNDATION</b> · Start here if you're new to AI
+h1 Build your AI team.
+p Four AI agents that write your content, analyse your data, build your web pages and handle your routine tasks. Learn to set them up in 2 days, from zero. No coding required.
+btn Reserve Your Seat #pay
+p AI365 Hub, Oval Damansara · 9AM-5PM · HRDC Claimable
+p <b>2 days</b> hands-on, in person · <b>4</b> AI agents, one team · <b>3 months</b> implementation support · <b>0</b> coding experience needed
+img M/6acca587195f9172ed64d1c1.png AI Agents Foundation: you as the manager of four agents. Day 1: Builder and Content agents. Day 2: Data and Automation agents.
+#
+h2 Be honest. Does this sound like you?
+ul I use ChatGPT to rewrite emails. That's about it.‖People at work talk about “AI agents” and I just nod along.‖I've saved dozens of AI videos. I haven't tried a single one.‖I'm not technical. The word “code” makes me close the tab.‖There are 100 AI tools out there. I don't know which one to start with.‖I spend hours on reports, posts and copy-pasting that a machine could probably do.‖I worry I'm falling behind, and AI keeps moving faster.
+p Nodding along to even one? That's you. And that's exactly who this course was built for.
+p You don't need to be technical. You need someone to show you, step by step, with a trainer beside you for 2 days.
+h3 What changes in 2 days
+ul <b>Before:</b> ChatGPT for the odd email → <b>After 2 days, Content Agent:</b> drafts your week of posts, with visuals‖<b>Before:</b> hours lost in spreadsheets → <b>After 2 days, Data Agent:</b> finds what changed and why, in minutes‖<b>Before:</b> the same task, every single week → <b>After 2 days, Automation Agent:</b> does it for you, on its own‖<b>Before:</b> “I can't build a website” → <b>After 2 days, Builder Agent:</b> a live page with a link you can share
+#
+h2 Four agents. One team.
+p Not four separate tools. Four agents that hand work to each other, so what one produces, the next one uses. Together, they form your AI Operating System.
+img M/6acca587c478ac5535bd59c4.png AI content generation: text, image and video
+h3 Content Agent: your marketer
+p “Turn this product brief into a week of social posts, with visuals.”
+p AI drafts the copy in your voice, generates matching images, voice-overs and short-form video, ready for you to review. <i>brief → copy → images → video</i>
+img M/6acca586bbad531ac8a62236.png AI data analysis: charts and dashboards
+h3 Data Agent: your analyst
+p “Here's last quarter's sales sheet. What changed, and why?”
+p AI surfaces the patterns and anomalies, you verify every number, and it becomes a chart and a one-slide summary. <i>spreadsheet → insights → verify → dashboard</i>
+img M/6acca587bd6bb710ca61a615.png AI automation: a workflow with a gear
+h3 Automation Agent: your operations assistant
+p “Every time an invoice hits my inbox, file it and log it.”
+p You build an n8n workflow that reads each invoice, files it in Drive and updates the sheet. Then it runs on its own. <i>Gmail → n8n → Drive → Sheets</i>
+img M/6acca587bd6bb710ca61a60f.png Vibe coding: a code editor window
+h3 Builder Agent: your web developer
+p “Build me a booking page for my car service shop.”
+p You describe it in plain words. AI writes the code, and you publish a working page with a link you can share the same day. <i>idea → Claude → live on Netlify</i>
+logos M/6accb81a04f87896a9fe39b8.png,M/6accb81786f34749122b942b.png
+h2 Meet your agents: create and build
+p AI fundamentals (model choice, prompting, verification) → vibe coding a real web page or tool, published live with Netlify → AI content, image and video production.
+h2 Analyse, automate and integrate
+p Working with business data (patterns, anomalies, verification) → turning analysis into charts and dashboards → building automations with n8n → connecting all four agents into one working team (your AI Operating System).
+#
+h2 Real projects, built in LEAD classrooms.
+p Not screenshots from a vendor's website. These are working systems our students built with the same tools you'll use, one for each agent on your AI team.
+img M/6acca589bbad531ac8a62270.webp n8n workflow generating a cartoon image from a topic with Google Imagen
+h3 Content Marketing Automation
+img M/6acca589195f9172ed64d214.webp Invoices and receipts automatically filed into a Google Drive folder
+h3 Invoice Archiving + Report Generation
+img M/6acca589bbad531ac8a6227c.webp n8n AI agent with chat memory answering questions
+h3 Internal Knowledge Base Chatbot
+img M/6acca58abd6bb710ca61a66e.webp Automated follow-up emails generated in Gmail
+h3 Customer Onboarding Automation
+img M/6acca58abd6bb710ca61a67e.png Illustration of a customer with a declining trend and a warning sign
+h3 Customer Churn Prediction Model
+img M/6acca58a4770fb500b07cce0.png Illustration of a chatbot answering questions about a database and charts
+h3 AI-Assisted Data Interrogation
+img M/6acca58cbbad531ac8a622ba.jpg AutoCare Scheduler: a car service booking page
+h3 AutoCare Scheduler
+img M/6acca58cbbad531ac8a622ca.jpg L'Ambroisie restaurant reservation site
+h3 L'Ambroisie RSVP
+img M/6acca58cc478ac5535bd5a1d.jpg Bijak Home smart home design consultancy website
+h3 Bijak Home
+img M/6acca58cc478ac5535bd5a29.jpg Menu Decoder AI menu scanning app
+h3 Menu Decoder
+p Projects from LEAD's AI Agentic Automation, AI for Data Science and AI Full-Stack Bulding certification cohorts.
+h3 This page you're reading was vibe coded by someone on our team who doesn't know how to code.
+p Built with the Builder Agent you'll set up on Day 1.
+h2 Why not just watch YouTube tutorials?
+p Tutorials teach isolated tricks. This shows you how to build a team of AI agents that work together, taught by people who build them for a living.
+#
+img M/6acca58d195f9172ed64d268.jpg Dr. Lau Cher Han presenting to a class
+h2 Meet your trainers
+h3 Dr. Lau Cher Han
+p A highly sought-after trainer in AI, data science and emerging technology, with a track record of training leaders and teams from OCBC Bank, TNB, Intel, IBM, Dell, PLUS, Shell and F&amp;N. In 2025 alone, he trained 1,200+ professionals across more than 200 organisations.
+img M/6acca58e195f9172ed64d27b.jpg Edmund Hee speaking at a LEAD event
+h3 Edmund Hee
+p Brings extensive experience from AirAsia and multiple tech startups. At LEAD, he designs and delivers hands-on programmes in Data Science 360, AI Engineering, AI Automation and AI Analytics, co-trained with Dr. Lau. He has trained teams at JPAN Sabah, MaGIC, Hitachi and UTHM.
+h2 3 months of implementation support after you leave the room.
+p Your AI team keeps growing after class. For three months, you'll add agents and take on more of your role, with group support.
+#
+h2 Pick your date and language.
+p Same programme, same trainers, same 3 months of support. Choose the cohort that fits your schedule.
+h3 English: coming soon
+p Dates TBA · 9am-5pm, both days · AI365 Hub, Oval Damansara, TTDI
+btn Register Interest https://thelead.io/program
+h3 Chinese: Wed–Thu, 20–21 Jan 2027
+p 9am–5pm, both days · AI365 Hub, Oval Damansara, TTDI
+btn Sign Up Now #pay
+p More dates coming. Want this for your team? Ask us about an in-house cohort at <a href="mailto:hi@thelead.io">hi@thelead.io</a>.
+h2 Seats now open
+p Both options include: 2 full days of in-person training · all four agent modules · complete programme materials &amp; templates · certificate of completion · 3 months of implementation group support
+h3 Self-funded: build your first AI team
+p <b>Launch price promo</b>
+price RM 3,200 → RM 2,700
+p +8% SST
+btn Sign Up Now #pay
+h3 HRDC-claimable: upskill with your company's HRDC grant
+p <b>Launch price promo</b>
+price RM 3,500 → RM 3,000
+p +8% SST
+btn Fill Up Form #form
+h2 Questions beginners actually ask
+faq I've never written a line of code, can I really do this? Yes. No coding, technical or data background is required. The programme is hands-on and built for beginners from the ground up.
+faq What happens after the 2 days end? You get 3 months of implementation group support to keep building, troubleshoot and expand what you started in class.
+faq Is this the same as LEAD's other certifications? No. This is the beginner foundation, where you build four kinds of agents across content, data, automation and vibe coding.
+faq Is it HRDC claimable? Yes, it's HRDC claimable. Check with your company's HR on how to claim from your training fund.

@@ -1,0 +1,59 @@
+@/cn/workshop/vibe-coding-mastery
+~AI Vibe Coding 实战课 | 2026年 10月 25日 (日) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara | LEAD
+~一天实战课，教你使用市面上最强大的氛围编程（Vibe Coding）工具，快速制作原型、上线并部署 AI 产品。专为想亲手打造、而不只是旁观的创办人、管理者与专业人士设计。
+~M/6abcbac3dbed623a52fd2f77.png
+#
+img M/6abcbac3dbed623a52fd2f77.png
+img M/6abb7c9cdf795f5ccc7a9d7c.png
+h1 <b>零编程基础，也能亲手打造真正能用的 AI 应用</b>
+p 一天实战课，教你使用市面上最强大的氛围编程（Vibe Coding）工具，快速制作原型、上线并部署 AI 产品。专为想亲手打造、而不只是旁观的创办人、管理者与专业人士设计。
+h1 2026年 10月 25日 (日) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara (线下课)
+btn 立即报名 https://ai.thelead.io/ai-vibe-coding-mastery-payment-form
+#
+h1 谁应该参加？
+img M/6a26e0a2f607d4002bcf206e.png
+p <b>创办人与高层管理者</b>
+p 你想推出新产品，却不想为了一个开发团队或一名新员工等上好几个月。这一天，你将亲手做出能运行的原型，用真实用户测试，不再让开发排期决定公司能做什么。
+p <b>经理 / 专业人士</b>
+p 无论你在市场营销、运营、人力资源还是任何业务部门，你都将学会自己做出平时要等 IT 好几周的内部工具、仪表板和原型，并在向上面申请预算之前先验证想法行得通。
+p <b>自由职业者与数字顾问</b>
+p 你现在按小时收费，一停下来收入就断了。学会打造可以反复出售的产品，把你为客户积累的专业能力，变成一条不依赖你时间的收入来源。
+p <b>转行人士</b>
+p 没有计算机科学学位，也没有正式的编程背景，但你想真正踏入科技行业。这一天结束时，你将带走一组自己亲手开发并上线的真实应用，以及向雇主证明你能交付的作品。
+h1 您将学到什么？
+img M/6a26dc69d91f654725ad172f.png
+h3 1. 掌握 AI 氛围编程开发环境（IDE）
+p 亲手上手直观的低代码与无代码 AI 开发环境，专为速度与创意打造。你将在不同工具之间流畅切换，把想法快速变成成品，而不必卡在繁琐的环境配置上。
+img M/6a26dc6926c33f70fcbf4b62.png
+h3 2. 应用最佳实践
+p 学习 AI 辅助开发的核心习惯，包括提示词设计、模块化思维与版本控制。这些原则让你的作品保持简洁、有创意，并随时可以扩展。
+img M/6a26dc69da24932f12616013.png
+h3 3. 开始快速制作原型
+p 快速把概念变成真实、可测试的产品。你将用 AI 即时生成代码、内容与逻辑，在几小时内（而非数周）做出可运行的原型。
+img M/6a26dc6949e55f8519b1b951.png
+h3 4. 学会上线部署
+p 使用 Netlify、云函数等现代部署工具，把你的作品正式上线。你将交付拥有真实网址、任何人都能打开使用的真实项目。
+#
+h1 关键技术
+logos M/69cce5d866c8fc9a01d9b766.png,M/6a24cb596a06f03d448dd50e.jpg,M/6abcdbf4dbed623a52008b6d.png,M/6a24cbe0da24932f12412128.jpg
+h2 课程费用
+h3 课程价格
+p AI Vibe Coding 实战课
+price RM 680.00
+p +8% SST
+ul 1 天线下实战课‖2026年 10月 25日‖9:00 AM - 5:00 PM‖AI365 Hub, Oval Damansara‖已包含午餐
+btn 立即报名 https://ai.thelead.io/ai-vibe-coding-mastery-payment-form
+h3 可申请HRDC
+p AI Vibe Coding 实战课
+price RM 880.00
+p +8% SST
+ul 1 天线下实战课‖2026年 10月 25日‖9:00 AM - 5:00 PM‖AI365 Hub, Oval Damansara‖已包含午餐
+btn 询问详情 #form
+#
+h1 LEAD 科技学院导师
+img M/69b3b3d8277ba0de57c105d3.png
+h3 <b>刘哲涵博士 Dr. Lau Cher Han</b>
+p 本AI Vibe Coding 实战课是由刘哲涵博士（AI工程师、首席数据科学家及LEAD 科技学院创始人）设计并主导。
+p 刘博士是深受欢迎的AI、数据科学与新兴技术培训师，拥有为OCBC Bank、TNB、Intel、IBM、Dell、PLUS、Shell及F&amp;N等机构与个人培训的丰富经验。
+p 仅在2025年，他就为200多家机构培训了超过1,200名专业人士，帮助他们采用AI技术并实施实际的自动化解决方案。
+p 了解更多关于刘哲涵博士的信息： <a href="https://www.linkedin.com/in/drhanlau/">LinkedIn</a> · <a href="https://www.facebook.com/drhanlau">Facebook</a>
