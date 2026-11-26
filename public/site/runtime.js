@@ -65,11 +65,12 @@ const FIRST = "lead_first_touch";
 const LAST = "lead_last_touch";
 const KEYS = [
 ["utmSource", "utm_source", 200], ["utmMedium", "utm_medium", 200], ["utmCampaign", "utm_campaign", 200],
-["utmContent", "utm_content", 200], ["utmTerm", "utm_term", 200], ["gclid", "gclid", 200],
+["utmContent", "utm_content", 200], ["utmTerm", "utm_term", 200],
+["utmId", "utm_id", 200], ["utmAdId", "utm_ad_id", 200], ["gclid", "gclid", 200],
 ["fbclid", "fbclid", 500], ["gbraid", "gbraid", 200], ["wbraid", "wbraid", 200],
 ["liFatId", "li_fat_id", 200], ["ttclid", "ttclid", 200],
 ];
-const KEEP = /^(utm_[a-z]+|gclid|fbclid|gbraid|wbraid|li_fat_id|ttclid)$/;
+const KEEP = /^(utm_[a-z_]+|gclid|fbclid|gbraid|wbraid|li_fat_id|ttclid)$/;
 function trimUrl(raw) {
 if (!raw)
 return null;

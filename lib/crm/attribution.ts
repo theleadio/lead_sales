@@ -52,6 +52,10 @@ export type Touch = {
   utmCampaign: string | null;
   utmContent: string | null;
   utmTerm: string | null;
+  // Meta's {{campaign.id}} (utm_id) and an explicit ad id (utm_ad_id). Kept in
+  // the touch so they survive a move to another page before the form.
+  utmId: string | null;
+  utmAdId: string | null;
   gclid: string | null;
   fbclid: string | null;
   // O61. Google sends gbraid / wbraid instead of gclid for iOS clicks;
@@ -81,7 +85,7 @@ export function trimUrl(raw: string | null | undefined): string | null {
     u.password = "";
     u.hash = "";
     for (const k of [...u.searchParams.keys()])
-      if (!/^(utm_[a-z]+|gclid|fbclid|gbraid|wbraid|li_fat_id|ttclid)$/.test(k))
+      if (!/^(utm_[a-z_]+|gclid|fbclid|gbraid|wbraid|li_fat_id|ttclid)$/.test(k))
         u.searchParams.delete(k);
     return u.toString().slice(0, 500);
   } catch {
@@ -115,6 +119,8 @@ export function touchFrom(
     utmCampaign: p("utm_campaign"),
     utmContent: p("utm_content"),
     utmTerm: p("utm_term"),
+    utmId: p("utm_id"),
+    utmAdId: p("utm_ad_id"),
     gclid: p("gclid"),
     fbclid: p("fbclid", 500),
     gbraid: p("gbraid"),
@@ -169,6 +175,8 @@ export function parseTouch(raw: string | null | undefined): Touch | null {
       utmCampaign: s("utmCampaign"),
       utmContent: s("utmContent"),
       utmTerm: s("utmTerm"),
+      utmId: s("utmId"),
+      utmAdId: s("utmAdId"),
       gclid: s("gclid"),
       fbclid: s("fbclid", 500),
       gbraid: s("gbraid"),
@@ -195,6 +203,8 @@ export const hasCampaign = (t: Touch): boolean =>
     t.utmCampaign ||
     t.utmContent ||
     t.utmTerm ||
+    t.utmId ||
+    t.utmAdId ||
     t.gclid ||
     t.fbclid ||
     t.gbraid ||
@@ -259,6 +269,8 @@ export function attributionPayload(
     utmCampaign: current.utmCampaign,
     utmContent: current.utmContent,
     utmTerm: current.utmTerm,
+    utmId: current.utmId,
+    utmAdId: current.utmAdId,
     gclid: current.gclid,
     fbclid: current.fbclid,
     gbraid: current.gbraid,

@@ -27,8 +27,10 @@ export function landingAndAttribution(
   const attribution = {
     ...attributionPayload(first, last),
     landingUrl: trimUrl(landing.href), // the page the form is on, which the stats match on
-    utmId: q.get("utm_id")?.slice(0, 200) || null,
-    utmAdId: q.get("utm_ad_id")?.slice(0, 200) || null,
+    // This page's own tags first, then the stored touch's (a visitor who
+    // landed with them and moved to another page before the form).
+    utmId: q.get("utm_id")?.slice(0, 200) || (last ?? first)?.utmId || null,
+    utmAdId: q.get("utm_ad_id")?.slice(0, 200) || (last ?? first)?.utmAdId || null,
   } as NonNullable<CrmLeadInput["attribution"]>;
   return { landing, q, attribution };
 }
