@@ -219,8 +219,23 @@ function General({ el, c }: { el: Element; c: C }) {
           <ImageList c={c} title="Logos" many="Logo" />
           <Group title="Look">
             <RSlider label="Logo height" r={p.height} dev={dev} min={16} max={160} unit="px" onChange={(height) => set({ height })} />
+            <Chips label="Animation" value={p.marquee ? "on" : "off"} options={[["off", "Still"], ["on", "Scrolling marquee"]]} onPick={(v) => set({ marquee: v === "on" })} />
+            {p.marquee && <SliderField label="Seconds per turn (higher = slower)" value={p.speed ?? 40} min={10} max={120} unit="s" onCommit={(speed) => set({ speed })} />}
           </Group>
         </>
+      );
+    case "embed":
+      return (
+        <Group title="Embed">
+          <Chips label="Show" value={p.mode} options={[["url", "A web page"], ["html", "Custom HTML"]]} onPick={(mode) => set({ mode })} />
+          {p.mode === "url" ? (
+            <TextField label="Page address (https)" value={p.url} onCommit={(url) => set({ url })} validate={httpsOnlyError} placeholder="https://" hint="The site must allow itself to be shown in a frame." />
+          ) : (
+            <TextField label="HTML, CSS and JavaScript" multiline rows={10} mono value={p.html} onCommit={(html) => set({ html })} hint="Runs on the live page in an isolated frame: it cannot touch this page, its forms or cookies. Scripts do not run in the preview." />
+          )}
+          <SliderField label="Height" value={p.height} min={50} max={3000} unit="px" onCommit={(height) => set({ height })} />
+          <TextField label="Title (for screen readers)" value={p.title} onCommit={(title) => set({ title })} />
+        </Group>
       );
     case "slider":
       return (

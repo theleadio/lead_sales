@@ -3,10 +3,63 @@
 // LEAD form and order form settings. The draft is validated against the real
 // schemas on every change: invalid settings show inline errors and are never
 // committed. Labels are the old editor's.
+import { fromLines, toLines } from "@/lib/sites/editor-settings";
 import { isRealDate, workshopFormName } from "@/lib/sites/workshop-name";
-import { leadFormSettingsSchema, orderFormSettingsSchema, type LeadFormSettings, type OrderFormSettings } from "@/lib/sites/model";
+import { leadFormSettingsSchema, orderFormSettingsSchema, type CustomField, type LeadFormSettings, type OrderFormSettings } from "@/lib/sites/model";
 import type { ClassOpt, StepInfo } from "../types";
-import { ErrText, Group, InputField, SelectField, Toggle, useDraft } from "./controls";
+import { ErrText, Group, InputField, ListEditor, SelectField, TextField, Toggle, useDraft } from "./controls";
+
+const KIND_LABEL: [CustomField["kind"], string][] = [
+  ["choice", "Pick one (choice)"], ["multi", "Pick several (tick boxes)"], ["text", "Short answer"], ["address", "Address"], ["pax", "Number of people (pax)"],
+];
+const HRDC_FIELD: CustomField = { key: "funding", label: "How will the fee be paid?", kind: "choice", options: ["Self-funded", "Company-sponsored (HRDC claimable)"], hrdcOption: "Company-sponsored (HRDC claimable)", required: true };
+const freshKey = (list: CustomField[]) => {
+  for (let i = list.length + 1; ; i++) if (!list.some((f) => f.key === `q${i}`)) return `q${i}`;
+};
+
+// Extra questions on a form or order block. Answers go to the CRM in the lead's
+// message; a choice can also mark the lead as HRDC-intended.
+function CustomFieldsBlock({ custom, onChange }: { custom: CustomField[]; onChange: (c: CustomField[]) => void }) {
+  return (
+    <Group title="Extra questions">
+      <ListEditor
+        label="Extra questions"
+        itemLabel="Question"
+        items={custom}
+        onChange={onChange}
+        blank={(): CustomField => ({ key: freshKey(custom), label: "", kind: "text" })}
+        addLabel="＋ Add question"
+        max={10}
+        row={(f, i, upd) => {
+          const choosy = f.kind === "choice" || f.kind === "multi";
+          return (
+            <>
+              <TextField label={`Question ${i + 1} text`} value={f.label} onCommit={(label) => upd({ ...f, label })} validate={(v) => (v.trim() ? null : "Write the question")} />
+              <SelectField
+                label={`Question ${i + 1} type`}
+                value={f.kind}
+                options={KIND_LABEL}
+                onPick={(kind) => upd({ ...f, kind, options: kind === "choice" || kind === "multi" ? f.options ?? ["Option 1", "Option 2"] : undefined, hrdcOption: kind === "choice" ? f.hrdcOption : undefined })}
+              />
+              {choosy && (
+                <TextField label={`Question ${i + 1} options (one per line)`} multiline rows={3} value={toLines(f.options ?? [])} onCommit={(v) => { const options = fromLines(v); upd({ ...f, options, hrdcOption: f.hrdcOption && options.includes(f.hrdcOption) ? f.hrdcOption : undefined }); }} />
+              )}
+              {f.kind === "choice" && (
+                <SelectField label={`Question ${i + 1}: which answer means HRDC`} value={f.hrdcOption ?? ""} options={[["", "None"], ...(f.options ?? []).map((o) => [o, o] as [string, string])]} onPick={(o) => upd({ ...f, hrdcOption: o || undefined })} />
+              )}
+              <Toggle label="Required" on={f.required === true} onChange={(required) => upd({ ...f, required })} />
+            </>
+          );
+        }}
+      />
+      {!custom.some((f) => f.hrdcOption) && custom.length < 10 && (
+        <button className="btn" type="button" onClick={() => onChange([...custom, { ...HRDC_FIELD, key: freshKey(custom) }])}>
+          ＋ Add “Self-funded or HRDC”
+        </button>
+      )}
+    </Group>
+  );
+}
 
 const FIELDS: ("company" | "jobTitle" | "message")[] = ["company", "jobTitle", "message"];
 const FIELD_LABEL = { company: "Ask for company", jobTitle: "Ask for job title", message: "Ask for a message" };
@@ -71,6 +124,7 @@ export function LeadFormBlock({ settings, steps, onCommit }: { settings: LeadFor
           onChange={(on) => up({ fields: FIELDS.filter((f) => (f === k ? on : draft.fields.includes(f))) }, true)}
         />
       ))}
+      <CustomFieldsBlock custom={draft.custom ?? []} onChange={(custom) => up({ custom: custom.length ? custom : undefined }, true)} />
       <Toggle label="Create a deal" on={draft.createDeal} onChange={(createDeal) => up({ createDeal }, true)} />
       <SelectField
         label="After submit"
@@ -95,9 +149,10 @@ export function OrderFormBlock({ settings, classes, onCommit }: { classes: Class
     if (orderFormSettingsSchema.safeParse(s).success) onCommit(s);
   });
   const res = orderFormSettingsSchema.safeParse(draft);
+  const many = draft.classCodes !== undefined;
   return (
     <Group title="Order form">
-      {classes.length > 0 ? (
+      {!many && (classes.length > 0 ? (
         <SelectField
           label="Class"
           value={draft.classCode}
@@ -110,9 +165,39 @@ export function OrderFormBlock({ settings, classes, onCommit }: { classes: Class
         />
       ) : (
         <InputField label="Class code (the class list could not be loaded)" value={draft.classCode} onChange={(classCode) => set({ ...draft, classCode })} {...focus} />
-      )}
+      ))}
       <p className="note">Payment goes through the CRM&apos;s Stripe checkout.</p>
+      <Toggle label="Offer several intakes" on={many} onChange={(on) => set(on ? { ...draft, classCodes: [draft.classCode, ""] } : { ...draft, classCode: draft.classCodes?.[0] ?? "", classCodes: undefined }, true)} />
+      {many && (
+        <ListEditor
+          label="Intakes"
+          itemLabel="Intake"
+          items={draft.classCodes ?? []}
+          onChange={(classCodes) => set({ ...draft, classCodes }, true)}
+          blank={() => ""}
+          addLabel="＋ Add intake"
+          max={12}
+          row={(code, i, upd) =>
+            classes.length > 0 ? (
+              <SelectField
+                label={`Intake ${i + 1} class`}
+                value={code}
+                options={[
+                  ...(code && !classes.some((c) => c.code === code) ? [[code, code] as [string, string]] : []),
+                  ["", "Choose a class"],
+                  ...classes.map((c) => [c.code, `${c.courseName} (${c.code}) ${c.startDate}`] as [string, string]),
+                ]}
+                onPick={upd}
+              />
+            ) : (
+              <InputField label={`Intake ${i + 1} class code`} value={code} onChange={upd} {...focus} />
+            )
+          }
+        />
+      )}
+      {many && <p className="note">Visitors pick one intake at checkout. Publishing is blocked while any intake has no class.</p>}
       <Toggle label="Ask for company" on={draft.askCompany} onChange={(askCompany) => set({ ...draft, askCompany }, true)} />
+      <CustomFieldsBlock custom={draft.custom ?? []} onChange={(custom) => set({ ...draft, custom: custom.length ? custom : undefined }, true)} />
       {!res.success && <ErrText msg="Not saved yet: check the settings above." />}
     </Group>
   );

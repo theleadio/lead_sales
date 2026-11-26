@@ -30,6 +30,8 @@ export const COPY: Record<"en" | "zh", RuntimeCopy> = {
     classFull: "Full",
     price: "Fee",
     dates: "Dates",
+    choose: "Please choose an option.",
+    intake: "Choose your intake",
   },
   zh: {
     fullName: "姓名",
@@ -58,5 +60,7 @@ export const COPY: Record<"en" | "zh", RuntimeCopy> = {
     classFull: "已满",
     price: "费用",
     dates: "日期",
+    choose: "请选择一个选项。",
+    intake: "请选择梯次",
   },
 };

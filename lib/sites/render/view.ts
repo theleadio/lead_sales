@@ -12,6 +12,9 @@ export type ViewCtx = {
   steps: { id: string; path: string }[];
   pageId: string;
   forEditor?: boolean;
+  // Draft preview: an HTML embed is inlined (srcdoc) because only a published
+  // page has an embed route. Scripts in it run once the page is published.
+  draft?: boolean;
   site?: unknown;
 };
 
@@ -32,6 +35,26 @@ export function embedUrl(url: string): string | null {
   if (yt) return `https://www.youtube-nocookie.com/embed/${yt[1]}`;
   const vm = /^https:\/\/(?:www\.)?vimeo\.com\/(\d{4,12})/i.exec(url);
   return vm ? `https://player.vimeo.com/video/${vm[1]}` : null;
+}
+
+// Same sandbox the publish cleaner forces on every embed frame (lib/sites/clean.ts).
+const EMBED_SANDBOX = "allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation";
+
+function embed(e: Element, p: Record<string, any>, ctx: ViewCtx): React.ReactNode { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const url = p.mode === "url" ? String(p.url ?? "") : "";
+  const html = p.mode === "html" ? String(p.html ?? "") : "";
+  if (!url && !html) return ctx.forEditor ? h("div", { className: "e-embed-ph" }, "Embed: nothing to show yet") : null;
+  if (ctx.forEditor) {
+    let host = "custom HTML";
+    try {
+      if (url) host = new URL(url).host;
+    } catch {}
+    return h("div", { className: "e-embed-ph" }, `Embedded page (${host}) shows on the live page`);
+  }
+  const common = { title: p.title || "Embedded content", loading: "lazy", sandbox: EMBED_SANDBOX, referrerPolicy: "strict-origin-when-cross-origin" };
+  if (url) return h("div", { className: "e-embed" }, h("iframe", { ...common, src: url, allowFullScreen: true }));
+  return h("div", { className: "e-embed" },
+    h("iframe", ctx.draft ? { ...common, srcDoc: html } : { ...common, src: `/api/site/embed/${ctx.pageId}/${e.id}` }));
 }
 
 function href(e: Element, page: Page, ctx: ViewCtx): { href: string; action: string } {
@@ -102,8 +125,15 @@ function body(e: Element, page: Page, ctx: ViewCtx): React.ReactNode {
     case "social":
       return h("div", { className: "e-soc" }, p.items.map((s: { network: string; url: string }, k: number) =>
         h("a", { key: k, href: s.url || "#" }, NETWORKS[s.network] ?? s.network)));
-    case "logos":
-      return h("div", { className: "e-logos" }, p.items.map((i: { src: string; alt: string }, k: number) => h("img", { key: k, src: i.src, alt: i.alt, loading: "lazy" })));
+    case "logos": {
+      const imgs = (copy: number) => p.items.map((i: { src: string; alt: string }, k: number) => h("img", { key: `${copy}-${k}`, src: i.src, alt: copy ? "" : i.alt, loading: "lazy" }));
+      if (!p.marquee || !p.items.length || ctx.forEditor) return h("div", { className: "e-logos" }, imgs(0));
+      // Two identical tracks slide left together; the copy is hidden from screen readers.
+      return h("div", { className: "e-logos mq" },
+        h("div", { className: "tr" }, imgs(0)),
+        h("div", { className: "tr", "aria-hidden": "true" }, imgs(1)));
+    }
+    case "embed": return embed(e, p, ctx);
     case "counter":
       return h("div", { className: "e-ct" },
         h("b", null, p.prefix, h("span", { "data-count": String(p.to) }, String(p.to)), p.suffix),
@@ -131,7 +161,7 @@ function RowV({ r, page, ctx }: { r: Row; page: Page; ctx: ViewCtx }) {
 }
 function Sec({ s, page, ctx }: { s: Section; page: Page; ctx: ViewCtx }) {
   const hide = (["d", "t", "m"] as const).filter((k) => s.hideOn[k]).map((k) => `hide-${k}`);
-  return h("section", { className: ["sec", cls(s.id), ...hide].join(" "), ...node(s, ctx), ...anim(s.anim) },
+  return h("section", { className: ["sec", cls(s.id), ...hide].join(" "), ...(s.anchor ? { id: s.anchor } : {}), ...node(s, ctx), ...anim(s.anim) },
     h("div", { className: "wrap" }, s.rows.map((r) => h(RowV, { key: r.id, r, page, ctx }))));
 }
 function PopupV({ p, page, ctx }: { p: Popup; page: Page; ctx: ViewCtx }) {

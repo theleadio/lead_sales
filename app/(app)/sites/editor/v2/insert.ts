@@ -26,6 +26,7 @@ export const ELEMENT_INFO: Record<ElementType, { label: string; glyph: string }>
   "icon-text": { label: "Icon + text", glyph: "★" },
   social: { label: "Social links", glyph: "@" },
   logos: { label: "Logo strip", glyph: "▦" },
+  embed: { label: "Embed", glyph: "‹›" },
   counter: { label: "Counter", glyph: "#" },
   slider: { label: "Image slider", glyph: "⇄" },
   nav: { label: "Menu", glyph: "≡" },

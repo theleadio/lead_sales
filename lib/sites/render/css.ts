@@ -54,6 +54,14 @@ const STATIC = `.lp{--hf:Inter,system-ui,sans-serif;--cf:Inter,system-ui,sans-se
 .lp .e-soc,.lp .e-nav{display:flex;flex-wrap:wrap;gap:8px 16px}
 .lp .e-logos{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;justify-content:center}
 .lp .e-logos img{width:auto;max-width:100%}
+.lp .e-logos.mq{flex-wrap:nowrap;justify-content:flex-start;gap:0;overflow:hidden}
+.lp .e-logos.mq .tr{display:flex;flex:none;align-items:center;gap:48px;padding-right:48px;min-width:100%;justify-content:space-around;animation:lp-mq var(--mq,40s) linear infinite}
+.lp .e-logos.mq:hover .tr{animation-play-state:paused}
+@keyframes lp-mq{to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){.lp .e-logos.mq{flex-wrap:wrap;justify-content:center;overflow:visible}.lp .e-logos.mq .tr{animation:none;flex-wrap:wrap;justify-content:center;padding-right:0}.lp .e-logos.mq .tr[aria-hidden]{display:none}}
+.lp .e-embed iframe{display:block;width:100%;border:0;border-radius:12px;background:#fff}
+.lp .e-embed-ph{display:grid;place-items:center;min-height:120px;border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc;color:#64748b;font:13px Inter,system-ui,sans-serif;text-align:center;padding:12px}
+.lp .sec[id]{scroll-margin-top:72px}
 .lp .e-ct{text-align:center}.lp .e-ct b{display:block;font:800 48px var(--hf);line-height:1.1}
 .lp .e-sl{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px}
 .lp .e-sl img{flex:0 0 100%;max-width:100%;scroll-snap-align:center;border-radius:12px}
@@ -134,6 +142,10 @@ export function pageCss(page: Page, site?: unknown): string {
         break;
       case "logos":
         resp(`${X} .e-logos img`, "height", r("height"));
+        if (p.marquee && n(p.speed)) dec(`${X} .e-logos`, `--mq:${p.speed}s`);
+        break;
+      case "embed":
+        dec(`${X} .e-embed iframe`, `height:${n(p.height) ? p.height : 480}px`);
         break;
       case "counter":
         dec(`${X} .e-ct`, col("color", str("color")));

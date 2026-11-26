@@ -22,7 +22,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ pageId: string
   if (!p) return new Response("Not found", { status: 404 });
   const site = toSite(p as never);
   const steps = (await db()`SELECT id, path FROM sales.site_page WHERE site_id = ${p.site_id} ORDER BY position`) as unknown as { id: string; path: string }[];
-  const tree = renderDraft(p.project, { site, steps, pageId });
+  const tree = renderDraft(p.project, { site, steps, pageId, draft: true });
   if (!tree.ok) return new Response(tree.message, { status: 422, headers: { "Cache-Control": "no-store" } });
   const nonce = newNonce();
   return new Response(renderDocument({ html: tree.html, css: tree.css, values: await loadValues() }, site, nonce), {

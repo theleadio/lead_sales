@@ -13,7 +13,7 @@ export { PageView } from "./view.ts";
 // view.ts are plain function components with no hooks, so walking the elements
 // is enough. Same escaping rules as renderToStaticMarkup.
 const VOID = new Set(["img", "br", "hr", "input", "meta", "link"]);
-const ATTR: Record<string, string> = { className: "class", allowFullScreen: "allowfullscreen" };
+const ATTR: Record<string, string> = { className: "class", allowFullScreen: "allowfullscreen", srcDoc: "srcdoc", referrerPolicy: "referrerpolicy" };
 const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

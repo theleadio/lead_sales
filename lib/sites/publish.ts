@@ -3,7 +3,7 @@ import type { Role } from "../auth/roles.ts";
 import { db, withTransaction } from "../sql.ts";
 import { guard } from "./admin.ts";
 import { cleanPage } from "./clean.ts";
-import { leadFormSettingsSchema, normalizePath, orderFormSettingsSchema, pathSchema, type SiteSettings } from "./model.ts";
+import { leadFormSettingsSchema, normalizePath, orderClassCodes, orderFormSettingsSchema, pathSchema, type SiteSettings } from "./model.ts";
 import { purge } from "./purge.ts";
 import { renderDraft } from "./render/html.ts";
 import { toSite } from "./serve.ts";
@@ -84,8 +84,20 @@ export async function publishCheck(page: PageInfo, draft: { html: string }, site
   }
   for (const { settings } of components(draft.html, "order")) {
     const r = orderFormSettingsSchema.safeParse(settings);
-    if (!r.success || !r.data.classCode.trim()) reasons.push("An order form has no class chosen.");
+    if (!r.success) {
+      reasons.push("An order form has no class chosen.");
+      continue;
+    }
+    // One class, or every intake of a multi-intake block: none may be blank or repeated.
+    const codes = orderClassCodes(r.data);
+    if (codes.some((c) => !c)) reasons.push(codes.length > 1 ? "An order form has an intake with no class chosen." : "An order form has no class chosen.");
+    else if (new Set(codes).size !== codes.length) reasons.push("An order form lists the same class twice.");
   }
+  // A link to #name needs a section with that anchor (or an element with that id).
+  const ids = new Set([...draft.html.matchAll(/\sid\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]));
+  const missing = new Set<string>();
+  for (const [, name] of draft.html.matchAll(/<a\b[^>]*\shref\s*=\s*["']#([^"']+)["']/gi)) if (!ids.has(name)) missing.add(name);
+  for (const name of missing) reasons.push(`A link goes to #${name} but no section has that anchor.`);
   const popupIds = new Set(components(draft.html, "popup").map((p) => p.id));
   for (const [, id] of draft.html.matchAll(/data-action\s*=\s*["']popup:([^"']*)["']/gi))
     if (!popupIds.has(id)) {
