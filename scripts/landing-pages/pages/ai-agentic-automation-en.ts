@@ -270,7 +270,7 @@ const payment = pageOf(
       p("Fill up personal information &amp; intake", { align: "center" }),
       h3("Intake 1: " + INTAKES[0], { size: { d: 16 }, box: { mt: 16 } }),
       p("RM3,200.00 + SST (8%) RM256.00 = <b>RM3,456.00</b>", { color: C.ink }),
-      orderForm("", "Pay for 7-8 Dec 2026"),
+      orderForm("ai-agentic-automation-certification-2026-12-07-en", "Pay for 7-8 Dec 2026"),
       h3("Intake 2: " + INTAKES[1], { size: { d: 16 }, box: { mt: 24 } }),
       p("RM3,200.00 + SST (8%) RM256.00 = <b>RM3,456.00</b>", { color: C.ink }),
       orderForm("", "Pay for 27-28 Jan 2027"),

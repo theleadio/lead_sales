@@ -213,7 +213,7 @@ const THANKS = {
   zh: "谢谢你！课程协调员会通过 WhatsApp 联系你。",
 };
 
-export function buildFunnel(d: PageDef, payments: Map<string, { title: string; sub: string; intakes: [string, number][] }>): FunnelSpec {
+export function buildFunnel(d: PageDef, payments: Map<string, { title: string; sub: string; intakes: [string, number, string][] }>): FunnelSpec {
   const parsed = parse(d.file + ".txt");
   const c: Ctx = { lang: d.lang, pay: d.pay, formSettings: {} };
   const secs: ReturnType<typeof sec>[] = [];
@@ -288,13 +288,13 @@ export function buildFunnel(d: PageDef, payments: Map<string, { title: string; s
       h2(pm.title, { size: { d: 22, m: 19 } }),
       p(pm.sub, { align: "center" }),
     ];
-    intakes.forEach(([label, price], n) => {
+    intakes.forEach(([label, price, code], n) => {
       const sst = Math.round(price * 0.08 * 100) / 100;
       const fmt = (v: number) => v.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       blocks.push(
         h3(label, { size: { d: 16 }, box: { mt: n ? 24 : 16 } }),
         p(`RM${fmt(price)} + SST (8%) RM${fmt(sst)} = <b>RM${fmt(price + sst)}</b>`, { color: C.ink }),
-        orderForm("", d.lang === "zh" ? "付款" : "Pay now"),
+        orderForm(code, d.lang === "zh" ? "付款" : "Pay now"),
       );
     });
     blocks.push(p(d.lang === "zh" ? "* 费用不可退还，但可转让 *" : "* Payments are non-refundable but transferable *", { align: "center", size: { d: 14 }, box: { mt: 16 } }));
@@ -342,15 +342,15 @@ export function buildFunnel(d: PageDef, payments: Map<string, { title: string; s
 }
 
 export function loadPayments() {
-  const m = new Map<string, { title: string; sub: string; intakes: [string, number][] }>();
-  let cur: { title: string; sub: string; intakes: [string, number][] } | null = null;
+  const m = new Map<string, { title: string; sub: string; intakes: [string, number, string][] }>();
+  let cur: { title: string; sub: string; intakes: [string, number, string][] } | null = null;
   for (const l of read("payments.txt").split("\n")) {
     if (l.startsWith("@pay ")) m.set(l.slice(5).trim(), (cur = { title: "", sub: "", intakes: [] }));
     else if (cur && l.startsWith("title ")) cur.title = l.slice(6);
     else if (cur && l.startsWith("sub ")) cur.sub = l.slice(4);
     else if (cur && l.startsWith("intake ")) {
-      const [a, b] = l.slice(7).split(" ⟂ ");
-      cur.intakes.push([a, Number(b)]);
+      const [a, b, code] = l.slice(7).split(" ⟂ ");
+      cur.intakes.push([a, Number(b), (code ?? "").trim()]);
     }
   }
   return m;

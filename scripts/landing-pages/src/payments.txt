@@ -1,8 +1,8 @@
 @pay /ai-full-stack-building-certification-payment-form
 title LEAD - AI Full-Stack Building Certification Payment Form
 sub Fill up personal information & intake
-intake AI Full-Stack Building Certification (English) | 2 & 3 Dec 2026 (Wed, Thu) | AI365 Hub, Oval Damansara (In-person) ⟂ 3200
-intake AI Full-Stack Building Certification (English) | 14 & 15 Dec 2026 (Mon, Tue) | Vouk Hotel Suites, Penang (In-person) ⟂ 3200
+intake AI Full-Stack Building Certification (English) | 2 & 3 Dec 2026 (Wed, Thu) | AI365 Hub, Oval Damansara (In-person) ⟂ 3200 ⟂ full-stack-building-2-3-Dec
+intake AI Full-Stack Building Certification (English) | 14 & 15 Dec 2026 (Mon, Tue) | Vouk Hotel Suites, Penang (In-person) ⟂ 3200 ⟂ ai-full-stack-building-certification-2026-12-14-en
 @pay /cn/ai-full-stack-building-certification-payment-form
 title LEAD - 全栈开发认证课 付款表格
 sub 请填写个人资料与报名信息
@@ -10,7 +10,7 @@ intake AI 全栈开发认证课 ⟂ 3200
 @pay /professional-ai-engineering-certification-payment-form
 title LEAD - Professional AI Engineering Certification Payment Form
 sub Fill up personal information & intake
-intake Professional AI Engineering Certification 9-10 Dec 2026 (Wed, Thurs) | 9AM - 5PM | AI365 Hub, Oval Damansara ⟂ 3200
+intake Professional AI Engineering Certification 9-10 Dec 2026 (Wed, Thurs) | 9AM - 5PM | AI365 Hub, Oval Damansara ⟂ 3200 ⟂ professional-ai-engineering-certification-2026-12-09-en
 intake Professional AI Engineering Certification 25-26 Feb 2026 (Thurs, Fri) | 9AM - 5PM | AI365 Hub, Oval Damansara ⟂ 3200
 @pay /ai-vibe-coding-mastery-payment-form
 title LEAD - AI Vibe Coding Mastery Payment Form
@@ -20,7 +20,7 @@ intake AI Vibe Coding Mastery｜23 Nov (Mon) | 9:00 AM - 5:00 PM | AI365 Hub @ O
 title LEAD - Claude AI Mastery Payment Form
 sub Fill up personal information & intake
 intake Claude AI 实战课 (中文) | 28 November 2026 (Sat) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara (sold out on the original) ⟂ 0
-intake Claude AI Mastery | 29 December 2026 (Tue) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara ⟂ 680
+intake Claude AI Mastery | 29 December 2026 (Tue) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara ⟂ 680 ⟂ claude-ai-mastery-2026-12-29-en
 @pay /youth-vibe-coding-bootcamp-payment-form
 title LEAD - Youth Vibe Coding Bootcamp Payment Form
 sub Fill up personal information & intake
