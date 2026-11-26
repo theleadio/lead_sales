@@ -15,6 +15,10 @@
 # docs/** is design notes that are never deployed; they legitimately quote
 # env values (a Meta dataset id, the app URL), which tripped the scan and
 # failed every deploy since 14 Nov.
+# scripts/landing-pages/** is the landing page generator. It is never deployed,
+# and its page copy holds the public CDN location id and the public website
+# URL (SALESPROCESS_LOCATION_ID, PUBLIC_WEBSITE_URL), which failed the 26 Nov
+# production build.
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,APP_BASE_URL,EMAIL_FROM,DEV_ROLE,PUBLIC_ALLOWED_ORIGINS"
-  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**,docs/**"
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**,docs/**,scripts/landing-pages/**"
