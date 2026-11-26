@@ -315,12 +315,14 @@ export function buildFunnel(d: PageDef, payments: Map<string, { title: string; s
     const priceLine = (price: number) => `RM${fmt(price)} + SST (8%) RM${fmt(Math.round(price * 0.08 * 100) / 100)} = <b>RM${fmt(Math.round(price * 1.08 * 100) / 100)}</b>`;
     const custom = d.hrdc ? [fundingField(d.lang)] : [];
     const pay = d.lang === "zh" ? "付款" : "Pay now";
-    if (intakes.length > 1) {
+    const codes = intakes.map(([, , code]) => code);
+    // Tiers of one class (same code) cannot be a picker: the picker chooses between classes.
+    if (intakes.length > 1 && new Set(codes.filter(Boolean)).size === codes.filter(Boolean).length) {
       // One checkout, the visitor picks the intake (a blank code keeps publishing blocked until the class exists).
       blocks.push(
         h3(d.lang === "zh" ? "可选梯次" : "Available intakes", { size: { d: 16 }, box: { mt: 16 } }),
         ul(intakes.map(([label, price]) => `${label}: ${priceLine(price)}`)),
-        orderIntakes(intakes.map(([, , code]) => code), pay, false, { custom }),
+        orderIntakes(codes, pay, false, { custom }),
       );
     } else {
       intakes.forEach(([label, price, code]) => {
