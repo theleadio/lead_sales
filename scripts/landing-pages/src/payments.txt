@@ -15,7 +15,7 @@ intake Professional AI Engineering Certification 25-26 Feb 2026 (Thurs, Fri) | 9
 @pay /ai-vibe-coding-mastery-payment-form
 title LEAD - AI Vibe Coding Mastery Payment Form
 sub Fill up personal information & intake
-intake AI Vibe Coding Mastery｜23 Nov (Mon) | 9:00 AM - 5:00 PM | AI365 Hub @ Oval Damansara ⟂ 680
+intake AI Vibe Coding Mastery｜23 Nov (Mon) | 9:00 AM - 5:00 PM | AI365 Hub @ Oval Damansara ⟂ 680 ⟂ vibe-coding-kl-2026-10-25-zh-sites
 @pay /claude-ai-mastery-payment-form
 title LEAD - Claude AI Mastery Payment Form
 sub Fill up personal information & intake
@@ -34,7 +34,7 @@ intake AI Agent 基础认证课 - 2027年1月20–21日 ⟂ 2700 ⟂ ai-agents-f
 @pay /ai-agents-online-workshop-payment-form
 title LEAD - AI Agents Online Workshop Payment Form
 sub Fill up personal information & intake
-intake AI Agents Online Workshop | Tue, 20 Oct 2026 | 8:00–10:00pm (MYT) | Live on Zoom ⟂ 228
+intake AI Agents Online Workshop | Tue, 20 Oct 2026 | 8:00–10:00pm (MYT) | Live on Zoom ⟂ 228 ⟂ ai-agents-online-workshop-2026-10-20-en-sites
 @pay /cn/aios-workshop-payment-form
 title LEAD - AI Agents 实作课 付款表格
 sub 请填写个人资料与报名信息
