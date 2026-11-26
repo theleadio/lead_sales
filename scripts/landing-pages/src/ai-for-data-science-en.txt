@@ -1,0 +1,106 @@
+@/en/courses/ai-for-data-science
+~AI for Data Science Certification | LEAD
+~Join our practical AI for Data Science certification course designed for non-technical professionals. Upskill with expert-led training in Malaysia. Limited seats!
+~M/6a17f9518c6ee94929adb8d4.jpg
+#
+img M/6a8eb2622bdf2bc089517bd3.png
+img M/6a8eb26399f61782409020df.png
+h1 Master AI for Data Science:
+h1 From Business Questions to Predictive Decisions in 2 Days.
+p 14-15 Oct | 9AM - 5PM | AI365 Hub, Oval Damansara (In-person)
+p A hands-on certification course for non-technical professionals — no coding required. Use Gemini 3, Claude Code, and KNIME to interrogate data, build predictive models, and present real business insights.
+p Secure Your Spot – Limited Seats Available
+#
+h1 Who Should Attend?
+img M/69fefe63054a6c3d904f7517.png
+p <b>Business Managers &amp; Team Leaders</b>
+p Making data-informed decisions but relying on gut feel because the data is too complex or hard to interpret.
+p <b>Marketing, Sales, Operations, HR &amp; Finance Professionals</b>
+p Working with business data daily but stuck in spreadsheets — ready to do more with AI-powered tools.
+p <b>Analysts &amp; Consultants</b>
+p Currently using Excel or basic dashboards and want to move into predictive modelling and AI-assisted analysis.
+p <b>Anyone Curious About AI &amp; Data Science</b>
+p Interested in data science but intimidated by code — this course is built specifically for you. No programming background required.
+h2 Practical Hands-on Projects
+img M/69ff4b8754bc6e60ff015a58.jpg
+h3 Customer Churn Prediction Model
+p Build a no-code classification model in KNIME that predicts which customers are likely to leave — using real business data. Learn to read model performance metrics and translate results into actionable retention strategies.
+img M/69ff4b877285562721f20877.jpg
+h3 AI-Assisted Data Interrogation
+p Use Gemini 3 and Claude Code to have plain-English conversations with a real business dataset — surfacing anomalies, trends, and insights that would take hours to find manually. Learn to verify AI outputs critically and avoid hallucinations.
+img M/69ff4b8754bc6e60ff015a57.jpg
+h3 Capstone — End-to-End Data-to-Decision Project
+p Work in small teams to tackle a realistic business scenario from start to finish: frame the business question, explore the data with AI, build a predictive model in KNIME, extract insights, and present a one-slide executive summary to the room.
+#
+h2 TOPICS COVERED
+h3 Day 1 - From Business Question to Clean Data
+ul Framing business problems as testable, AI-ready data questions‖Conversational data exploration using Gemini 3 and Claude Code‖Profiling, summarising, and surfacing anomalies in real datasets‖Reading AI outputs critically — verifying results and avoiding hallucinations‖Introduction to KNIME — nodes, ports, and the visual workflow concept‖Importing CSV and Excel data into KNIME‖Data preparation: filtering, joining, grouping, handling missing values, and creating calculated columns‖Hands-on: Interrogate a real business dataset and prepare a clean customer dataset end-to-end
+img M/69fef60ca7b9e0385a214eef.png
+h3 Day 2 - From Data to Prediction to Presentation
+ul Classification vs. regression explained in plain language‖Building a customer churn or sales-forecast model in KNIME — no code required‖Reading and interpreting model performance metrics‖Using Gemini 3 and Claude Code to design KNIME workflows and improve models‖Explaining model results in business language‖Capstone: End-to-end group project‖Group presentations with peer and instructor Q&amp;A
+h2 What You Will Learn
+img M/69fef965054a6c3d904ee625.jpg
+p <b>Think Like a Data Detective</b>
+p Frame any business problem as a testable, AI-ready data question — turning vague concerns into structured, answerable hypotheses.
+img M/69fef965a3dd25aa2ac400f5.jpg
+p <b>Interrogate Data with AI</b>
+p Use Gemini 3 and Claude Code to have plain-English conversations with your datasets — profiling, summarising, and surfacing insights without writing a single line of code.
+img M/69fef965a7b9e0385a21a7ad.jpg
+p <b>Read AI Outputs Critically</b>
+p Know when to trust AI-generated insights and when to verify — building the judgment to avoid costly hallucinations and misinterpretations.
+img M/69fef965a3dd25aa2ac400f6.jpg
+p <b>Prepare and Clean Business Data</b>
+p Use KNIME's visual workflow to filter, join, aggregate, and transform messy real-world data into a clean, analysis-ready dataset.
+img M/69fef965054a6c3d904ee626.jpg
+p <b>Build No-Code Predictive Models</b>
+p Construct classification and regression models in KNIME — forecasting sales, predicting churn, and evaluating model performance — all without writing code.
+img M/69fef965bc1f77cc3524a3b4.jpg
+p <b>Combine AI and KNIME Together</b>
+p Use Gemini 3 and Claude Code to design and improve your KNIME workflows — letting AI guide your modelling decisions and suggest feature improvements in real time.
+img M/69fefd73054a6c3d904f5904.jpg
+p <b>Translate Models into Business Recommendations</b>
+p Interpret model results and communicate findings in business language — turning numbers into decisions that stakeholders can act on immediately.
+img M/69fefd777285562721e6bc6b.jpg
+p <b>Present a Complete Data-to-Decision Project</b>
+p Deliver a structured, end-to-end group presentation covering business question, data approach, model results, and recommendations — just like a real data project.
+#
+h2 COURSE DETAILS
+h3 KEY TECHNOLOGIES
+logos M/69b3bc96bfc81ffd41e0d03a.png,M/69cce5d866c8fc9a01d9b766.png,M/69f8d85a7167fd9a3545df29.png
+h2 COURSE FEE
+h3 Self-Funded
+p Kickstart your AI for Data Science journey
+price RM 3,200
+p +8% SST
+ul 2 full days of in-person intensive training‖Complete programme materials, tools and templates‖Certificate of Completion‖3-month post-training WhatsApp group support‖Refresher class access
+h3 HRDC-Claimable
+p Upskill with your company's HRDC grant
+price RM 3,500
+p +8% SST
+ul 2 full days of in-person intensive training‖Complete programme materials, tools and templates‖Certificate of Completion‖3-month post-training WhatsApp group support‖Refresher class access
+btn Fill Up Form #form
+h3 Certification + Coaching
+p Accelerate with personalised mentorship
+price RM 9,250
+p +8% SST
+ul Everything in the Certification‖Personalised career &amp; AI skills roadmap‖4 x 30-min personal coaching sessions with Dr. Lau or Edmund‖1-year ongoing guidance for real-world implementation
+btn Email Us mailto:support@thelead.io
+#
+h2 Frequently Asked Questions (FAQs)
+faq Is this course suitable for beginners? Yes. This course is designed for business professionals from all backgrounds. You don't need to have any programming experience, we will guide you step-by-step from basics concepts to advanced techniques to build agents and AI automation workflows.
+faq Is there any prerequisite? No coding or technical background required. The only prerequisites are a working Gemini account (free tier is fine), a Claude account with Claude Code access, and a laptop with admin rights to install KNIME — all free tools.
+faq What are the hardware requirements? A laptop that can connects to the Internet is sufficient. Please contact us to for the list of websites to whitelist, if you are using a company laptop.
+faq Is this course HRDC claimable? Yes, this programme is 100% HRDC-claimable for all eligible Malaysian companies. We will provide all the necessary documents. For more HRDC enquiries, feel free to WhatsApp us: <a href="https://wa.me/60182777989">+6018-2777 989</a>
+faq Will there be a certificate? Yes, and the evaluation is your participation during class and your contributions during the final group presentations.
+faq Will I have projects in my portfolio? Absolutely. You will leave with a completed end-to-end data-to-decision project — including AI-assisted data exploration, a predictive model built in KNIME, and a group presentation deck — ready to showcase to employers and stakeholders.
+#
+trainers This AI for Data Science certification is designed and led by Dr. Lau, AI engineer, chief data scientist and founder of LEAD.
+#
+form AI for Data Science Interest Form
+p Kindly fill in the form and our course coordinator will contact you via WhatsApp.
+p Kindly provide the information below for HRDC application processing.
+h2 Master AI for Data Science: From Business Questions to Predictive Decisions in 2 Days.
+p No coding required. Using Gemini 3, Claude Code, and KNIME, you'll learn to interrogate data, build predictive models, and present real business insights — all in just 2 hands-on days.
+p Instead of just "learning about data", you'll:
+ul Frame business problems as testable, AI-ready data questions‖Use Gemini 3 and Claude Code to interrogate real datasets through plain-English conversations‖Build no-code predictive models in KNIME to forecast sales and predict customer behaviour‖Present a complete data-to-decision project to stakeholders — just like a real data scientist
+p By the end, you won't just have theory. You'll walk away with a working capstone project, a curated AI prompt library, and the confidence to apply data science in your organisation — starting the very next day.

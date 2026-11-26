@@ -1,0 +1,17 @@
+@/program
+~LEAD programs intention form
+~
+~
+#
+h1 LEAD programmes: intention form
+p At LEAD, our programmes are designed to move beyond theory and into real-world application.
+p Whether you’re looking to automate operations, build digital products, unlock insights from data, or engineer AI solutions, our hands-on certifications focus on practical skills that drive productivity, innovation, and business results.
+p Each programme is:
+ul Instructor-led and hands-on‖Built around real use cases and projects‖Suitable for beginners through advanced professionals‖Designed to be applied immediately at work or in business
+p Participants can choose a single track or combine multiple programmes to build a complete AI and digital skillset.
+p <b>All programmes are HRDC-claimable.</b>
+#
+h3 Sessions available
+ul <b>November 2026:</b> AI Vibe Coding Mastery (EN) | 23 Nov | KL‖<b>November 2026:</b> Claude AI 实战课 (中文) | 28 Nov | KL‖<b>December 2026:</b> AI Full-Stack Building Certification (EN) | 2–3 Dec | KL‖<b>December 2026:</b> AI Agentic Automation Certification (EN) | 7–8 Dec | KL‖<b>December 2026:</b> Professional AI Engineering Certification (EN) | 9–10 Dec | KL‖<b>December 2026:</b> AI Full-Stack Building Certification (EN) | 14–15 Dec | Vouk Hotel Suites, Penang‖<b>December 2026:</b> Claude AI Mastery (EN) | 29 Dec | KL‖<b>January 2027:</b> AI 全栈开发认证课(中文) | 16–17 Jan | JB (venue TBC)‖<b>January 2027:</b> AI Agents基础认证课(中文) | 20–21 Jan | KL‖<b>January 2027:</b> AI Agentic Automation Certification (EN) | 27–28 Jan | KL
+p The original form lets you tick the sessions you want and offers in-house training for your company (min. 20 pax).
+form LEAD programs intention form

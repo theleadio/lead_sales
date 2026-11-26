@@ -1,0 +1,117 @@
+@/en/courses/ai-full-stack-building-certification
+~AI Full-Stack Building Certification | 2 - 3 December 2026 (Wed, Thurs) | 9AM - 5PM | AI365 Hub, Oval Damansara (In-person)
+~A practical, 2-day intensive workshop to design, build, and deploy production-ready systems end-to-end using AI vibe coding. Go from idea to live application in hours, not weeks.
+~M/6a66c621847bbd8a6423cc72.jpg
+#
+img M/6a66c621847bbd8a6423cc72.jpg
+h1 <b>AI Full-Stack Building Certification</b>
+h1 The ability to build full-stack systems is no longer limited to engineers.
+p A practical, 2-day intensive workshop to design, build, and deploy production-ready systems end-to-end using AI vibe coding. Go from idea to live application in hours, not weeks.
+p <b>2 - 3 December 2026 (Wed, Thurs) | 9AM - 5PM | AI365 Hub, Oval Damansara (In-person)</b>
+btn Sign Up Here	https://ai.thelead.io/ai-full-stack-building-certification-payment-form
+#
+h1 Who Should Attend?
+img M/6a36c1f11c5d711b35afdfc8.png
+p <b>Founders &amp; Entrepreneurs</b>
+p You have an idea for a digital product but lack the technical skills to build it. Instead of paying agencies or waiting for a technical co-founder, you will learn to prototype and launch working systems that customers can use immediately.
+p <b>Product Managers &amp; Business Leaders</b>
+p You understand the business logic but get stuck waiting for engineering resources. You will learn to build and deploy internal tools, dashboards, and applications independently, so you control your own product timelines.
+p <b>Marketers, Designers &amp; Operators</b>
+p You know what your users need but struggle to turn those insights into functional tools. You will use AI to move from design directly to deployment, allowing you to ship custom engagement tools and data trackers on your own.
+p <b>Professionals</b>
+p You want to build practical AI products without spending years learning to code. You will learn the exact prompts, tools, and workflows needed to construct full-stack applications and turn your ideas into live URLs.
+h2 Practical Hands-on Projects
+h3 Build From Scratch
+p On Day 1, you build a working dashboard with a live database backend from scratch. You do not customize a template. You design the application, prompt it into existence, and connect it to Supabase before the day ends. The theory stops here. You start building.
+h3 Interactive &amp; Mobile-Ready
+p You build mobile-responsive applications and internal mini tools. You handle interactive product logic, connect APIs, and make the application work like a real product. By the time you present it, someone else can use it on their phone.
+h3 Production-Grade Deployment
+p You turn ideas into production-grade systems. You apply frameworks like React or NuxtJS, expose functionality through APIs, register custom domains, and configure DNS and SSL. You build the kind of system that business teams ask IT for and wait months to get. You deploy it in a weekend.
+#
+h2 TOPICS COVERED
+h3 Day 1: Foundations &amp; First Build
+ul <b><i>Introduction to AI Agentic Engineering:</i></b> Vibe coding philosophy, LLM capabilities, and choosing the right tools.‖<b><i>Hands-On: Build a Dashboard:</i></b> Ship a working, responsive dashboard with a database backend (e.g., sales tracker).‖<b><i>UI / UX &amp; Database Foundations:</i></b> Enhance design using AI tools, work with SQL, and connect Supabase as a backend.‖<b><i>Internal Mini Tools:</i></b> Develop mini tools that handle specific tasks and ship a customer engagement tool for marketing.‖<b><i>Mobile Responsive Applications:</i></b> Mobile-first development through vibe coding to build a mobile-ready app (e.g., customer-facing enquiry).‖<b><i>Mini Interactive Products:</i></b> Implement interactive product logic and gamification mechanics.
+img M/6a36bea70a683b64fe2d9153.png
+h3 Day 2: Going Production
+ul <b><i>Understand Frameworks:</i></b> Apply production frameworks like NextJS and ReactJS through vibe coding.‖<b><i>API, Domains &amp; Live Deployment:</i></b> Create and test APIs, register domains, configure DNS/SSL, and take a system live on production.‖<b><i>Advanced Grid Layouts:</i></b> Master CSS grid and complex content-driven layouts to upgrade a Day 1 build.‖<b><i>Guided Demos &amp; Coaching:</i></b> Advanced topics including generative visuals and 3D fundamentals with Three.js.‖<b><i>Hyperframe Interfaces:</i></b> Compose multiple systems into a single integrated interface.‖<b><i>Presentation &amp; Demo:</i></b> Present your final deployed system live and get peer feedback and trainer review.
+h2 What You Will Learn
+img M/69d3d28d5540c736d001087d.png
+p <b>Architect Complete Systems</b>
+p You build frontend, backend, and database structures through prompt-driven development. You use AI vibe coding tools and IDEs to bring ideas to life quickly without writing manual code.
+img M/69d3d338ab6eae3626766be1.png
+p <b>Connect Live Databases &amp; APIs</b>
+p You work with SQL and connect Supabase as a live backend. You build and test APIs to expose your application's functionality and manage real data.
+img M/69d3d399fa2dde97427fdbe6.png
+p <b>Apply Production Frameworks</b>
+p You use industry-standard frameworks like React and NuxtJS. You master CSS grid layouts and create interactive, mobile-responsive applications that work across devices.
+img M/69d3d33fbec7abdef1100ab3.png
+p <b>Deploy Systems Live</b>
+p You register custom domains, configure DNS and SSL, and deploy your systems to hosting services like Netlify. You leave the programme with your full-stack system live on the internet.
+#
+h2 Student Works &amp; Outcomes
+media https://autocare-seheduler-v2.netlify.app/
+h3 AutoCare Scheduler
+p A car service booking and customer data collection system that automatically generates appointment confirmations, greatly reducing manual communication overhead.
+media https://rsvp-form-kenny.netlify.app/
+h3 L'Ambroisie RSVP
+p A reservation and customer request management page that supports WhatsApp instant bookings, making it easy for restaurants to manage daily guests.
+media https://customteequoter.netlify.app/
+h3 PrintPro Express
+p An automated custom apparel quoting and ordering tool that quickly generates price proposals so customers get quotes instantly and businesses save time.
+media https://menu-decoder-nine.vercel.app/
+h3 Menu Decoder
+p An AI menu scanning and translation app — take a photo to understand dishes, so you never have to worry about unreadable menus when traveling abroad.
+#
+h2 COURSE DETAILS
+h3 KEY TECHNOLOGIES
+logos https://storage.googleapis.com/msgsndr/szVYTdKpbjBJvbLHEDmm/media/69871c862dd985f908a5fec0.png,https://storage.googleapis.com/msgsndr/szVYTdKpbjBJvbLHEDmm/media/69871c865f9399617eb27db8.png,https://storage.googleapis.com/msgsndr/szVYTdKpbjBJvbLHEDmm/media/69871c860708e4c94840d09d.png,https://files.leadconnectorhq.com/file/6af402eebd36322ae2247d10/claude-logo.png
+h2 COURSE FEE
+h3 Self-Funded
+p Kickstart your AI Full-Stack Building journey with LEAD
+price RM 3,200
+p +8% SST
+ul 2 full days of in-person intensive training‖Complete programme materials, tools and templates‖Certificate of Completion‖3-month post-training WhatsApp group support‖Refresher class access
+btn Sign Up Now	https://ai.thelead.io/ai-full-stack-building-certification-payment-form
+h3 HRDC-Claimable
+p Upskill with your company's HRDC grant
+price RM 3,500
+p +8% SST
+ul 2 full days of in-person intensive training‖Complete programme materials, tools and templates‖Certificate of Completion‖3-month post-training WhatsApp group support‖Refresher class access
+btn Fill Up Form	#form
+h3 Certification + Coaching
+p Accelerate with personalised mentorship
+price RM 9,250
+p +8% SST
+ul Everything in the Certification‖Personalised career &amp; AI skills roadmap‖4 x 30-min personal coaching sessions with Dr. Lau or Edmund‖1-year ongoing guidance for real-world implementation
+btn Email Us	mailto:support@thelead.io
+#
+h2 Frequently Asked Questions (FAQs)
+faq Do I need a programming background?	No. This course is designed specifically for people who have never written code before. You will learn how to collaborate with AI using plain language to describe what you want to build, and the AI handles the technical execution. What matters is that you have a clear idea and the willingness to experiment.
+faq What do I need to bring?	A laptop with internet access, either Mac or Windows, and your charger. We will provide a full tools checklist before the workshop so your accounts are ready before Day 1 begins. Everything else is covered.
+faq Will I have real projects to show after the workshop?	Absolutely. You will leave with multiple deployed projects that are live on the internet with real URLs. These are not mock-ups or exercises that sit on your hard drive. They are working products you built yourself that you can share with employers, clients or stakeholders from Day 2 onward.
+faq Is this course HRDC claimable?	Yes, this programme is 100% HRDC-claimable for all eligible Malaysian companies. We will provide all the necessary documents. For more HRDC enquiries, feel free to WhatsApp us: <a href="https://wa.me/60182777989">+6018-2777 989</a>
+faq Will there be a certificate?	Yes, and the evaluation is your participation during class and your contributions during the final group presentations.
+faq Is there support after the workshop ends?	Yes. Every participant gets access to a dedicated WhatsApp community for three months after the workshop. You can ask questions, validate ideas, get feedback from the trainers and facilitators, and learn alongside the wider community of builders who have been through the same programme.
+#
+h2 YOUR EXPERT TRAINERS
+img M/69b3b3d8277ba0de57c105d3.png
+h3 Dr. Lau Cher Han
+p This AI Full-Stack Building Certification is designed and led by Dr. Lau, AI engineer, chief data scientist and founder of LEAD.
+p Dr. Lau is a highly sought-after trainer in AI, data science and emerging technology, with a strong track record of training leaders and individuals from OCBC Bank, TNB, Intel, IBM, Dell, PLUS, Shell and F&amp;N.
+p In 2025 alone, he trained over 1,200+ professionals across more than 200 organisations, helping them adopt AI technologies and implement real-world automation solutions.
+p Find out more about Dr. Lau Cher Han on: <a href="https://www.linkedin.com/in/drhanlau/">LinkedIn</a> · <a href="https://www.facebook.com/drhanlau">Facebook</a>
+img M/69b3b562bfc81f5e38dffbf9.png
+h3 Edmund Hee
+p Edmund is a CTO and data scientist with extensive experience at AirAsia and multiple tech startups.
+p At LEAD, he designs and delivers hands-on programmes in Data Science 360, AI Engineering, AI Automation, and AI Analytics Certification, co-trained with Dr. Lau.
+p With a strong blend of corporate and startup exposure, Edmund brings practical, real-world insights into every session. He has trained teams from organizations such as JPAN Sabah, MaGIC, Hitachi, and UTHM.
+p Find out more about Edmund on: LinkedIn
+#
+form AI Full-Stack Building Interest Form
+p Kindly fill in the form and our course coordinator will contact you via WhatsApp.
+p Kindly provide the information below for HRDC application processing.
+h2 Build Real AI Products: From Idea to Live in 2 Days.
+p Stop waiting for a developer. Stop putting your ideas on hold because you lack a technical background. In this 2-day intensive programme, you go from zero to deployed. You leave the room with working full-stack applications live on the internet.
+p Instead of just learning about AI, you will:
+ul Architect complete systems and use prompt-driven development to build exactly what you have in mind.‖Build frontend, backend, and database structures using AI vibe coding tools.‖Connect live databases like Supabase and build APIs to handle real data.‖Deploy your systems live using Netlify and custom domains so people can use what you made.‖Present your deployed full-stack system to the group.
+p By the end you will not just understand vibe coding. You will have done it. You will walk away with deployed projects, a certificate of completion, and the confidence to keep building on your own.

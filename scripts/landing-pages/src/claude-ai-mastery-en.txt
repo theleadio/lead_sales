@@ -1,0 +1,62 @@
+@/en/workshop/claude-ai-mastery
+~Claude AI Mastery | 29 December 2026 (Tue) | 9:00 AM - 5:00 PM | LEAD
+~Discover how to leverage Claude AI to automate repetitive tasks, build custom workflows, and significantly boost your daily productivity. This hands-on masterclass provides practical, step-by-step guidance to integrate AI seamlessly into your professional life. 29 December 2026 (Tue) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara (In-person)
+~M/6a66f9e20c11dfa8032f176f.jpg
+#
+img https://files.leadconnectorhq.com/file/6b00123a2c68ebcf46284447/claude-ai-mastery-5.png
+img https://files.leadconnectorhq.com/file/6b00123d306ac237512398b1/claude-ai-mastery-6.png
+h3 Turn Claude Into Your Practical AI Co-Worker in One Hands-On Day
+h1 From Beginner to Expert | Fully Master the Claude Ecosystem
+p Claude can do more than draft emails and answer questions. In this hands-on workshop, you will learn how to use it to complete real work.
+p Create reusable Claude Skills, give multi-step tasks to Cowork, and build useful outputs such as dashboards, presentations and landing pages. You will also connect Claude to the tools you already use, turning one-off prompts into workflows you can repeat at work.
+p No technical background or coding experience is required. You will start with the basics and learn by building practical examples that you can adapt for your job or business.
+h1 29 December 2026 (Tue) | 9:00 AM - 5:00 PM | AI365 Hub, Oval Damansara (In-person)
+btn Sign Up Now! https://ai.thelead.io/claude-ai-mastery-payment-form
+#
+h1 Who Should Attend?
+img M/6a0218410f3ad81fbd40799f.png
+p <b>Office Workers &amp; Administrators</b>
+p You spend too much time on reports, emails, meeting notes, spreadsheets or repetitive file work. Learn how Claude can help you organise information and complete routine tasks more efficiently.
+p <b>Beginners With No Technical Background</b>
+p You want to use AI beyond simple questions, but tools such as Skills and Cowork feel too technical. The workshop starts with the basics and guides you through each workflow step by step.
+p <b>Freelancers, Founders &amp; Business Owners</b>
+p You regularly create proposals, presentations, research, content or landing pages. Learn how to use Claude to handle more of this work without hiring a developer or adding a complicated process.
+p <b>Claude &amp; ChatGPT Users Ready For More</b>
+p You already use AI for writing and quick answers. Now you want to create reusable Skills, connect your tools, delegate multi-step tasks and produce practical work you can use.
+h1 What You Will Learn
+img M/6a021748b543ed771ed240d3.png
+h3 1. Get better results from Claude
+p Learn how Claude responds to instructions, context and examples. Write clearer prompts and choose the right model for the task, so you spend less time correcting vague or unusable answers.
+img M/6a021751a3dd25aa2a412c96.png
+h3 2. Choose the right Claude tool
+p Understand how Claude Chat, Artifacts, Skills and Cowork fit together. You will know which tool to use when you need a document, dashboard, presentation, website or repeatable workflow.
+img M/6a021759a2398e6af2d909a4.png
+h3 3. Claude Code: Boost Development &amp; Work Efficiency
+p Use plain English to create landing pages, dashboards and productivity tools, even if you have no coding background. Learn how to improve the result and publish a working website through GitHub Pages or Netlify.
+img M/6a02175e60a7a52fdc007c4e.png
+h3 4. Hand multi-step work to Claude Cowork
+p Give Cowork the relevant files and describe the finished result you need. Use it to turn receipts into expense sheets, organise research into a clear brief and handle recurring work through routines.
+img M/6a021787b543ed771ed24fc8.png
+h3 5. Connect Claude to the tools you use
+p Extend Claude with Skills and connectors. Practise a Notion workflow that researches a topic, organises the findings and saves them directly into your database, reducing the need to copy and paste between apps.
+img M/6a02176fb7ca635d75d4dfdf.png
+h3 6. Use Claude for real business work
+p Combine prompts, Skills, Cowork and connectors to complete practical work. Apply the same approach to reports, presentations, content, research and everyday office tasks after the workshop.
+#
+h1 KEY TECHNOLOGIES
+logos M/69cce5d866c8fc9a01d9b766.png,M/69cce8199fdeb3411155e7d4.png,M/69cce611c85939e4ac2afc74.png,M/6a45d10292bc8a2b6a50535d.png
+h1 COURSE FEE
+h3 Mastery Price
+p Claude AI Mastery
+price RM 680.00
+p +8% SST
+ul 1 full days of in-person intensive training‖29 December 2026 (Tue) | 9:00 AM - 5:00 PM‖AI365 Hub, Oval Damansara‖Lunch Included‖Limited seats‖<b><i>Encouraged to subscribe to Claude Pro to maximise the learning experience</i></b>
+btn Sign Up Now! https://ai.thelead.io/claude-ai-mastery-payment-form
+h3 HRDC-Claimable
+p Claude AI Mastery
+price RM 880.00
+p +8% SST
+ul 1 full days of in-person intensive training‖29 December 2026 (Tue) | 9:00 AM - 5:00 PM‖AI365 Hub, Oval Damansara‖Lunch Included‖Limited seats‖<b><i>Encouraged to subscribe to Claude Pro to maximise the learning experience</i></b>
+btn More Info #form
+#
+trainers This Claude AI Mastery is designed and led by Dr. Lau, AI Engineer, Chief Data Scientist, and Founder of LEAD.
