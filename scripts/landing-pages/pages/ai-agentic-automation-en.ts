@@ -271,8 +271,7 @@ const payment = pageOf(
       p("Fill up personal information &amp; intake", { align: "center" }),
       h3("Available intakes", { size: { d: 16 }, box: { mt: 16 } }),
       ul(INTAKES.map((i) => `${i}: RM3,200.00 + SST (8%) RM256.00 = <b>RM3,456.00</b>`)),
-      // 7-8 Dec class code is in the CRM; the 27-28 Jan class is not yet, so publishing stays blocked until it is added.
-      orderIntakes(["ai-agentic-automation-certification-2026-12-07-en", ""], "Pay now", false, { custom: [fundingField()] }),
+      orderIntakes(["ai-agentic-automation-certification-2026-12-07-en", "ai-agentic-automation-certification-2027-01-27-en"], "Pay now", false, { custom: [fundingField()] }),
       p("* Payments are non-refundable but transferable *", { align: "center", size: { d: 14 }, box: { mt: 16 } }),
     ),
   ),
