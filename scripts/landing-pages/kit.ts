@@ -3,6 +3,7 @@
 // editor can open and change afterwards; nothing is special-cased at render.
 import { makeElement, makeRow, makeSection } from "../../lib/sites/editor-state.ts";
 import type { ElementType, R } from "../../lib/sites/elements.ts";
+import type { CustomField } from "../../lib/sites/model.ts";
 import type { Element, Page, Preset, Section } from "../../lib/sites/tree.ts";
 
 // ---- LEAD course-page look (measured on ai.thelead.io, 25 Nov 2026) ----------
@@ -54,8 +55,14 @@ export const img = (src: string, alt = "", o: ElOpts & { align?: Align; link?: s
 // A fixed-height picture (icons, badges): the logos element is the only one with a height control.
 export const icon = (src: string, alt: string, height: number, o: ElOpts = {}) =>
   el("logos", { items: [{ src, alt }], height: r(height) }, o);
-export const logos = (srcs: string[], height: number, o: ElOpts = {}) =>
-  el("logos", { items: srcs.map((src) => ({ src, alt: "Logo" })), height: r(height, Math.round(height * 0.75)) }, o);
+export const logos = (srcs: string[], height: number, o: ElOpts & { marquee?: boolean; speed?: number } = {}) =>
+  el(
+    "logos",
+    { items: srcs.map((src) => ({ src, alt: "Logo" })), height: r(height, Math.round(height * 0.75)), ...(o.marquee ? { marquee: true, speed: o.speed ?? 60 } : {}) },
+    o,
+  );
+// Another page shown in a sandboxed frame (the live page only; it must allow framing).
+export const embed = (url: string, title: string, height = 480, o: ElOpts = {}) => el("embed", { mode: "url", url, html: "", height, title }, o);
 export const btn = (
   text: string,
   to: { url: string } | { form: true } | { next: true },
@@ -87,8 +94,20 @@ export const slider = (srcs: string[], o: ElOpts = {}) =>
 export const social = (items: [string, string][], o: ElOpts & { align?: Align } = {}) =>
   el("social", { items: items.map(([network, url]) => ({ network, url })), align: o.align ?? "left", size: r(16) }, o);
 export const leadForm = (settings: Record<string, unknown>, button: string, o: ElOpts = {}) => el("form", { settings, button }, o);
-export const orderForm = (classCode: string, button: string, askCompany = false, o: ElOpts = {}) =>
-  el("order", { settings: { classCode, askCompany }, button }, o);
+export const orderForm = (classCode: string, button: string, askCompany = false, o: ElOpts & { custom?: CustomField[] } = {}) =>
+  el("order", { settings: { classCode, askCompany, ...(o.custom?.length ? { custom: o.custom } : {}) }, button }, o);
+// One checkout offering several intakes; the visitor picks. A blank code keeps
+// publishing blocked until that class exists in the CRM.
+export const orderIntakes = (classCodes: string[], button: string, askCompany = false, o: ElOpts & { custom?: CustomField[] } = {}) =>
+  el("order", { settings: { classCode: "", classCodes, askCompany, ...(o.custom?.length ? { custom: o.custom } : {}) }, button }, o);
+
+// "Self-funded or HRDC": picking the HRDC answer flags the lead as HRDC-intended.
+export const HRDC_SELF = "Self-funded";
+export const HRDC_CLAIM = "Company-sponsored (HRDC claimable)";
+export const fundingField = (lang: "en" | "zh" = "en"): CustomField =>
+  lang === "zh"
+    ? { key: "funding", label: "付款方式", kind: "choice", options: ["自费", "公司赞助（HRDC 可申请）"], hrdcOption: "公司赞助（HRDC 可申请）", required: true }
+    : { key: "funding", label: "How will the fee be paid?", kind: "choice", options: [HRDC_SELF, HRDC_CLAIM], hrdcOption: HRDC_CLAIM, required: true };
 
 // ---- layout -----------------------------------------------------------------
 export type ColSpec = Element[] | { els: Element[]; bg?: string; radius?: number; pad?: number | [number, number, number, number] };
@@ -112,12 +131,13 @@ export const row = (preset: Preset, cols: ColSpec[], o: RowOpts = {}) => {
 };
 export const one = (...els: Element[]) => row("1", [els]);
 
-type SecOpts = { name: string; width?: Section["width"]; bg?: string; bgImage?: string; pt?: number; pb?: number; hide?: "d" | "m" };
+type SecOpts = { name: string; anchor?: string; width?: Section["width"]; bg?: string; bgImage?: string; pt?: number; pb?: number; hide?: "d" | "m" };
 export const sec = (o: SecOpts, ...rows: ReturnType<typeof row>[]): Section => {
   const s = makeSection(o.width ?? "wide");
   return {
     ...s,
     name: o.name,
+    ...(o.anchor ? { anchor: o.anchor } : {}),
     bg: o.bg ?? "",
     ...(o.bgImage ? { bgImage: o.bgImage } : {}),
     pt: r(o.pt ?? 64, Math.round((o.pt ?? 64) * 0.65)),

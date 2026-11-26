@@ -75,7 +75,7 @@ const schemas = {
     size: rSchema,
   }),
   logos: z.object({
-    items: z.array(imgItem).max(30),
+    items: z.array(imgItem).max(60),
     height: rSchema,
     // Scrolls the strip sideways, endlessly. `speed` = seconds per full turn.
     marquee: z.boolean().optional(),

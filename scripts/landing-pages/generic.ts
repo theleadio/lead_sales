@@ -10,9 +10,10 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  btn, C, card, faq, h1, h2, h3, icon, img, leadForm, logos, M, one, orderForm, p, pageOf, row, sec, ul,
+  btn, C, card, embed, faq, fundingField, h1, h2, h3, icon, img, leadForm, logos, M, one, orderForm, orderIntakes, p, pageOf, row, sec, ul,
   type ColSpec, type FunnelSpec, type StepSpec,
 } from "./kit.ts";
+import type { CustomField } from "../../lib/sites/model.ts";
 import type { Element } from "../../lib/sites/tree.ts";
 import { aboutLead, aboutLeadCn, footer, footerCn, header, LEAD_LOGO, trustedLogos } from "./pages/shared.ts";
 
@@ -125,7 +126,11 @@ function toElements(lines: Line[], c: Ctx, first: boolean): Element[] {
       i--;
       els.push(faq(items));
     } else if (l.k === "logos") els.push(logos(l.a.split(",").map(src), 44));
-    else if (l.k === "media") els.push(p(`Live demo: <a href="${l.a}">${l.a.replace(/^https:\/\//, "")}</a>`));
+    // A student demo: shown live in a sandboxed frame, with the link under it in case the site refuses framing.
+    else if (l.k === "media") {
+      const host = l.a.replace(/^https:\/\//, "").replace(/\/$/, "");
+      els.push(embed(l.a, `Live demo: ${host}`, 520), p(`<a href="${l.a}">Open the live demo: ${host}</a>`, { size: { d: 14 } }));
+    }
     else throw new Error(`unknown line kind ${l.k}`);
   }
   return els;
@@ -203,6 +208,8 @@ export type PageDef = {
   basePath: string; // the page's own path on ai.thelead.io
   pay?: string; // payment step path on ai.thelead.io (checkout step)
   chrome: boolean; // header, About LEAD, client logos and footer
+  hrdc?: boolean; // the course has an HRDC-claimable fee: forms and checkout ask "self-funded or HRDC"
+  sessionPick?: boolean; // the form lists the "Sessions available" bullets as tick boxes, plus in-house pax
   notes: string[];
   domain?: string;
 };
@@ -213,9 +220,24 @@ const THANKS = {
   zh: "谢谢你！课程协调员会通过 WhatsApp 联系你。",
 };
 
+// Extra questions the SalesProcess forms asked and the old builder could not.
+function extraQuestions(d: PageDef, parsed: Parsed): CustomField[] {
+  const out: CustomField[] = [];
+  if (d.sessionPick) {
+    const sessions = parsed.sections.flat().find((l, i, all) => l.k === "ul" && all[i - 1]?.a === "Sessions available");
+    const options = listItems(sessions?.a ?? "").map((x) => plain(x.replace(/<\/?li>/g, "")));
+    if (!options.length) throw new Error(`${d.slug}: no "Sessions available" list found`);
+    out.push({ key: "sessions", label: "Which sessions are you interested in?", kind: "multi", options, required: true });
+  }
+  if (d.hrdc) out.push(fundingField(d.lang));
+  if (d.sessionPick) out.push({ key: "inhousePax", label: "In-house training for your company: number of people (minimum 20)", kind: "pax" });
+  return out;
+}
+
 export function buildFunnel(d: PageDef, payments: Map<string, { title: string; sub: string; intakes: [string, number, string][] }>): FunnelSpec {
   const parsed = parse(d.file + ".txt");
   const c: Ctx = { lang: d.lang, pay: d.pay, formSettings: {} };
+  const extra = extraQuestions(d, parsed);
   const secs: ReturnType<typeof sec>[] = [];
   let formTitle = "";
   parsed.sections.forEach((lines, i) => {
@@ -235,6 +257,7 @@ export function buildFunnel(d: PageDef, payments: Map<string, { title: string; s
           type: "interest",
           formName: formTitle,
           fields: ["company"],
+          ...(extra.length ? { custom: extra } : {}),
           createDeal: true,
           after: { kind: "message", text: THANKS[d.lang] },
         },
@@ -288,15 +311,22 @@ export function buildFunnel(d: PageDef, payments: Map<string, { title: string; s
       h2(pm.title, { size: { d: 22, m: 19 } }),
       p(pm.sub, { align: "center" }),
     ];
-    intakes.forEach(([label, price, code], n) => {
-      const sst = Math.round(price * 0.08 * 100) / 100;
-      const fmt = (v: number) => v.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmt = (v: number) => v.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const priceLine = (price: number) => `RM${fmt(price)} + SST (8%) RM${fmt(Math.round(price * 0.08 * 100) / 100)} = <b>RM${fmt(Math.round(price * 1.08 * 100) / 100)}</b>`;
+    const custom = d.hrdc ? [fundingField(d.lang)] : [];
+    const pay = d.lang === "zh" ? "付款" : "Pay now";
+    if (intakes.length > 1) {
+      // One checkout, the visitor picks the intake (a blank code keeps publishing blocked until the class exists).
       blocks.push(
-        h3(label, { size: { d: 16 }, box: { mt: n ? 24 : 16 } }),
-        p(`RM${fmt(price)} + SST (8%) RM${fmt(sst)} = <b>RM${fmt(price + sst)}</b>`, { color: C.ink }),
-        orderForm(code, d.lang === "zh" ? "付款" : "Pay now"),
+        h3(d.lang === "zh" ? "可选梯次" : "Available intakes", { size: { d: 16 }, box: { mt: 16 } }),
+        ul(intakes.map(([label, price]) => `${label}: ${priceLine(price)}`)),
+        orderIntakes(intakes.map(([, , code]) => code), pay, false, { custom }),
       );
-    });
+    } else {
+      intakes.forEach(([label, price, code]) => {
+        blocks.push(h3(label, { size: { d: 16 }, box: { mt: 16 } }), p(priceLine(price), { color: C.ink }), orderForm(code, pay, false, { custom }));
+      });
+    }
     blocks.push(p(d.lang === "zh" ? "* 费用不可退还，但可转让 *" : "* Payments are non-refundable but transferable *", { align: "center", size: { d: 14 }, box: { mt: 16 } }));
     steps.push({ name: "Payment Form", kind: "checkout", path: d.pay, page: pageOf(sec({ name: "Payment", width: "small", pt: 40 }, one(...blocks))) });
   }

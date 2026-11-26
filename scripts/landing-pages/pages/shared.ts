@@ -16,7 +16,7 @@ const ABOUT_SLIDES = [
 
 export const aboutLead = () =>
   sec(
-    { name: "About LEAD" },
+    { name: "About LEAD", anchor: "about" },
     one(slider(ABOUT_SLIDES)),
     one(
       h2("About LEAD", { box: { mt: 24 } }),
@@ -39,12 +39,11 @@ const CLIENTS = [
   "69a80439618c8d7601b44056.png", "69a804392782ec92200cec2d.png", "69a80439b701fe58fc850797.png", "69a8043966ab6ebb5263b937.png",
   "69a80439618c8deae1b44051.png", "69a804392782ecd68b0cec2c.png", "69a80439618c8d8b15b4404f.png",
 ].map(M);
-// 35 client logos (SalesProcess scrolls them in a marquee). One logos element
-// holds at most 30, so they are split across two.
+// 35 client logos, scrolling in a marquee as on SalesProcess.
 export const trustedLogos = (lang: "en" | "zh" = "en") =>
   sec(
     { name: "Trusted by", pt: 32, pb: 40 },
-    one(h2(lang === "zh" ? "行业领导者信赖" : "TRUSTED BY INDUSTRY LEADERS", { color: C.purple }), logos(CLIENTS.slice(0, 30), 48), logos(CLIENTS.slice(30), 48)),
+    one(h2(lang === "zh" ? "行业领导者信赖" : "TRUSTED BY INDUSTRY LEADERS", { color: C.purple }), logos(CLIENTS, 48, { marquee: true, speed: 70 })),
   );
 
 export const TRUSTED_LOGOS = () => trustedLogos("en");
@@ -74,7 +73,7 @@ const DEFAULT_COURSES: [string, string][] = [
 
 export const aboutLeadCn = () =>
   sec(
-    { name: "About LEAD" },
+    { name: "About LEAD", anchor: "about" },
     one(slider(ABOUT_SLIDES)),
     one(
       h2("关于 LEAD 科技学院", { box: { mt: 24 } }),

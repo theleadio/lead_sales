@@ -2,7 +2,7 @@
 // https://ai.thelead.io/en/courses/ai-agentic-automation-certification and its
 // payment step on 25 Nov 2026.
 import {
-  btn, C, card, counter, faq, h1, h2, h3, icon, img, leadForm, logos, M, one, orderForm, p, pageOf, row, sec, slider,
+  btn, C, card, counter, faq, fundingField, h1, h2, h3, icon, img, leadForm, logos, M, one, orderIntakes, p, pageOf, row, sec, slider,
   social, ul, type FunnelSpec,
 } from "../kit.ts";
 import { footer, header, aboutLead, TRUSTED_LOGOS, LEAD_LOGO } from "./shared.ts";
@@ -60,7 +60,7 @@ const who = sec(
 
 const t = (title: string, body: string) => p(`<b>${title}:</b> ${body}`);
 const topics = sec(
-  { name: "Topics covered" },
+  { name: "Topics covered", anchor: "learn" },
   one(h2("TOPICS COVERED")),
   row(
     "2",
@@ -142,7 +142,7 @@ const plan = (name: string, tag: string, price: string, chip: string, perks: str
     24,
   );
 const details = sec(
-  { name: "Course details and fee" },
+  { name: "Course details and fee", anchor: "details" },
   one(h2("COURSE DETAILS")),
   row("2", [
     card([
@@ -188,7 +188,7 @@ const faqs = sec(
 );
 
 const trainers = sec(
-  { name: "Trainers" },
+  { name: "Trainers", anchor: "trainers" },
   one(h2("YOUR EXPERT TRAINERS")),
   row("2", [
     card([
@@ -222,6 +222,7 @@ const form = sec(
         type: "interest",
         formName: "AI Agentic Automation Interest Form",
         fields: ["company"],
+        custom: [fundingField()],
         createDeal: true,
         after: { kind: "message", text: "Thank you! Our course coordinator will contact you via WhatsApp." },
       },
@@ -252,7 +253,7 @@ const pieces = sec(
 );
 
 const landing = pageOf(
-  header([["What You'll Learn", "#"], ["Course Details", "#"], ["Trainers", "#"], ["About LEAD", "#"]]),
+  header([["What You'll Learn", "#learn"], ["Course Details", "#details"], ["Trainers", "#trainers"], ["About LEAD", "#about"]]),
   hero, who, topics, results, details, faqs, trainers, aboutLead(), TRUSTED_LOGOS(), form, pieces, footer(),
 );
 
@@ -268,12 +269,10 @@ const payment = pageOf(
       icon(LEAD_LOGO, "LEAD", 48),
       h2("LEAD - AI Agentic Automation Certification Payment Form", { size: { d: 22, m: 19 } }),
       p("Fill up personal information &amp; intake", { align: "center" }),
-      h3("Intake 1: " + INTAKES[0], { size: { d: 16 }, box: { mt: 16 } }),
-      p("RM3,200.00 + SST (8%) RM256.00 = <b>RM3,456.00</b>", { color: C.ink }),
-      orderForm("ai-agentic-automation-certification-2026-12-07-en", "Pay for 7-8 Dec 2026"),
-      h3("Intake 2: " + INTAKES[1], { size: { d: 16 }, box: { mt: 24 } }),
-      p("RM3,200.00 + SST (8%) RM256.00 = <b>RM3,456.00</b>", { color: C.ink }),
-      orderForm("", "Pay for 27-28 Jan 2027"),
+      h3("Available intakes", { size: { d: 16 }, box: { mt: 16 } }),
+      ul(INTAKES.map((i) => `${i}: RM3,200.00 + SST (8%) RM256.00 = <b>RM3,456.00</b>`)),
+      // 7-8 Dec class code is in the CRM; the 27-28 Jan class is not yet, so publishing stays blocked until it is added.
+      orderIntakes(["ai-agentic-automation-certification-2026-12-07-en", ""], "Pay now", false, { custom: [fundingField()] }),
       p("* Payments are non-refundable but transferable *", { align: "center", size: { d: 14 }, box: { mt: 16 } }),
     ),
   ),
