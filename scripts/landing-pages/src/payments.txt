@@ -23,9 +23,9 @@ intake Claude AI Mastery | 29 December 2026 (Tue) | 9:00 AM - 5:00 PM | AI365 Hu
 @pay /youth-vibe-coding-bootcamp-payment-form
 title LEAD - Youth Vibe Coding Bootcamp Payment Form
 sub Fill up personal information & intake
-intake Explorer – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 550 ⟂ youth-vibe-coding-bootcamp-2026-12-18-en
-intake Builder – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 680 ⟂ youth-vibe-coding-bootcamp-2026-12-18-en
-intake Young Founder VIP – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 1580 ⟂ youth-vibe-coding-bootcamp-2026-12-18-en
+intake Explorer – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 550 ⟂ youth-vibe-coding-bootcamp-2026-12-18-explorer
+intake Builder – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 680 ⟂ youth-vibe-coding-bootcamp-2026-12-18-builder
+intake Young Founder VIP – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 1580 ⟂ youth-vibe-coding-bootcamp-2026-12-18-young-founder-vip
 @pay /cn/ai-agents-foundation-form
 title AI Agent 基础认证课（中文班）报名付款
 sub 请填写个人资料并完成付款
