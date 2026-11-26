@@ -6,7 +6,7 @@ intake AI Full-Stack Building Certification (English) | 14 & 15 Dec 2026 (Mon, T
 @pay /cn/ai-full-stack-building-certification-payment-form
 title LEAD - 全栈开发认证课 付款表格
 sub 请填写个人资料与报名信息
-intake AI 全栈开发认证课 ⟂ 3200
+intake AI 全栈开发认证课 ⟂ 3200 ⟂ ai-full-stack-building-certification-2027-01-16-zh
 @pay /professional-ai-engineering-certification-payment-form
 title LEAD - Professional AI Engineering Certification Payment Form
 sub Fill up personal information & intake
@@ -30,7 +30,7 @@ intake Young Founder VIP – Youth Vibe Coding Bootcamp | 18 Dec 2026 ⟂ 1580
 @pay /cn/ai-agents-foundation-form
 title AI Agent 基础认证课（中文班）报名付款
 sub 请填写个人资料并完成付款
-intake AI Agent 基础认证课 - 2027年1月20–21日 ⟂ 2700
+intake AI Agent 基础认证课 - 2027年1月20–21日 ⟂ 2700 ⟂ ai-agents-foundation-2027-01-20-zh
 @pay /ai-agents-online-workshop-payment-form
 title LEAD - AI Agents Online Workshop Payment Form
 sub Fill up personal information & intake
@@ -38,4 +38,4 @@ intake AI Agents Online Workshop | Tue, 20 Oct 2026 | 8:00–10:00pm (MYT) | Liv
 @pay /cn/aios-workshop-payment-form
 title LEAD - AI Agents 实作课 付款表格
 sub 请填写个人资料与报名信息
-intake AI Agents 实作课 | 12月14日（一）| 7:00PM–10:00PM | Vouk Hotel Suites Penang ⟂ 228
+intake AI Agents 实作课 | 12月14日（一）| 7:00PM–10:00PM | Vouk Hotel Suites Penang ⟂ 228 ⟂ ai-agents-online-workshop-2026-12-14-zh

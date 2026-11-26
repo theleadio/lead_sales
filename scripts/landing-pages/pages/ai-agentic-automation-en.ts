@@ -273,7 +273,7 @@ const payment = pageOf(
       orderForm("ai-agentic-automation-certification-2026-12-07-en", "Pay for 7-8 Dec 2026"),
       h3("Intake 2: " + INTAKES[1], { size: { d: 16 }, box: { mt: 24 } }),
       p("RM3,200.00 + SST (8%) RM256.00 = <b>RM3,456.00</b>", { color: C.ink }),
-      orderForm("", "Pay for 27-28 Jan 2027"),
+      orderForm("ai-agentic-automation-certification-2027-01-27-en", "Pay for 27-28 Jan 2027"),
       p("* Payments are non-refundable but transferable *", { align: "center", size: { d: 14 }, box: { mt: 16 } }),
     ),
   ),
